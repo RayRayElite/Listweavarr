@@ -75,4 +75,16 @@ time, while specialized download engines remain supported.
   public identifiers, handles quoted/multiline titles, and excludes private
   runtime fields. Shared JSON remains the full-fidelity format for list covers,
   descriptions and alternate watch paths.
-- Next implementation: L2, scheduled source checks and a reviewable update queue.
+- L2/O3 first increment: opt-in daily/weekly linked-source checks, a global pause,
+  single-check concurrency, durable next-run/last-success state, retry backoff and
+  added/removed/reordered summaries in Lists / My Lists / Source updates.
+  Supported sources: Trakt, Letterboxd, MDBList, IMDb and ChronoCanon. Checks
+  reuse the supported import adapters and reject warnings rather than treating
+  uncertain results as authoritative. Article/spreadsheet/file imports remain
+  manual. Schedules run only while the application is running; missed intervals
+  produce one check, not a backlog. Review details are capped at 200 added and
+  200 removed titles. No list membership, Plex publication or downloads change.
+- Next L2 increment: staged application/undo of a checked source version, full
+  order comparison and a dedicated update queue. Current summaries guide an
+  explicit source refresh; they do not pin that later refresh to the checked
+  provider version. L3 managed publications follows that foundation.

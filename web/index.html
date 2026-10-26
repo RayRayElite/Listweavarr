@@ -78,6 +78,7 @@
               </div>
             </div>
             <div class="catalogue-sort">
+              <button id="list-updates-open" class="secondary">Source updates</button>
               <label
                 >Sort lists<select id="saved-list-sort">
                   <option value="title_asc">Title: A to Z</option>
@@ -1667,12 +1668,26 @@ episode,Pilot,,,263365,1,1</pre
         ><button id="favorites-save" class="primary" disabled>Create Favorites list</button>
       </div>
     </dialog>
+    <dialog id="list-updates-dialog" aria-labelledby="list-updates-heading">
+      <h2 id="list-updates-heading">Linked list updates</h2>
+      <p class="muted">
+        Check sources without changing your lists, Plex playlists or downloads. Schedules run while
+        Listweavarr is running. Saved files and article/spreadsheet imports are not scheduled yet.
+      </p>
+      <button id="list-updates-pause" class="secondary">Pause scheduled checks</button>
+      <p id="list-updates-status" role="status"></p>
+      <div id="list-updates-rows"></div>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="list-updates-dialog">Close</button>
+      </div>
+    </dialog>
     <div id="toast" role="status" hidden></div>
     <script src="/app.js"></script>
     <script src="/trakt.js"></script>
     <script src="/enrichment.js"></script>
     <script src="/explore.js"></script>
     <script src="/lists.js"></script>
+    <script src="/list-updates.js"></script>
     <script src="/taste.js"></script>
     <script src="/collection-tools.js"></script>
     <script src="/builder.js"></script>

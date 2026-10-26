@@ -4930,8 +4930,29 @@ header {
 }
 .catalogue-sort {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
   justify-content: flex-end;
   margin: 0 0 20px;
+}
+#list-updates-dialog {
+  max-width: 900px;
+}
+#list-updates-rows {
+  display: grid;
+  gap: 16px;
+}
+#list-updates-rows article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+#list-updates-rows h3 {
+  margin-top: 0;
+}
+#list-updates-rows select {
+  max-width: 240px;
 }
 .catalogue-sort label {
   display: flex;

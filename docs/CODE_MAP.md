@@ -23,6 +23,7 @@ A typical change follows this path:
 | [explore.py](../explore.py) | Library-aware discovery shelves and public list browsing. | `library`, `title_key`, `normalized_title`, `ownership`, `card`, `qualifies` |
 | [saved_lists.py](../saved_lists.py) | Validated edits to personal collections. | `revision`, `poster`, `edit`, `identity_keys`, `update_entries` |
 | [list_sharing.py](../list_sharing.py) | Portable list interchange without private runtime state. | `digest`, `export`, `validate` |
+| [list_updates.py](../list_updates.py) | Read-only linked-source differences and opt-in scheduling. | `fingerprint`, `summarize`, `due`, `finish`, `public`; orchestration in `app.check_linked_list` |
 | [official_lists.py](../official_lists.py) | Versioned Official catalogue authoring and personal-copy creation. | `prepare_publish`, `write_document`, `document`, `catalogue`, `get`, `instantiate` |
 | [collection_tools.py](../collection_tools.py) | Collection diagnostics and reviewable version merges. | `portable`, `snapshot`, `key`, `indexed`, `health`, `preview` |
 | [catalogue_feed.py](../catalogue_feed.py) | Public catalogue download, manifest checks and staged installation. | `digest`, `source_url`, `download`, `validate`, `compare_content`, `merge` |
@@ -54,6 +55,7 @@ runtime_config.py owns data paths, host allowlists, public URL and local curator
 | web/index.html | Persistent shell IDs, dialogs and script load order |
 | web/app.js | Shared state, entry rendering, API helper, metadata loading, title and request dialogs |
 | web/lists.js | Personal catalogue, editor, sharing, list covers and local Official publication |
+| web/list-updates.js | Source-update summaries, manual checks and opt-in daily/weekly scheduling |
 | web/explore.js | Discovery shelves, filters, list searches and selection routing |
 | web/trakt.js | List previews, followed calendar and title-related discovery |
 | web/workbench.js | Workbench actions, creator follows, planning and watch-path editing |

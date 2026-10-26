@@ -35,6 +35,7 @@ import discord_notify
 import manager_routes
 import request_ledger
 import list_sharing
+import list_updates
 import text_list_builder
 import saved_lists
 import release_watch
@@ -57,6 +58,74 @@ LOCK = threading.Lock()
 SESSION = secrets.token_urlsafe(32)
 JOBS = {}
 JOBS_LOCK = threading.Lock()
+LIST_UPDATE_LOCK = threading.Lock()
+LIST_UPDATE_RUNNING = None
+
+
+def check_linked_list(list_id=None):
+    """Check one source at a time; never hold LOCK across provider requests."""
+    global LIST_UPDATE_RUNNING
+    if not LIST_UPDATE_LOCK.acquire(blocking=False):
+        raise ValueError(
+            "A source check is already running. Try again when it finishes."
+        )
+    try:
+        with LOCK:
+            snapshot = read_state()
+        entry = (
+            next((e for e in snapshot["lists"] if e["id"] == list_id), None)
+            if list_id
+            else list_updates.due(snapshot, time.time())
+        )
+        if not entry:
+            if list_id:
+                raise ValueError("Choose an existing linked list.")
+            return
+        if not list_updates.supported(entry):
+            raise ValueError("This source does not support scheduled checks yet.")
+        LIST_UPDATE_RUNNING = entry["id"]
+        original = list_updates.fingerprint(entry)
+        result = None
+        warning = False
+        deadline = time.monotonic() + 300
+
+        def checkpoint(*args):
+            if time.monotonic() > deadline:
+                raise TimeoutError("Source check exceeded its processing budget.")
+
+        try:
+            imported = providers.import_url(
+                entry["source"], progress=checkpoint, settings=snapshot["settings"]
+            )
+            if imported.get("warnings"):
+                warning = True
+                raise ValueError(
+                    "The provider returned an incomplete or uncertain list."
+                )
+            rows = []
+            for row in imported["items"]:
+                checkpoint()
+                rows.append(normalize(providers.enrich(row, snapshot["settings"])))
+            rows = providers.arrange_import(
+                rows, providers.import_options(entry.get("import_options"))
+            )
+            result = list_updates.summarize(entry["items"], rows)
+        except Exception:
+            # Provider exceptions may include credential-bearing URLs: store a safe message.
+            pass
+        with LOCK:
+            latest = read_state()
+            saved = next((e for e in latest["lists"] if e["id"] == entry["id"]), None)
+            if saved and list_updates.fingerprint(saved) == original:
+                list_updates.finish(saved, time.time(), result, warning=warning)
+                save_state(latest)
+        if result is None and list_id:
+            raise ValueError(
+                "Source check failed. Verify the provider connection and try again."
+            )
+    finally:
+        LIST_UPDATE_RUNNING = None
+        LIST_UPDATE_LOCK.release()
 
 
 # ============================================================================
@@ -164,6 +233,7 @@ def start_import_job(body):
                             "This list changed during import. Retry from its current version."
                         )
                     for field in (
+                        "update_schedule",
                         "poster",
                         "description",
                         "official_id",
@@ -414,6 +484,18 @@ def start_background_tasks():
 
     threading.Thread(
         target=run, daemon=True, name="Listweavarr-status-notifications"
+    ).start()
+
+    def source_checks():
+        stop = threading.Event()
+        while not stop.wait(30):
+            try:
+                check_linked_list()
+            except Exception:
+                pass
+
+    threading.Thread(
+        target=source_checks, daemon=True, name="Listweavarr-list-checks"
     ).start()
 
 
@@ -2203,6 +2285,7 @@ class Handler(BaseHTTPRequestHandler):
             "/discovery-updates.js": "discovery-updates.js",
             "/navigation.js": "navigation.js",
             "/lists.js": "lists.js",
+            "/list-updates.js": "list-updates.js",
             "/requests.js": "requests.js",
             "/workflow.js": "workflow.js",
             "/builder.js": "builder.js",
@@ -2249,12 +2332,48 @@ class Handler(BaseHTTPRequestHandler):
             ):
                 raise ValueError("Request too large.")
             body = json.loads(self.rfile.read(length))
+            if self.path.startswith("/api/list-updates/"):
+                action = self.path.rsplit("/", 1)[-1]
+                if action == "check":
+                    if not body.get("list_id"):
+                        raise ValueError("Choose a linked list to check.")
+                    check_linked_list(body["list_id"])
+                with LOCK:
+                    state = read_state()
+                    if action == "pause":
+                        if not isinstance(body.get("paused"), bool):
+                            raise ValueError("Choose pause or resume.")
+                        state["list_update_scheduler"] = {"paused": body["paused"]}
+                        save_state(state)
+                    elif action == "schedule":
+                        interval = body.get("interval")
+                        if interval not in ("off", "daily", "weekly"):
+                            raise ValueError("Choose off, daily or weekly.")
+                        entry = next(
+                            (
+                                e
+                                for e in state["lists"]
+                                if e["id"] == body.get("list_id")
+                            ),
+                            None,
+                        )
+                        if not entry or not list_updates.supported(entry):
+                            raise ValueError("Choose a supported linked list.")
+                        entry.setdefault("update_schedule", {}).update(
+                            interval=interval,
+                            next_run=time.time()
+                            + list_updates.INTERVALS.get(interval, 86400),
+                        )
+                        save_state(state)
+                    elif action not in ("status", "check"):
+                        raise ValueError("Unknown list update action.")
+                    return self.respond(list_updates.public(state, LIST_UPDATE_RUNNING))
             if self.path.startswith("/api/backup/"):
                 action = self.path.rsplit("/", 1)[-1]
                 with LOCK:
                     snapshot = read_state()
                 folder = DATA / "backups"
-                if action in ("export", "csv"):
+                if action == "export":
                     return self.respond(backups.export(snapshot))
                 if action == "list":
                     return self.respond(
@@ -2830,7 +2949,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond({"deleted_id": entry["id"]})
             if self.path.startswith("/api/lists/share/"):
                 action = self.path.rsplit("/", 1)[-1]
-                if action == "export":
+                if action in ("export", "csv"):
                     with LOCK:
                         snapshot = read_state()
                     entry = next(

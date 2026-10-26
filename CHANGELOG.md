@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Linked source-update panel with opt-in daily/weekly read-only checks, pause,
+  retry backoff, change summaries and stale-result protection. Incomplete or
+  uncertain provider responses do not imply removals. No automatic list edits,
+  Plex changes or acquisition requests.
+- Fixed CSV export routing and added end-to-end HTTP coverage.
+
 ## 0.5.0 - 2026-10-26
 
 - Rename the application to Listweavarr; retain legacy shared files and local browser preferences.

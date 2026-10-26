@@ -1249,6 +1249,16 @@ vm.runInContext(
   assert.match(followsMarkup, /Actor \/ cast/);
   assert.match(followsMarkup, /data-work-follow-role="206"/);
   assert.match(followsMarkup, /projects\/person\/206/);
+  vm.runInContext(fs.readFileSync('web/list-updates.js', 'utf8'), context);
+  vm.runInContext(
+    `renderLinkedUpdates({paused:true,running:null,lists:[{id:'linked',name:'Safe <name>',schedule:{interval:'daily',last_error:'Provider <error>'},review:{changed:true,added:2,removed:1,reordered:true,added_items:[{title:'New <title>',show_title:'Series',season:1,episode:2}],removed_items:[]}}]})`,
+    context
+  );
+  assert.match(element('list-updates-rows').innerHTML, /Safe &lt;name&gt;/);
+  assert.match(element('list-updates-rows').innerHTML, /2 added \/ 1 removed/);
+  assert.match(element('list-updates-rows').innerHTML, /order changed/);
+  assert.match(element('list-updates-rows').innerHTML, /S1 E2/);
+  assert.equal(element('list-updates-pause').textContent, 'Resume scheduled checks');
   console.log(
     'UI checks passed, including catalogue delivery, Workbench, paths, taste and maintenance.'
   );
