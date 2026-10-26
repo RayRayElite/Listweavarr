@@ -22,6 +22,58 @@ def entry():
 
 
 class ListUpdateTests(unittest.TestCase):
+    def test_apply_exact_snapshot_preserves_ids_paths_and_runtime_then_undo(self):
+        row = entry()
+        first = row["items"][0]
+        first["status"] = "available"
+        row["items"].append(
+            {"id": "remove", "type": "movie", "title": "Removed", "tmdb": "3"}
+        )
+        row["watch_paths"] = {"essential": ["one", "remove"]}
+        original = copy.deepcopy(row["items"])
+        incoming = [{"type": "movie", "title": "New", "tmdb": "2"}, first]
+        list_updates.stage(row, incoming, "provider-v2", 1)
+        token = row["update_pending"]["token"]
+        proposed = list_updates.preview(row, token)
+        self.assertIsNone(proposed["items"][0]["previous_position"])
+        self.assertEqual(proposed["items"][1]["previous_position"], 1)
+        incoming[0]["title"] = "Changed elsewhere"
+        list_updates.apply(row, token, 2, app.normalize)
+        self.assertEqual(row["items"][0]["title"], "New")
+        self.assertEqual(row["items"][1]["id"], "one")
+        self.assertEqual(row["watch_paths"]["essential"], ["one"])
+        row["description"] = "Keep my description"
+        row["items"][1]["status"] = "fresh-runtime-status"
+        list_updates.undo(row, row["source_update_undo"]["token"], 3)
+        self.assertEqual([x["id"] for x in row["items"]], ["one", "remove"])
+        self.assertEqual(row["items"][0]["status"], "fresh-runtime-status")
+        self.assertEqual(row["description"], "Keep my description")
+        self.assertEqual(row["watch_paths"]["essential"], ["one", "remove"])
+        self.assertNotIn("source_version", row)
+        self.assertNotIn("source_update_undo", row)
+
+    def test_stale_tokens_and_intervening_edits_rejected(self):
+        row = entry()
+        list_updates.stage(row, [], None, 1)
+        with self.assertRaises(ValueError):
+            list_updates.apply(row, "wrong", 2, app.normalize)
+        token = row["update_pending"]["token"]
+        row["items"][0]["title"] = "User correction"
+        with self.assertRaises(ValueError):
+            list_updates.apply(row, token, 2, app.normalize)
+        list_updates.stage(row, [], None, 3)
+        list_updates.apply(row, row["update_pending"]["token"], 4, app.normalize)
+        token = row["source_update_undo"]["token"]
+        row["source"] = "https://trakt.tv/users/other/lists/different"
+        with self.assertRaises(ValueError):
+            list_updates.undo(row, token, 5)
+
+    def test_failed_recheck_invalidates_pending_snapshot(self):
+        row = entry()
+        list_updates.stage(row, [], None, 1)
+        list_updates.finish(row, 2)
+        self.assertNotIn("update_pending", row)
+
     def test_occurrences_and_reorder(self):
         a = entry()["items"][0]
         b = {**a, "tmdb": "2"}
@@ -130,6 +182,40 @@ class ListUpdateTests(unittest.TestCase):
                 )
                 with urllib.request.urlopen(req) as response:
                     self.assertIn("First", json.load(response)["csv"])
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_http_review_apply_undo_without_provider_fetch(self):
+        state = {"lists": [entry()], "settings": {}}
+        row = state["lists"][0]
+        list_updates.stage(row, [], "new-version", 1)
+        token = row["update_pending"]["token"]
+        server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+
+        def post(action, token):
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/api/list-updates/{action}",
+                data=json.dumps({"list_id": "list", "token": token}).encode(),
+                headers={"Host": "127.0.0.1:8765", "X-Listweavarr-Token": app.SESSION},
+            )
+            with urllib.request.urlopen(request) as response:
+                return json.load(response)
+
+        try:
+            with patch("app.read_state", return_value=state), patch(
+                "app.save_state"
+            ) as save, patch("app.providers.import_url") as fetch:
+                self.assertEqual(post("preview", token)["items"], [])
+                self.assertFalse(save.called)
+                result = post("apply", token)
+                self.assertEqual(result["workspace"]["lists"][0]["items"], [])
+                result = post("undo", result["lists"][0]["undo_token"])
+                self.assertEqual(
+                    result["workspace"]["lists"][0]["items"][0]["id"], "one"
+                )
+                fetch.assert_not_called()
         finally:
             server.shutdown()
             server.server_close()

@@ -84,7 +84,11 @@ time, while specialized download engines remain supported.
   manual. Schedules run only while the application is running; missed intervals
   produce one check, not a backlog. Review details are capped at 200 added and
   200 removed titles. No list membership, Plex publication or downloads change.
-- Next L2 increment: staged application/undo of a checked source version, full
-  order comparison and a dedicated update queue. Current summaries guide an
-  explicit source refresh; they do not pin that later refresh to the checked
-  provider version. L3 managed publications follows that foundation.
+- L2 second increment: checked changes are pinned locally. Review exact update
+  shows the proposed order with previous positions and incremental rendering,
+  then Apply changes only that saved list. Retained IDs, runtime status, display
+  metadata and surviving watch paths are preserved. One source-update undo is
+  available while the list's curation remains unchanged; metadata/status refreshes
+  do not block undo. Failed rechecks invalidate pending snapshots. Plex and
+  downloads remain separate actions. Applying never refetches the provider.
+- Next: L3 managed Plex publications, building on pinned/reviewed list versions.

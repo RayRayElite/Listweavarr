@@ -118,6 +118,10 @@ def check_linked_list(list_id=None):
             saved = next((e for e in latest["lists"] if e["id"] == entry["id"]), None)
             if saved and list_updates.fingerprint(saved) == original:
                 list_updates.finish(saved, time.time(), result, warning=warning)
+                if result and result["changed"]:
+                    list_updates.stage(
+                        saved, rows, imported.get("source_version"), time.time()
+                    )
                 save_state(latest)
         if result is None and list_id:
             raise ValueError(
@@ -2365,9 +2369,34 @@ class Handler(BaseHTTPRequestHandler):
                             + list_updates.INTERVALS.get(interval, 86400),
                         )
                         save_state(state)
+                    elif action in ("preview", "apply", "undo"):
+                        entry = next(
+                            (
+                                e
+                                for e in state["lists"]
+                                if e["id"] == body.get("list_id")
+                            ),
+                            None,
+                        )
+                        if not entry:
+                            raise ValueError("Choose an existing list.")
+                        if action == "preview":
+                            return self.respond(
+                                list_updates.preview(entry, body.get("token"))
+                            )
+                        if action == "apply":
+                            list_updates.apply(
+                                entry, body.get("token"), time.time(), normalize
+                            )
+                        else:
+                            list_updates.undo(entry, body.get("token"), time.time())
+                        save_state(state)
                     elif action not in ("status", "check"):
                         raise ValueError("Unknown list update action.")
-                    return self.respond(list_updates.public(state, LIST_UPDATE_RUNNING))
+                    result = list_updates.public(state, LIST_UPDATE_RUNNING)
+                    if action in ("apply", "undo"):
+                        result["workspace"] = public_state(state)
+                    return self.respond(result)
             if self.path.startswith("/api/backup/"):
                 action = self.path.rsplit("/", 1)[-1]
                 with LOCK:

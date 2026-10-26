@@ -1,15 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Read-only linked-list checks and durable opt-in scheduling.
+"""Linked-list checks, pinned source updates and durable opt-in scheduling.
 
 Provider calls belong outside the application state lock. Results are committed
 only if the original source and content fingerprint still match. Checking never
 refreshes list membership or sends requests to Plex or download managers.
+Explicit apply/undo operations affect only the local saved list.
 """
 import hashlib
 import json
+import copy
+import secrets
 from urllib.parse import urlsplit
 
 import collection_tools
+import list_sharing
 
 HOSTS = {
     "trakt.tv",
@@ -38,6 +42,7 @@ def fingerprint(entry):
             [
                 entry.get("source"),
                 entry.get("import_options"),
+                entry.get("watch_paths"),
                 [collection_tools.portable(row) for row in entry["items"]],
             ],
             sort_keys=True,
@@ -87,6 +92,7 @@ def due(state, now):
 
 
 def finish(entry, now, result=None, warning=False):
+    entry.pop("update_pending", None)
     schedule = entry.setdefault("update_schedule", {})
     if result is None:
         schedule["failures"] = min(schedule.get("failures", 0) + 1, 8)
@@ -107,6 +113,123 @@ def finish(entry, now, result=None, warning=False):
     schedule["last_attempt"] = now
 
 
+def stage(entry, rows, source_version, now):
+    """Pin reviewed public content; applying must never refetch the provider."""
+    entry["update_pending"] = {
+        "token": secrets.token_hex(16),
+        "base": fingerprint(entry),
+        "items": [collection_tools.portable(row) for row in rows],
+        "source_version": source_version,
+        "checked_at": now,
+    }
+
+
+def preview(entry, token):
+    pending = entry.get("update_pending")
+    if (
+        not pending
+        or pending["token"] != token
+        or pending["base"] != fingerprint(entry)
+    ):
+        raise ValueError("This source preview is stale. Check the list again.")
+    positions = {
+        identity: index
+        for index, (identity, _) in enumerate(
+            collection_tools.indexed(entry["items"]), 1
+        )
+    }
+    return {
+        "token": token,
+        "items": [
+            {**row, "previous_position": positions.get(identity)}
+            for identity, row in collection_tools.indexed(pending["items"])
+        ],
+    }
+
+
+def apply(entry, token, now, normalize):
+    pending = entry.get("update_pending")
+    if (
+        not pending
+        or token != pending["token"]
+        or pending["base"] != fingerprint(entry)
+    ):
+        raise ValueError(
+            "This source preview is stale. Check the list again before applying."
+        )
+    before = copy.deepcopy(entry)
+    previous = dict(collection_tools.indexed(entry["items"]))
+    rows = []
+    for identity, value in collection_tools.indexed(pending["items"]):
+        old = previous.get(identity)
+        rows.append({**old, **value} if old else normalize(value))
+    entry["items"] = rows
+    valid = {row["id"] for row in rows}
+    if "watch_paths" in entry:
+        entry["watch_paths"] = {
+            name: [ident for ident in ids if ident in valid]
+            for name, ids in entry["watch_paths"].items()
+        }
+    if pending.get("source_version"):
+        entry["source_version"] = pending["source_version"]
+    entry["updated_at"] = now
+    entry.pop("update_pending", None)
+    entry["update_review"] = {
+        "changed": False,
+        "added": 0,
+        "removed": 0,
+        "reordered": False,
+        "checked_at": now,
+        "applied_at": now,
+    }
+    entry.pop("source_check", None)
+    entry["source_update_undo"] = {
+        "items": before["items"],
+        "watch_paths": before.get("watch_paths"),
+        "source_version": before.get("source_version"),
+        "after": fingerprint(entry),
+        "token": secrets.token_hex(16),
+    }
+
+
+def undo(entry, token, now):
+    previous = entry.get("source_update_undo")
+    if (
+        not previous
+        or token != previous["token"]
+        or previous["after"] != fingerprint(entry)
+    ):
+        raise ValueError(
+            "This list changed since the source update. Undo cannot overwrite later edits."
+        )
+    current = {row["id"]: row for row in entry["items"]}
+    # Keep fresh availability/watch flags while restoring the original curation.
+    entry["items"] = [
+        {
+            **row,
+            **{
+                key: value
+                for key, value in current.get(row["id"], {}).items()
+                if key not in list_sharing.FIELDS and key != "id"
+            },
+        }
+        for row in previous["items"]
+    ]
+    for field in ("watch_paths", "source_version"):
+        if previous[field] is None:
+            entry.pop(field, None)
+        else:
+            entry[field] = previous[field]
+    entry["updated_at"] = now
+    for field in (
+        "source_update_undo",
+        "update_pending",
+        "update_review",
+        "source_check",
+    ):
+        entry.pop(field, None)
+
+
 def public(state, running=None):
     return {
         "paused": bool(state.get("list_update_scheduler", {}).get("paused")),
@@ -117,6 +240,18 @@ def public(state, running=None):
                 "name": e["name"],
                 "schedule": e.get("update_schedule", {}),
                 "review": e.get("update_review"),
+                "apply_token": (
+                    e["update_pending"]["token"]
+                    if e.get("update_pending")
+                    and e["update_pending"]["base"] == fingerprint(e)
+                    else None
+                ),
+                "undo_token": (
+                    e["source_update_undo"]["token"]
+                    if e.get("source_update_undo")
+                    and e["source_update_undo"]["after"] == fingerprint(e)
+                    else None
+                ),
             }
             for e in state.get("lists", [])
             if supported(e)

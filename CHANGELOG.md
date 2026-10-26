@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Apply the exact reviewed linked-source snapshot and undo its last application.
+  Review the complete proposed order in increments, with previous-position
+  markers. Stale previews and undo after intervening content edits are rejected.
+
 - Linked source-update panel with opt-in daily/weekly read-only checks, pause,
   retry backoff, change summaries and stale-result protection. Incomplete or
   uncertain provider responses do not imply removals. No automatic list edits,

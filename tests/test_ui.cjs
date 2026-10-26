@@ -1259,6 +1259,14 @@ vm.runInContext(
   assert.match(element('list-updates-rows').innerHTML, /order changed/);
   assert.match(element('list-updates-rows').innerHTML, /S1 E2/);
   assert.equal(element('list-updates-pause').textContent, 'Resume scheduled checks');
+  const pinnedOrder = vm.runInContext(
+    `linkedOrderPreviews.set('test', {token:'checked-token',visible:100,items:[{title:'New <title>',previous_position:null},{title:'Existing',previous_position:4}]});linkedOrderMarkup('test')`,
+    context
+  );
+  assert.match(pinnedOrder, /New &lt;title&gt;/);
+  assert.match(pinnedOrder, /previously #4/);
+  assert.match(pinnedOrder, /data-token="checked-token"/);
+  assert.match(pinnedOrder, /Apply this checked version/);
   console.log(
     'UI checks passed, including catalogue delivery, Workbench, paths, taste and maintenance.'
   );
