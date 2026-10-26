@@ -36,5 +36,8 @@ jobs:
       - run: python scripts/smoke_container.py seed
       - run: docker restart listweavarr-ci
       - run: python scripts/smoke_container.py verify
+      - run: docker rm -f listweavarr-ci
+      - run: docker run -d --name listweavarr-ci -p 127.0.0.1:8765:8765 -v listweavarr-ci-data:/config --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges listweavarr:ci
+      - run: python scripts/smoke_container.py verify
       - if: always()
         run: docker logs listweavarr-ci
