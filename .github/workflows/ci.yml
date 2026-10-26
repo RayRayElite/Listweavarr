@@ -1,0 +1,40 @@
+name: CI
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest discover -s tests -q
+      - run: node tests/test_ui.cjs
+      - run: python scripts/check_frontend.py
+      - run: python scripts/check_release.py
+      - run: python scripts/build_release.py
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build -t listweavarr:ci .
+      - run: docker run -d --name listweavarr-ci -p 127.0.0.1:8765:8765 -v listweavarr-ci-data:/config --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges listweavarr:ci
+      - run: python scripts/smoke_container.py seed
+      - run: docker restart listweavarr-ci
+      - run: python scripts/smoke_container.py verify
+      - if: always()
+        run: docker logs listweavarr-ci

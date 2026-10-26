@@ -1,9 +1,91 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /* Deliberate feedback in title details; compact cards keep their existing menu. */
-function tasteControls(kind,id,parent=false){const saved=(state.taste_feedback||{})[kind+':'+id]?.value;return `<details class="title-taste" data-taste-title="${esc(id)}" data-taste-type="${esc(kind)}"><summary>Your taste${saved?' / '+esc({like:'More like this',favorite:'Favorite',dislike:'Less like this'}[saved]):''}</summary><p class="muted">${parent?'Applies to the whole show. ':''}Shape personal suggestions without hiding titles or changing your Plex rating.</p><div class="taste-actions">${[['like','More like this'],['favorite','Favorite'],['dislike','Less like this']].map(([value,label])=>`<button class="secondary" data-taste-value="${value}" aria-pressed="${saved===value}">${label}</button>`).join('')}${saved?'<button class="text-action" data-taste-value="clear">Clear feedback</button>':''}</div><p class="taste-status muted" role="status"></p></details>`;}
-function whyThisMarkup(kind,id){const row=exploreRows.find(value=>value.type===kind&&String(value.tmdb)===String(id));if(!row?.reasons?.length)return '';return `<details class="title-why"><summary>Why this was suggested</summary><ul>${[...new Set(row.reasons)].slice(0,6).map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul><p class="muted">These are matching signals, not a guarantee you will like it. Shared themes and recommendations do not confirm a shared franchise.</p></details>`;}
-const renderTitleBeforeTaste=renderTitle;
-renderTitle=function(item,metadata){renderTitleBeforeTaste(item,metadata);const kind=metadata.related_type,id=metadata.related_id;if(!['movie','show'].includes(kind)||!/^\d+$/.test(id||''))return;const slot=$('title-content').querySelector('.title-links');slot?.insertAdjacentHTML('afterend',tasteControls(kind,id,['episode','season'].includes(item.type))+whyThisMarkup(kind,id));};
-function drawTasteFeedback(){const items=Object.values(state.taste_feedback||{}).sort((a,b)=>b.updated_at-a.updated_at);$('taste-feedback-items').innerHTML=items.length?items.map(row=>`<div class="taste-feedback-row"><div><button class="title-link" data-taste-open="${esc(row.tmdb)}" data-taste-type="${esc(row.type)}">${esc(row.title)}</button><small>${esc({like:'More like this',favorite:'Favorite',dislike:'Less like this'}[row.value])} / ${row.type==='show'?'TV':'Movie'}</small></div><button class="text-action" data-taste-clear="${esc(row.tmdb)}" data-taste-type="${esc(row.type)}" aria-label="Clear feedback for ${esc(row.title)}">Clear</button></div>`).join(''):'<p class="muted">No saved feedback. Open a title and expand Your taste to start.</p>';}
-$('taste-manage').onclick=drawTasteFeedback;
-async function saveTaste(kind,id,value){const result=await api('taste/set',{type:kind,tmdb:id,value});state.taste_feedback=result.items;exploreHomeLoaded=false;++exploreHomeSequence;$('explore-refresh').disabled=false;drawTasteFeedback();}
-document.addEventListener('click',e=>{const input=e.target.closest('[data-taste-value]'),clear=e.target.closest('[data-taste-clear]'),open=e.target.closest('[data-taste-open]');if(open){openExternalTitle(open.dataset.tasteType,open.dataset.tasteOpen);return;}if(clear){task(clear,async()=>{await saveTaste(clear.dataset.tasteType,clear.dataset.tasteClear,'clear');toast('Taste feedback cleared. Refresh Explore to update suggestions.');});return;}if(!input)return;const panel=input.closest('[data-taste-title]');if(!panel)return;task(input,async()=>{try{await saveTaste(panel.dataset.tasteType,panel.dataset.tasteTitle,input.dataset.tasteValue);panel.outerHTML=tasteControls(panel.dataset.tasteType,panel.dataset.tasteTitle);toast('Taste saved. Refresh Explore to update suggestions.');}catch(error){panel.querySelector('.taste-status').textContent=error.message;}});});
+function tasteControls(kind, id, parent = false) {
+  const saved = (state.taste_feedback || {})[kind + ':' + id]?.value;
+  return `<details class="title-taste" data-taste-title="${esc(id)}" data-taste-type="${esc(kind)}"><summary>Your taste${saved ? ' / ' + esc({ like: 'More like this', favorite: 'Favorite', dislike: 'Less like this' }[saved]) : ''}</summary><p class="muted">${parent ? 'Applies to the whole show. ' : ''}Shape personal suggestions without hiding titles or changing your Plex rating.</p><div class="taste-actions">${[
+    ['like', 'More like this'],
+    ['favorite', 'Favorite'],
+    ['dislike', 'Less like this'],
+  ]
+    .map(
+      ([value, label]) =>
+        `<button class="secondary" data-taste-value="${value}" aria-pressed="${saved === value}">${label}</button>`
+    )
+    .join(
+      ''
+    )}${saved ? '<button class="text-action" data-taste-value="clear">Clear feedback</button>' : ''}</div><p class="taste-status muted" role="status"></p></details>`;
+}
+function whyThisMarkup(kind, id) {
+  const row = exploreRows.find((value) => value.type === kind && String(value.tmdb) === String(id));
+  if (!row?.reasons?.length) return '';
+  return `<details class="title-why"><summary>Why this was suggested</summary><ul>${[
+    ...new Set(row.reasons),
+  ]
+    .slice(0, 6)
+    .map((reason) => `<li>${esc(reason)}</li>`)
+    .join(
+      ''
+    )}</ul><p class="muted">These are matching signals, not a guarantee you will like it. Shared themes and recommendations do not confirm a shared franchise.</p></details>`;
+}
+const renderTitleBeforeTaste = renderTitle;
+renderTitle = function (item, metadata) {
+  renderTitleBeforeTaste(item, metadata);
+  const kind = metadata.related_type,
+    id = metadata.related_id;
+  if (!['movie', 'show'].includes(kind) || !/^\d+$/.test(id || '')) return;
+  const slot = $('title-content').querySelector('.title-links');
+  slot?.insertAdjacentHTML(
+    'afterend',
+    tasteControls(kind, id, ['episode', 'season'].includes(item.type)) + whyThisMarkup(kind, id)
+  );
+};
+function drawTasteFeedback() {
+  const items = Object.values(state.taste_feedback || {}).sort(
+    (a, b) => b.updated_at - a.updated_at
+  );
+  $('taste-feedback-items').innerHTML = items.length
+    ? items
+        .map(
+          (row) =>
+            `<div class="taste-feedback-row"><div><button class="title-link" data-taste-open="${esc(row.tmdb)}" data-taste-type="${esc(row.type)}">${esc(row.title)}</button><small>${esc({ like: 'More like this', favorite: 'Favorite', dislike: 'Less like this' }[row.value])} / ${row.type === 'show' ? 'TV' : 'Movie'}</small></div><button class="text-action" data-taste-clear="${esc(row.tmdb)}" data-taste-type="${esc(row.type)}" aria-label="Clear feedback for ${esc(row.title)}">Clear</button></div>`
+        )
+        .join('')
+    : '<p class="muted">No saved feedback. Open a title and expand Your taste to start.</p>';
+}
+$('taste-manage').onclick = drawTasteFeedback;
+async function saveTaste(kind, id, value) {
+  const result = await api('taste/set', { type: kind, tmdb: id, value });
+  state.taste_feedback = result.items;
+  exploreHomeLoaded = false;
+  ++exploreHomeSequence;
+  $('explore-refresh').disabled = false;
+  drawTasteFeedback();
+}
+document.addEventListener('click', (e) => {
+  const input = e.target.closest('[data-taste-value]'),
+    clear = e.target.closest('[data-taste-clear]'),
+    open = e.target.closest('[data-taste-open]');
+  if (open) {
+    openExternalTitle(open.dataset.tasteType, open.dataset.tasteOpen);
+    return;
+  }
+  if (clear) {
+    task(clear, async () => {
+      await saveTaste(clear.dataset.tasteType, clear.dataset.tasteClear, 'clear');
+      toast('Taste feedback cleared. Refresh Explore to update suggestions.');
+    });
+    return;
+  }
+  if (!input) return;
+  const panel = input.closest('[data-taste-title]');
+  if (!panel) return;
+  task(input, async () => {
+    try {
+      await saveTaste(panel.dataset.tasteType, panel.dataset.tasteTitle, input.dataset.tasteValue);
+      panel.outerHTML = tasteControls(panel.dataset.tasteType, panel.dataset.tasteTitle);
+      toast('Taste saved. Refresh Explore to update suggestions.');
+    } catch (error) {
+      panel.querySelector('.taste-status').textContent = error.message;
+    }
+  });
+});

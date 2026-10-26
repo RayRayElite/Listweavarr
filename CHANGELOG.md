@@ -1,4 +1,14 @@
-# ReelCheck 0.4.0 release candidate
+# Changelog
+
+## 0.5.0 - 2026-10-26
+
+- Rename the application to Listweavarr; retain legacy shared files and local browser preferences.
+- Add non-root persistent Docker deployment with configurable host validation.
+- Separate redistributable catalogue data from private runtime files and artwork.
+- Add contributor guides, code references, automated tests and container smoke checks.
+- Establish AGPLv3 source licensing and Git version history.
+
+# Listweavarr 0.4.0 release candidate
 
 Verified 2026-10-23 (America/Toronto).
 
@@ -15,4 +25,4 @@ The Halloween list imports Salem's Lot (IMDb tt0079844) and Over the Garden Wall
 
 The external ChronoCanon Pok?mon sample retains 47 entries but reports 48 matching/scope warnings. Its unresolved items need review before acquisition. Third-party episode and season ordering can require explicit provider identifiers; an unresolved segment never authorizes a whole-show download.
 
-Ratings, release dates and discovery coverage depend on upstream providers and account quotas. Release notices are in-app and only check while ReelCheck is opened/running. The app remains a local personal tool, not an unattended download service.
+Ratings, release dates and discovery coverage depend on upstream providers and account quotas. Release notices are in-app and only check while Listweavarr is opened/running. The app remains a local personal tool, not an unattended download service.

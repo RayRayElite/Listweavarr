@@ -1,0 +1,24 @@
+name: listweavarr
+services:
+  listweavarr:
+    build: .
+    image: listweavarr:local
+    container_name: listweavarr
+    restart: unless-stopped
+    ports:
+      - "${LISTWEAVARR_PUBLISH_IP:-127.0.0.1}:${LISTWEAVARR_PUBLISH_PORT:-8765}:8765"
+    environment:
+      LISTWEAVARR_PUBLIC_URL: ${LISTWEAVARR_PUBLIC_URL:-http://127.0.0.1:8765}
+      LISTWEAVARR_ALLOWED_HOSTS: ${LISTWEAVARR_ALLOWED_HOSTS:-127.0.0.1:8765,localhost:8765}
+    volumes:
+      - listweavarr_config:/config
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 30s
+volumes:
+  listweavarr_config:

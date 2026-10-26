@@ -1,0 +1,11 @@
+# An allowlist keeps credentials, backups and downloaded artwork out of the build context.
+**
+!/*.py
+!/VERSION
+!/LICENSE
+!/web/
+!/web/**
+!/catalogue/
+!/catalogue/bundled/
+!/catalogue/bundled/**
+!/Dockerfile

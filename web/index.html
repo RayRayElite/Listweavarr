@@ -1,58 +1,1686 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ReelCheck · Your library, in perspective</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/workspace.css">
-</head>
-<body><a class="skip-link" href="#main-content">Skip to content</a>
-<aside><a class="brand" href="/">◉ <span>reelcheck<sup>LOCAL</sup></span></a><p class="eyebrow">YOUR WORKSPACE</p><button id="trakt-nav" class="nav">Explore</button><button id="library-nav" class="nav">▤ &nbsp; Lists</button><button id="requests-nav" class="nav">Requests</button><button id="settings-nav" class="nav">⚙ &nbsp; Settings</button><div class="side-bottom"><span class="live-dot"></span> Personal library workbench<br><small>Runs here. Connects to your NAS.</small></div></aside>
-<main id="main-content" tabindex="-1"><div id="release-notice" class="source-notice" hidden role="status"></div>
-<div id="requests-notice" class="source-notice" hidden role="status"></div><header><span>LIBRARY / <b id="breadcrumb">MY LISTS</b></span><span class="local">● &nbsp; LOCAL SESSION</span></header>
-<section id="workspace">
-<div class="workspace-tabs" role="tablist" aria-label="Lists sections"><button role="tab" aria-selected="true" data-lists-tab="mine" aria-controls="lists-mine">My Lists</button><button role="tab" aria-selected="false" data-lists-tab="official" aria-controls="lists-official" tabindex="-1">Official Lists</button><button role="tab" aria-selected="false" data-lists-tab="ignored" aria-controls="ignored-dialog" tabindex="-1">Ignored titles</button><button role="tab" aria-selected="false" data-lists-tab="downloads" aria-controls="activity-panel" tabindex="-1">Download progress</button></div><section id="lists-mine" role="tabpanel"><section id="list-catalogue"><div class="workspace-heading"><div><p class="eyebrow">YOUR COLLECTIONS</p><h1>My Lists</h1><p class="muted">Source-linked watch orders and collections you make your own.</p></div><div class="list-catalogue-actions"><button id="favorites-open" class="secondary">Favorites from Plex</button><button id="list-create" class="primary">+ Create list</button><button id="list-builder-open" class="secondary">Build from website or text</button><button id="catalogue-import" class="secondary">Import a list</button><button id="shared-list-open" class="secondary">Import shared list</button></div></div><div class="catalogue-sort"><label>Sort lists<select id="saved-list-sort"><option value="title_asc">Title: A to Z</option><option value="title_desc">Title: Z to A</option><option value="count_desc">Most entries</option><option value="updated_desc">Recently updated</option></select></label></div><div id="saved-list-grid" class="saved-list-grid"></div></section></section><section id="list-detail" hidden><div class="list-detail-tools"><button id="list-back" class="secondary">Back to My Lists</button><button id="list-manage" class="secondary">Edit list &amp; poster</button><button id="list-add-entries" class="secondary">Add entries</button><details class="list-tools-menu"><summary class="secondary">List tools</summary><div><button id="list-watch-paths" class="text-action">Watch-order paths</button><button id="list-episode-orders" class="text-action">Episode order &amp; editions</button><button id="list-health-check" class="text-action">Check list health</button><button id="list-share" class="text-action">Share list</button><button id="list-publish-official" class="text-action">Publish as Official List</button><button id="list-delete" class="text-action">Delete list</button></div></details><span id="list-link-status" class="muted"></span></div><div class="workspace-heading list-identity"><div id="list-detail-cover" class="list-detail-cover" aria-hidden="true"></div><div><p class="eyebrow">COLLECTION</p><h1 id="active-name">My lists</h1><p id="list-context" class="muted">Choose a collection to explore.</p><div id="list-availability" class="list-availability"></div><button id="list-review-missing" class="primary" hidden>Review missing titles</button></div><div class="workspace-switch"><label for="list-select">Saved lists</label><select id="list-select"><option value="">Choose a list</option></select><button id="import-open" class="primary">+ Import a list</button></div></div>
-<details class="library-summary"><summary>Workspace totals <span><b id="list-count">0</b> lists <b id="item-count">0</b> entries <b id="available-count">0</b> available <b id="missing-count">0</b> missing / partial</span></summary><p class="muted">Totals include entries across all saved lists; a title can appear in more than one list.</p></details>
-<div class="list-tools"><button class="secondary" data-manage-ignored>Ignored titles</button><button id="refresh-list" class="secondary" disabled>Refresh source</button><button id="resolve-metadata" class="secondary" disabled>Resolve metadata</button><button id="playlist-open" class="secondary" disabled>Create Plex playlist</button><button id="follow-list" class="secondary" hidden>Follow updates</button><button id="check-followed" class="secondary">Check followed lists</button><button id="progress-refresh" class="secondary">Refresh watched progress</button><span id="source-note" class="muted"></span></div>
-<details id="list-health-panel" class="metadata-health" hidden><summary id="list-health-heading">List health</summary><p id="list-health-status" class="muted" role="status"></p><div id="list-health-results"></div></details><section id="list-path-workbench" class="collection-update" hidden><div class="section-heading"><h2>Watch-order paths</h2><button id="list-path-close" class="secondary">Close paths</button></div><div id="list-path-controls"></div><p id="list-path-status" role="status" class="muted"></p><div id="list-path-entries"></div></section><div id="trakt-saved-info"></div><div id="list-updates"></div><details id="metadata-health" class="metadata-health"><summary id="metadata-health-summary">Metadata loading</summary><p id="metadata-health-status" class="muted"></p><button id="metadata-retry-all" class="secondary">Retry failed metadata</button></details><div class="toolbar"><div class="filters"><button class="filter active" data-filter="all">All entries</button><button class="filter" data-filter="missing">Missing</button><button class="filter" data-filter="available">Available</button><button class="filter" data-filter="review">Needs review</button></div><div><label class="sr" for="search">Search entries</label><input id="search" placeholder="Search this list…"><select id="sort" aria-label="Sort entries"><option value="original">Source order</option><option value="rating-desc">Rating · highest first</option><option value="rating-asc">Rating · lowest first</option><option value="title-asc">Title · A–Z</option><option value="title-desc">Title · Z–A</option><option value="date-desc">Release date · newest</option><option value="date-asc">Release date · oldest</option><option value="runtime-asc">Runtime · shortest</option><option value="runtime-desc">Runtime · longest</option></select><select id="view" aria-label="View mode"><option value="order">List order</option><option value="group">Group television</option></select></div></div><details class="list-display-options"><summary>Year filters &amp; entry size</summary><div><div class="year-filter"><span>Movie release year</span><label>From<input id="year-from" type="number" min="1870" max="2200" placeholder="Any"></label><label>Through<input id="year-to" type="number" min="1870" max="2200" placeholder="Any"></label><button id="year-clear" class="entry-size-reset">Clear years</button><small>TV entries are unaffected. Unknown movie years are hidden when filtering.</small></div><div class="entry-size-controls"><label for="entry-size">Entry size</label><span class="entry-size-hint" aria-hidden="true">Smaller</span><input id="entry-size" type="range" min="100" max="200" step="5" value="100" aria-describedby="entry-size-help"><span class="entry-size-hint" aria-hidden="true">Larger</span><output id="entry-size-value" for="entry-size">100%</output><button id="entry-size-reset" class="entry-size-reset" type="button">Reset</button><span id="entry-size-help" class="sr">Adjust poster and text size for all saved-list entries. Your choice is remembered on this browser.</span></div></div></details><p id="sort-progress" class="sort-note" role="status">Sorting changes this view only. Playlists keep the original source order.</p>
-<div class="actions"><label><input id="select-all" type="checkbox"> Select visible missing</label><span id="selection-count">0 selected</span><button id="review-top" class="primary" disabled>Add selected →</button><button id="compare" class="secondary">↻ Compare with Plex</button></div>
-<div id="entries" class="entries"></div>
-<div class="request-bar"><span id="request-summary">Use Add beside a missing title, or select titles to add together.</span><button id="review" class="primary" disabled>Add selected →</button></div>
-<p class="footnote">Curated watch orders preserve source membership. Show/season completeness uses aired episode metadata from Sonarr or TMDB when available.</p></section><section id="lists-official" role="tabpanel" hidden><div class="section-heading"><div><p class="eyebrow">CURATED / BUNDLED</p><h1>Official Lists</h1><p class="muted">A growing collection of watch orders and franchise lists.</p></div></div><div class="catalogue-sort"><label>Sort lists<select id="official-list-sort"><option value="title_asc">Title: A to Z</option><option value="title_desc">Title: Z to A</option><option value="count_desc">Most entries</option><option value="updated_desc">Recently updated</option></select></label></div><p id="official-status" class="muted" role="status"></p><div class="official-update-toolbar"><button id="official-updates-open" class="secondary">Updates</button><span class="muted">Review changes to personal copies from the installed catalogue.</span></div><section id="official-updates-panel" hidden><div class="section-heading"><div><p class="eyebrow">REVIEW / PRESERVE / UNDO</p><h2>Official list updates</h2></div><button id="official-updates-close" class="secondary">Back to catalogue</button></div><details id="catalogue-source-panel" class="collection-update"><summary>Get catalogue updates</summary><p class="muted">Use the publisher’s public raw JSON link, or import an official catalogue file. Preview changes before installing. This updates the shared catalogue; your personal and authoring lists stay separate.</p><label>Catalogue source URL<input id="catalogue-source-url" type="url" placeholder="https://example.com/official-lists.json"></label><div class="workbench-actions"><button id="catalogue-source-save" class="secondary">Save source</button><button id="catalogue-source-check" class="secondary">Check link</button><button id="catalogue-download" class="text-action">Export catalogue</button><button id="catalogue-manifest-download" class="text-action">Export update manifest</button></div><label>Or select catalogue JSON<input id="catalogue-source-file" type="file" accept=".json,application/json"></label><button id="catalogue-file-preview" class="secondary">Preview file</button><div id="catalogue-feed-review"></div><p id="catalogue-feed-status" class="muted" role="status"></p><button id="catalogue-feed-install" class="primary" hidden>Install reviewed catalogue changes</button></details><p id="official-updates-status" class="muted" role="status"></p><div id="official-update-items"></div></section><div id="official-items" class="saved-list-grid"></div><div id="official-sources" hidden></div></section><section hidden id="activity-panel" class="activity-panel"><h2>Download progress</h2><label class="progress-list-label" hidden>Saved list<select id="activity-list-select"></select></label><p class="muted">Recent confirmed requests from the last 30 days, across all lists. Manager imports remain separate from confirmed Plex availability.</p><button id="activity-refresh" class="secondary">Refresh progress</button><button id="activity-compare" class="secondary" hidden>Compare with Plex</button><p id="activity-status" class="muted" role="status"></p><div id="activity-items"></div></section><section id="ignored-dialog" role="tabpanel" hidden><h1>Ignored titles</h1><p class="muted">Hidden across saved lists and Explore. Ignoring a show hides its seasons and episodes. Restore a title to see it again.</p><div id="ignored-items"></div><button id="ignored-close" class="secondary">Back to My Lists</button></section>
-</section>
-<section id="settings" hidden><div class="settings-heading"><p class="eyebrow">YOUR WORKSPACE / SETTINGS</p><h1>Make it yours.</h1><p class="muted">Fine-tune your library experience and manage the services behind it.</p></div><div class="settings-tabs" role="tablist" aria-label="Settings sections"><button id="settings-tab-preferences" role="tab" aria-selected="true" aria-controls="settings-preferences" tabindex="0" data-settings-tab="preferences">Preferences</button><button id="settings-tab-connections" role="tab" aria-selected="false" aria-controls="settings-connections" tabindex="-1" data-settings-tab="connections">Connections</button><button id="settings-tab-requests" role="tab" aria-selected="false" aria-controls="settings-requests" tabindex="-1" data-settings-tab="requests">Requests</button><button id="settings-tab-notifications" role="tab" aria-selected="false" aria-controls="settings-notifications" tabindex="-1" data-settings-tab="notifications">Notifications</button><button id="settings-tab-backups" role="tab" aria-selected="false" aria-controls="settings-backups" tabindex="-1" data-settings-tab="backups">Backups</button></div><section id="settings-preferences" role="tabpanel" aria-labelledby="settings-tab-preferences"><div id="rating-preferences-host"></div><div class="connection discovery-preferences"><h2>Discovery &amp; releases</h2><p class="muted">Choose the original languages you want to discover and the country used for release dates.</p><details id="explore-language-panel" class="language-preferences"><summary id="explore-language-summary">All languages</summary><p class="muted">Filter Explore by original language. This does not check dubbed audio or subtitles. When filtering, titles with unknown original language are omitted. Saved source lists and tracked releases remain unchanged.</p><label><input id="explore-language-all" type="checkbox" checked> All languages</label><div id="explore-language-options" class="language-options"></div><p id="explore-language-status" class="muted" role="status"></p><button id="explore-language-apply" class="secondary">Apply languages</button></details><label>Release country<select id="release-region"><option value="CA">Canada</option><option value="US">United States</option><option value="GB">United Kingdom</option><option value="AU">Australia</option><option value="DE">Germany</option><option value="FR">France</option><option value="JP">Japan</option></select></label><button class="secondary" data-manage-ignored>Manage ignored titles</button></div><div class="connection"><h2>Spoiler protection</h2><label class="preference-check"><input id="spoiler-safe" type="checkbox"> Hide unrevealed title descriptions, backdrops and cast</label><p class="muted">Conservative protection applies until you reveal a title. List synopses and episode names are also hidden. Posters can still contain spoilers. Nothing is marked watched.</p></div><details id="taste-preferences" class="connection taste-preferences"><summary>Taste &amp; recommendations</summary><p class="muted">More like this and favorites strengthen personal recommendations. Less like this reduces similar personal picks; it does not hide titles. Watched titles and high Plex ratings also contribute. Ownership alone is not approval. Feedback is local and is never sent to Plex.</p><button id="taste-manage" class="secondary">Manage saved feedback</button><div id="taste-feedback-items"></div></details><div class="connection"><h2>List appearance</h2><p class="muted">Adjust poster and text size for saved lists. Remembered on this browser.</p><label class="settings-size-label" for="settings-entry-size">Entry size <output id="settings-entry-size-value">100%</output></label><input id="settings-entry-size" type="range" min="100" max="200" step="5" value="100"></div></section><section id="settings-connections" role="tabpanel" aria-labelledby="settings-tab-connections" hidden><p class="muted settings-intro">Sign in to Plex and connect your metadata and download services.</p>
-<div class="connection plex-connection"><h2>Plex</h2><p id="plex-account" class="muted"></p><p id="plex-connected" class="footnote"></p><div class="plex-buttons"><button id="plex-signin" class="primary" type="button">Sign in with Plex</button><button id="plex-check-login" class="secondary" type="button" hidden>Check sign-in</button><button id="plex-load-servers" class="secondary" type="button" hidden>Find servers</button><button id="plex-test" class="secondary" type="button" hidden>Test connection</button><button id="plex-disconnect" class="secondary" type="button" hidden>Disconnect</button></div><p class="footnote">You’ll sign in on Plex’s website and return here. ReelCheck never sees your password.</p><div id="plex-server-picker" hidden><p id="plex-server-message" class="muted" role="status"></p><label>Your Plex server<select id="plex-servers"></select></label><details><summary>Use a specific NAS address</summary><label>Server address (optional)<input id="plex-address" type="url" placeholder="http://192.168.1.20:32400"></label><p class="footnote">Only needed if automatic connection fails. The address must belong to the server selected above.</p></details><button id="plex-connect" class="primary" type="button">Connect selected server</button></div></div>
-<form id="settings-form"><div id="connection-fields"></div><p class="footnote">Credentials are saved locally in data/state.json. Leave an API key blank to keep its saved value.</p><button class="primary" type="submit">Save connections</button></form></section><section id="settings-requests" role="tabpanel" aria-labelledby="settings-tab-requests" hidden><div class="connection"><h2>Request workflow</h2><p class="muted">Single-user review controls. Queued requests never reach your managers until you approve them in Requests.</p><label class="preference-check"><input id="workflow-approval" type="checkbox"> Queue requests for approval before sending to managers</label><button id="workflow-policy-save" class="secondary">Save workflow</button><p id="workflow-policy-status" class="muted" role="status"></p></div><div class="connection"><div class="section-heading"><div><h2>Manager routes</h2><p class="muted">Separate Radarr/Sonarr instances for standard and 4K libraries. Primary connections remain under Connections.</p></div><button id="manager-add" class="secondary">Add instance</button></div><div id="manager-route-list"></div><p id="manager-route-status" class="muted" role="status"></p></div></section><section id="settings-notifications" role="tabpanel" aria-labelledby="settings-tab-notifications" hidden><div class="connection"><h2>Discord</h2><p class="muted">Send selected request events to your Discord channel. Create an incoming webhook in Discord Server Settings / Integrations. Titles, request scope and status are shared with that channel. Notifications run while the local ReelCheck server is running, even if the browser is closed.</p><label>Webhook URL<input id="discord-webhook" type="password" autocomplete="new-password" placeholder="https://discord.com/api/webhooks/..."></label><label class="preference-check"><input id="discord-enabled" type="checkbox"> Enable Discord notifications</label><fieldset class="notification-events"><legend>Send these events</legend><label><input type="checkbox" data-discord-event="available" checked> Available in Plex</label><label><input type="checkbox" data-discord-event="failed"> Request failed</label><label><input type="checkbox" data-discord-event="attention"> Import needs attention</label><label><input type="checkbox" data-discord-event="awaiting_approval"> Awaiting approval</label><label><input type="checkbox" data-discord-event="requested"> Request sent</label><label><input type="checkbox" data-discord-event="monitored"> Release monitoring enabled</label></fieldset><div class="workflow-buttons"><button id="discord-save" class="primary">Save Discord settings</button><button id="discord-test" class="secondary">Send test notification</button></div><p id="discord-status" class="muted" role="status"></p><p class="footnote">Blank webhook keeps the saved URL. Credentials are excluded from portable backups. Enabling notifications starts with new events, not your old request history.</p></div></section><section id="settings-backups" role="tabpanel" aria-labelledby="settings-tab-backups" hidden><section class="connection backup-controls"><h2>Workspace backups</h2><p class="muted">Portable backups include lists, corrections, ignored titles, tracked releases and preferences. Credentials, Plex login and cached metadata are excluded. The last 10 workspace versions are saved automatically under data/backups.</p><button id="backup-export" class="secondary">Download portable backup</button><button id="backup-local-refresh" class="secondary">Show local backups</button><label>Restore a backup file<input id="backup-upload" type="file" accept="application/json,.json"></label><label>Or choose a local backup<select id="backup-local"><option value="">Choose a rolling backup</option></select></label><button id="backup-preview" class="secondary">Preview restore</button><p id="backup-status" class="muted" role="status"></p><div id="backup-review" hidden><p id="backup-summary"></p><label>Restore mode<select id="backup-mode"><option value="merge">Merge - keep current lists with matching IDs</option><option value="replace">Replace workspace - keep current connections</option></select></label><p class="muted">Restore creates a safety backup first. Restored entries require a fresh Plex comparison. No downloads or playlists will be created.</p><button id="backup-restore" class="primary">Restore this previewed backup</button><button id="backup-cancel" class="secondary">Cancel</button></div></section></section></section>
-<section hidden tabindex="-1" class="workspace-panel" id="title-dialog" aria-labelledby="title-heading"><div class="title-dialog-top"><span class="eyebrow">TITLE / DETAILS</span><button class="secondary" data-close="title-dialog" aria-label="Go back">Back</button></div><div id="title-content"></div><div class="title-dialog-actions"><button id="parent-request" class="primary" data-show-scope="show" hidden>Request missing from whole show</button><button id="title-save" class="primary" hidden>Save title & compare with Plex</button><button id="title-add" class="primary" hidden>Add to Radarr</button><button class="secondary" data-close="title-dialog">Back</button></div></section>
-<section hidden tabindex="-1" class="workspace-panel" id="discovery-dialog"><div class="title-dialog-top"><div><p class="eyebrow">EXPLORE / PROJECTS</p><h2 id="discovery-title">Explore projects</h2></div><button class="secondary" data-close="discovery-dialog">Back to title</button></div><div id="person-profile"></div><p id="discovery-note" class="muted"></p><p id="discovery-count" role="status" class="muted"></p><div class="discovery-tools"><input id="discovery-search" placeholder="Search titles or credits" aria-label="Search projects"><select id="discovery-type" aria-label="Project type"><option value="">Both</option><option value="movie">Movies</option><option value="show">TV</option></select><select id="discovery-sort" aria-label="Sort projects"><option value="original">Original order</option><option value="date-desc">Release date - newest</option><option value="date-asc">Release date - oldest</option><option value="title-asc">Title - A to Z</option><option value="title-desc">Title - Z to A</option><option value="rating-desc">Rating - highest first</option><option value="rating-asc">Rating - lowest first</option><option value="role-asc">Credited role - A to Z</option><option value="type-asc">Type - movies then TV</option></select><button id="discovery-all" class="secondary">Select visible</button><button id="discovery-none" class="secondary">Clear selection</button></div><div id="discovery-content"></div><div class="dialog-actions"><button id="discovery-save" class="primary" disabled>Save selected & compare with Plex</button></div><p class="footnote">Saving checks availability only. Review missing titles in the saved list before confirming any downloads.</p></section>
-<section hidden tabindex="-1" id="trakt-explore" class="workspace-panel">
-<div class="workspace-heading"><div><p class="eyebrow">DISCOVER / TRACK / COLLECT</p><h1>Explore your next watch.</h1><p id="explore-personalization" class="muted">Find more of what feels like you. Build on the library you already love.</p></div><button id="trakt-upcoming" class="secondary">Upcoming from followed lists</button></div>
-<div class="workspace-tabs" role="tablist" aria-label="Explore sections"><button role="tab" aria-selected="true" data-explore-tab="discover" aria-controls="explore-discover">Discover</button><button role="tab" aria-selected="false" data-explore-tab="watchlist" aria-controls="explore-watchlist" tabindex="-1">Release watchlist</button><button role="tab" aria-selected="false" data-explore-tab="workbench" aria-controls="explore-workbench" tabindex="-1">Workbench</button><button role="tab" aria-selected="false" data-explore-tab="lists" aria-controls="explore-lists" tabindex="-1">Lists &amp; watch orders</button></div><section id="explore-discover" role="tabpanel"><div class="explore-controls"><label>Discover<select id="explore-media"><option value="both">Movies & TV</option><option value="movie">Movies</option><option value="show">TV shows</option></select></label><label>Rating filter<select id="explore-quality"><option value="5.0">5.0+</option><option value="6.0" selected>6.0+</option><option value="7.0">7.0+</option><option value="8.0">8.0+</option><option value="9.0">9.0+</option></select></label><details class="explore-filter-options"><summary>More filters</summary><div><label class="explore-cult-toggle"><input type="checkbox" id="explore-downloads-missing"> Popular downloads: missing only</label><label class="explore-cult-toggle"><input type="checkbox" id="explore-indexers"> Popular on my indexers</label><label class="explore-cult-toggle"><input type="checkbox" id="explore-cult"> Include “so bad it’s good” picks</label></div></details><div class="explore-control-actions"><button class="text-action" data-settings-open="preferences">Language &amp; release settings</button><button id="explore-refresh" class="secondary">Refresh from Plex</button></div></div>
-<p id="explore-quality-note" class="muted explore-quality-note"></p><p id="explore-home-status" class="muted" role="status"></p>
-<div class="explore-pick-bar" hidden><span id="explore-pick-count">Select picks: available titles go to a comparison list; pending releases go to your watchlist.</span><div><button id="explore-clear-picks" class="secondary" disabled>Clear picks</button><button id="explore-save-picks" class="primary" disabled>Save selected picks</button></div></div>
-<div id="explore-home-rows"></div><div id="explore-extra-rows"></div><section id="explore-shelf-page" hidden><button id="explore-shelf-back" class="secondary">Back to Discover</button><h1 id="explore-shelf-title"></h1><p id="explore-shelf-note" class="muted"></p><div id="explore-shelf-items" class="explore-browse-grid"></div><p id="explore-shelf-status" class="muted" role="status"></p><button id="explore-shelf-more" class="secondary">Load more titles</button><div id="explore-shelf-sentinel" aria-hidden="true"></div></section>
-</section><section id="explore-workbench" role="tabpanel" hidden><div class="workbench-heading"><div><p class="eyebrow">DISCOVER / PLAN / ENJOY</p><h2>Your discovery workbench</h2></div><label>Tool<select id="workbench-tool"><option value="recipes">Discovery recipes &amp; blind spots</option><option value="tonight">Tonight &amp; movie-night shortlist</option><option value="franchises">Franchise completion</option><option value="planning">Acquisition &amp; storage planning</option><option value="radar">Creator release radar</option><option value="inbox">Discovery inbox</option><option value="insights">Feedback insights</option></select></label></div><button id="workbench-save-picks" class="secondary" disabled>Save selected discoveries</button><p id="workbench-status" class="muted" role="status"></p><div id="workbench-controls"></div><div id="workbench-results"></div></section><section id="explore-watchlist" role="tabpanel" hidden><section id="release-watch-panel" class="release-watch-panel"><h2>Release watchlist <span id="release-watch-count"></span></h2><p class="muted">Follow theatrical, digital and disc releases in your chosen country. Use Set up automatic download when you want Radarr or Sonarr to monitor a title.</p><button id="release-watch-check" class="secondary">Check releases</button><p id="release-watch-status" class="muted" role="status"></p><div id="release-watch-items"></div></section></section><section id="explore-lists" role="tabpanel" hidden><section class="explore-lists-section"><div class="section-heading"><div><p class="eyebrow">CURATED BY PEOPLE</p><h2>Lists & watch orders</h2></div><span class="muted">Trakt · TMDB · your saved sources</span></div>
-<p class="muted explore-shelf-note">Search public Trakt lists, TMDB collections and your saved lists from other providers. List previews retain every source entry; rating filters apply to the discovery rows above.</p>
-<form id="trakt-search-form" class="trakt-search"><label class="sr" for="trakt-query">Find lists and collections</label><input id="trakt-query" placeholder="Marvel chronological, Halloween, Star Wars..." maxlength="200"><select id="explore-list-source" aria-label="List source"><option value="all">All sources</option><option value="trakt">Trakt · public lists</option><option value="tmdb">TMDB · collections</option><option value="saved">Saved lists · all providers</option></select><select id="trakt-list-mode" aria-label="List discovery mode"><option value="search">Search lists</option><option value="popular">Popular lists</option><option value="trending">Trending lists</option></select><button id="trakt-search-submit" class="primary" type="submit">Find lists</button></form>
-<p id="trakt-explore-status" class="muted" role="status">Search public lists, collections, and your saved sources.</p><div id="trakt-list-results"></div><div id="trakt-list-pages"><button id="trakt-page-prev" class="secondary" hidden>Previous page</button><button id="trakt-page-next" class="secondary" hidden>Next page</button></div>
-<form id="explore-url-form" class="explore-url-form"><label for="explore-list-url">Have a list in mind?</label><div><input id="explore-list-url" type="url" required placeholder="Paste a Letterboxd, MDBList, IMDb, ChronoCanon or Trakt URL"><button class="secondary" type="submit">Preview URL</button></div><p class="muted">IMDb may require its CSV export when automated access is blocked; use Import a list from My lists in that case.</p></form></section>
-</section><section id="trakt-preview" hidden><div class="section-heading"><div><p class="eyebrow">ORIGINAL RANK ORDER</p><h2 id="trakt-preview-title"></h2><p id="trakt-preview-summary" class="muted"></p></div><button id="trakt-preview-save" class="primary">Save full list & compare</button></div><label class="preview-filter">Preview entries<select id="trakt-preview-filter"><option value="all">All entries</option><option value="missing">Missing / partial</option><option value="available">Available</option></select></label><div id="trakt-preview-rows"></div></section>
-<section id="trakt-calendar" hidden><div class="section-heading"><h2>Coming up in the next 7 days</h2><button id="trakt-calendar-refresh" class="secondary">Refresh calendar</button></div><p id="trakt-calendar-note" class="muted"></p><div id="trakt-calendar-rows"></div></section>
-</section>
-<section id="requests-page" class="workspace-panel" hidden tabindex="-1"><div class="workspace-heading"><div><p class="eyebrow">FROM DISCOVERY TO YOUR LIBRARY</p><h1>Requests</h1><p class="muted">Track requests, resolve issues, and see what is ready to watch.</p></div><div class="workflow-buttons"><button id="request-new" class="primary">Request a title</button><button id="requests-refresh" class="secondary">Refresh status</button></div></div><div class="requests-tools"><input id="requests-search" placeholder="Search requests" aria-label="Search requests"><select id="requests-filter" aria-label="Request status"><option value="">All requests</option><option value="awaiting_approval">Awaiting approval</option><option value="pending">Awaiting confirmation</option><option value="requested">Requested</option><option value="monitored">Monitoring releases</option><option value="downloading">Downloading</option><option value="importing">Importing</option><option value="attention">Needs attention</option><option value="imported">Imported / waiting for Plex</option><option value="available">Available in Plex</option><option value="failed">Failed</option><option value="declined">Declined</option><option value="cancelled">Cancelled drafts</option></select><button id="requests-read" class="text-action">Dismiss availability notices</button></div><p id="requests-status" class="muted" role="status"></p><div id="requests-items"></div></section>
-<dialog id="request-retry-dialog"><h2 id="request-retry-heading">Review request</h2><p id="request-retry-scope" class="muted"></p><div id="request-retry-options"></div><p id="request-retry-status" class="muted" role="status"></p><div class="dialog-actions"><button class="secondary" data-close="request-retry-dialog">Close</button><button id="request-retry-confirm" class="primary">Confirm request</button></div></dialog>
-<footer><span>REELCHECK</span><span>Metadata and ratings: <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">TMDB</a> and <a href="https://trakt.tv" target="_blank" rel="noopener noreferrer">Trakt</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</span></footer>
-</main>
-<dialog id="import-dialog"><form id="import-form"><p class="eyebrow">ADD TO YOUR WATCH DESK</p><h2>Every great watch starts with a list.</h2><label>List name (optional)<input name="name" placeholder="Use the source list’s name"></label><label>Public list URL<input id="import-url" type="url" placeholder="https://letterboxd.com/user/list/list-name/"></label><p class="muted">Letterboxd, MDBList, IMDb, ChronoCanon, and public Trakt lists. IMDb may require a CSV export when access is blocked. ChronoCanon TV blocks need confirmed show/season matching.</p><div class="builder-fields"><label>Import order<select id="import-order"><option value="source">Original source order</option><option value="title_asc">Title: A to Z</option><option value="title_desc">Title: Z to A</option><option value="year_asc">Year: oldest first</option><option value="year_desc">Year: newest first</option></select></label><label>Season entries<select id="import-seasons"><option value="separate">Keep separate seasons</option><option value="shows">Combine into whole shows</option></select></label></div><p class="muted">These choices are saved for source refreshes and Plex playlist order. Combining seasons creates one whole-show entry, so adding it may request all seasons, including seasons absent from the source. Individual episode entries remain separate. URL sorting parameters do not override these choices.</p><button id="import-builder-open" type="button" class="secondary">Build from any website or pasted text</button><label>Or import a file<input id="import-file" type="file" accept=".csv,.json"></label><label class="inline-check"><input id="import-replace" type="checkbox"> Update the currently selected list from this file</label><p class="muted">CSV or JSON, including Letterboxd and IMDb exports. IMDb episode exports can be resolved with a TMDB token under Connections.</p><details><summary>IMDb CSV fallback and ChronoCanon timelines</summary><p>If IMDb blocks the URL, use its list Export option and import the downloaded CSV. <a href="https://help.imdb.com/article/imdb/track-movies-tv/faq-for-the-list-feature/GNQMN47VZSE7KW38" target="_blank" rel="noopener noreferrer">IMDb export help</a></p><p>ChronoCanon imports all timelines in source watch order by default. For a single Pok&eacute;mon continuity, append ?timeline=ash-continuity, ?timeline=au-movies, ?timeline=horizons, or ?timeline=specials. Confirm exact movie IDs and TV season scope using Correct match; source story blocks may span multiple seasons.</p></details><details><summary>See the import format</summary><pre>type,title,year,tmdb,show_tvdb,season,episode
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Listweavarr · Your library, in perspective</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/workspace.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <aside>
+      <a class="brand" href="/"
+        >◉ <span>listweavarr<sup>LOCAL</sup></span></a
+      >
+      <p class="eyebrow">YOUR WORKSPACE</p>
+      <button id="trakt-nav" class="nav">Explore</button
+      ><button id="library-nav" class="nav">▤ &nbsp; Lists</button
+      ><button id="requests-nav" class="nav">Requests</button
+      ><button id="settings-nav" class="nav">⚙ &nbsp; Settings</button>
+      <div class="side-bottom">
+        <span class="live-dot"></span> Personal library workbench<br /><small
+          >Runs here. Connects to your NAS.</small
+        >
+      </div>
+    </aside>
+    <main id="main-content" tabindex="-1">
+      <div id="release-notice" class="source-notice" hidden role="status"></div>
+      <div id="requests-notice" class="source-notice" hidden role="status"></div>
+      <header>
+        <span>LIBRARY / <b id="breadcrumb">MY LISTS</b></span
+        ><span class="local">● &nbsp; LOCAL SESSION</span>
+      </header>
+      <section id="workspace">
+        <div class="workspace-tabs" role="tablist" aria-label="Lists sections">
+          <button role="tab" aria-selected="true" data-lists-tab="mine" aria-controls="lists-mine">
+            My Lists</button
+          ><button
+            role="tab"
+            aria-selected="false"
+            data-lists-tab="official"
+            aria-controls="lists-official"
+            tabindex="-1"
+          >
+            Official Lists</button
+          ><button
+            role="tab"
+            aria-selected="false"
+            data-lists-tab="ignored"
+            aria-controls="ignored-dialog"
+            tabindex="-1"
+          >
+            Ignored titles</button
+          ><button
+            role="tab"
+            aria-selected="false"
+            data-lists-tab="downloads"
+            aria-controls="activity-panel"
+            tabindex="-1"
+          >
+            Download progress
+          </button>
+        </div>
+        <section id="lists-mine" role="tabpanel">
+          <section id="list-catalogue">
+            <div class="workspace-heading">
+              <div>
+                <p class="eyebrow">YOUR COLLECTIONS</p>
+                <h1>My Lists</h1>
+                <p class="muted">Source-linked watch orders and collections you make your own.</p>
+              </div>
+              <div class="list-catalogue-actions">
+                <button id="favorites-open" class="secondary">Favorites from Plex</button
+                ><button id="list-create" class="primary">+ Create list</button
+                ><button id="list-builder-open" class="secondary">Build from website or text</button
+                ><button id="catalogue-import" class="secondary">Import a list</button
+                ><button id="shared-list-open" class="secondary">Import shared list</button>
+              </div>
+            </div>
+            <div class="catalogue-sort">
+              <label
+                >Sort lists<select id="saved-list-sort">
+                  <option value="title_asc">Title: A to Z</option>
+                  <option value="title_desc">Title: Z to A</option>
+                  <option value="count_desc">Most entries</option>
+                  <option value="updated_desc">Recently updated</option>
+                </select></label
+              >
+            </div>
+            <div id="saved-list-grid" class="saved-list-grid"></div>
+          </section>
+        </section>
+        <section id="list-detail" hidden>
+          <div class="list-detail-tools">
+            <button id="list-back" class="secondary">Back to My Lists</button
+            ><button id="list-manage" class="secondary">Edit list &amp; poster</button
+            ><button id="list-add-entries" class="secondary">Add entries</button>
+            <details class="list-tools-menu">
+              <summary class="secondary">List tools</summary>
+              <div>
+                <button id="list-watch-paths" class="text-action">Watch-order paths</button
+                ><button id="list-episode-orders" class="text-action">
+                  Episode order &amp; editions</button
+                ><button id="list-health-check" class="text-action">Check list health</button
+                ><button id="list-share" class="text-action">Share list</button
+                ><button id="list-publish-official" class="text-action">
+                  Publish as Official List</button
+                ><button id="list-delete" class="text-action">Delete list</button>
+              </div>
+            </details>
+            <span id="list-link-status" class="muted"></span>
+          </div>
+          <div class="workspace-heading list-identity">
+            <div id="list-detail-cover" class="list-detail-cover" aria-hidden="true"></div>
+            <div>
+              <p class="eyebrow">COLLECTION</p>
+              <h1 id="active-name">My lists</h1>
+              <p id="list-context" class="muted">Choose a collection to explore.</p>
+              <div id="list-availability" class="list-availability"></div>
+              <button id="list-review-missing" class="primary" hidden>Review missing titles</button>
+            </div>
+            <div class="workspace-switch">
+              <label for="list-select">Saved lists</label
+              ><select id="list-select">
+                <option value="">Choose a list</option></select
+              ><button id="import-open" class="primary">+ Import a list</button>
+            </div>
+          </div>
+          <details class="library-summary">
+            <summary>
+              Workspace totals
+              <span
+                ><b id="list-count">0</b> lists <b id="item-count">0</b> entries
+                <b id="available-count">0</b> available <b id="missing-count">0</b> missing /
+                partial</span
+              >
+            </summary>
+            <p class="muted">
+              Totals include entries across all saved lists; a title can appear in more than one
+              list.
+            </p>
+          </details>
+          <div class="list-tools">
+            <button class="secondary" data-manage-ignored>Ignored titles</button
+            ><button id="refresh-list" class="secondary" disabled>Refresh source</button
+            ><button id="resolve-metadata" class="secondary" disabled>Resolve metadata</button
+            ><button id="playlist-open" class="secondary" disabled>Create Plex playlist</button
+            ><button id="follow-list" class="secondary" hidden>Follow updates</button
+            ><button id="check-followed" class="secondary">Check followed lists</button
+            ><button id="progress-refresh" class="secondary">Refresh watched progress</button
+            ><span id="source-note" class="muted"></span>
+          </div>
+          <details id="list-health-panel" class="metadata-health" hidden>
+            <summary id="list-health-heading">List health</summary>
+            <p id="list-health-status" class="muted" role="status"></p>
+            <div id="list-health-results"></div>
+          </details>
+          <section id="list-path-workbench" class="collection-update" hidden>
+            <div class="section-heading">
+              <h2>Watch-order paths</h2>
+              <button id="list-path-close" class="secondary">Close paths</button>
+            </div>
+            <div id="list-path-controls"></div>
+            <p id="list-path-status" role="status" class="muted"></p>
+            <div id="list-path-entries"></div>
+          </section>
+          <div id="trakt-saved-info"></div>
+          <div id="list-updates"></div>
+          <details id="metadata-health" class="metadata-health">
+            <summary id="metadata-health-summary">Metadata loading</summary>
+            <p id="metadata-health-status" class="muted"></p>
+            <button id="metadata-retry-all" class="secondary">Retry failed metadata</button>
+          </details>
+          <div class="toolbar">
+            <div class="filters">
+              <button class="filter active" data-filter="all">All entries</button
+              ><button class="filter" data-filter="missing">Missing</button
+              ><button class="filter" data-filter="available">Available</button
+              ><button class="filter" data-filter="review">Needs review</button>
+            </div>
+            <div>
+              <label class="sr" for="search">Search entries</label
+              ><input id="search" placeholder="Search this list…" /><select
+                id="sort"
+                aria-label="Sort entries"
+              >
+                <option value="original">Source order</option>
+                <option value="rating-desc">Rating · highest first</option>
+                <option value="rating-asc">Rating · lowest first</option>
+                <option value="title-asc">Title · A–Z</option>
+                <option value="title-desc">Title · Z–A</option>
+                <option value="date-desc">Release date · newest</option>
+                <option value="date-asc">Release date · oldest</option>
+                <option value="runtime-asc">Runtime · shortest</option>
+                <option value="runtime-desc">Runtime · longest</option></select
+              ><select id="view" aria-label="View mode">
+                <option value="order">List order</option>
+                <option value="group">Group television</option>
+              </select>
+            </div>
+          </div>
+          <details class="list-display-options">
+            <summary>Year filters &amp; entry size</summary>
+            <div>
+              <div class="year-filter">
+                <span>Movie release year</span
+                ><label
+                  >From<input
+                    id="year-from"
+                    type="number"
+                    min="1870"
+                    max="2200"
+                    placeholder="Any" /></label
+                ><label
+                  >Through<input
+                    id="year-to"
+                    type="number"
+                    min="1870"
+                    max="2200"
+                    placeholder="Any" /></label
+                ><button id="year-clear" class="entry-size-reset">Clear years</button
+                ><small
+                  >TV entries are unaffected. Unknown movie years are hidden when filtering.</small
+                >
+              </div>
+              <div class="entry-size-controls">
+                <label for="entry-size">Entry size</label
+                ><span class="entry-size-hint" aria-hidden="true">Smaller</span
+                ><input
+                  id="entry-size"
+                  type="range"
+                  min="100"
+                  max="200"
+                  step="5"
+                  value="100"
+                  aria-describedby="entry-size-help"
+                /><span class="entry-size-hint" aria-hidden="true">Larger</span
+                ><output id="entry-size-value" for="entry-size">100%</output
+                ><button id="entry-size-reset" class="entry-size-reset" type="button">Reset</button
+                ><span id="entry-size-help" class="sr"
+                  >Adjust poster and text size for all saved-list entries. Your choice is remembered
+                  on this browser.</span
+                >
+              </div>
+            </div>
+          </details>
+          <p id="sort-progress" class="sort-note" role="status">
+            Sorting changes this view only. Playlists keep the original source order.
+          </p>
+          <div class="actions">
+            <label><input id="select-all" type="checkbox" /> Select visible missing</label
+            ><span id="selection-count">0 selected</span
+            ><button id="review-top" class="primary" disabled>Add selected →</button
+            ><button id="compare" class="secondary">↻ Compare with Plex</button>
+          </div>
+          <div id="entries" class="entries"></div>
+          <div class="request-bar">
+            <span id="request-summary"
+              >Use Add beside a missing title, or select titles to add together.</span
+            ><button id="review" class="primary" disabled>Add selected →</button>
+          </div>
+          <p class="footnote">
+            Curated watch orders preserve source membership. Show/season completeness uses aired
+            episode metadata from Sonarr or TMDB when available.
+          </p>
+        </section>
+        <section id="lists-official" role="tabpanel" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CURATED / BUNDLED</p>
+              <h1>Official Lists</h1>
+              <p class="muted">A growing collection of watch orders and franchise lists.</p>
+            </div>
+          </div>
+          <div class="catalogue-sort">
+            <label
+              >Sort lists<select id="official-list-sort">
+                <option value="title_asc">Title: A to Z</option>
+                <option value="title_desc">Title: Z to A</option>
+                <option value="count_desc">Most entries</option>
+                <option value="updated_desc">Recently updated</option>
+              </select></label
+            >
+          </div>
+          <p id="official-status" class="muted" role="status"></p>
+          <div class="official-update-toolbar">
+            <button id="official-updates-open" class="secondary">Updates</button
+            ><span class="muted"
+              >Review changes to personal copies from the installed catalogue.</span
+            >
+          </div>
+          <section id="official-updates-panel" hidden>
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">REVIEW / PRESERVE / UNDO</p>
+                <h2>Official list updates</h2>
+              </div>
+              <button id="official-updates-close" class="secondary">Back to catalogue</button>
+            </div>
+            <details id="catalogue-source-panel" class="collection-update">
+              <summary>Get catalogue updates</summary>
+              <p class="muted">
+                Use the publisher’s public raw JSON link, or import an official catalogue file.
+                Preview changes before installing. This updates the shared catalogue; your personal
+                and authoring lists stay separate.
+              </p>
+              <label
+                >Catalogue source URL<input
+                  id="catalogue-source-url"
+                  type="url"
+                  placeholder="https://example.com/official-lists.json"
+              /></label>
+              <div class="workbench-actions">
+                <button id="catalogue-source-save" class="secondary">Save source</button
+                ><button id="catalogue-source-check" class="secondary">Check link</button
+                ><button id="catalogue-download" class="text-action">Export catalogue</button
+                ><button id="catalogue-manifest-download" class="text-action">
+                  Export update manifest
+                </button>
+              </div>
+              <label
+                >Or select catalogue JSON<input
+                  id="catalogue-source-file"
+                  type="file"
+                  accept=".json,application/json" /></label
+              ><button id="catalogue-file-preview" class="secondary">Preview file</button>
+              <div id="catalogue-feed-review"></div>
+              <p id="catalogue-feed-status" class="muted" role="status"></p>
+              <button id="catalogue-feed-install" class="primary" hidden>
+                Install reviewed catalogue changes
+              </button>
+            </details>
+            <p id="official-updates-status" class="muted" role="status"></p>
+            <div id="official-update-items"></div>
+          </section>
+          <div id="official-items" class="saved-list-grid"></div>
+          <div id="official-sources" hidden></div>
+        </section>
+        <section hidden id="activity-panel" class="activity-panel">
+          <h2>Download progress</h2>
+          <label class="progress-list-label" hidden
+            >Saved list<select id="activity-list-select"></select
+          ></label>
+          <p class="muted">
+            Recent confirmed requests from the last 30 days, across all lists. Manager imports
+            remain separate from confirmed Plex availability.
+          </p>
+          <button id="activity-refresh" class="secondary">Refresh progress</button
+          ><button id="activity-compare" class="secondary" hidden>Compare with Plex</button>
+          <p id="activity-status" class="muted" role="status"></p>
+          <div id="activity-items"></div>
+        </section>
+        <section id="ignored-dialog" role="tabpanel" hidden>
+          <h1>Ignored titles</h1>
+          <p class="muted">
+            Hidden across saved lists and Explore. Ignoring a show hides its seasons and episodes.
+            Restore a title to see it again.
+          </p>
+          <div id="ignored-items"></div>
+          <button id="ignored-close" class="secondary">Back to My Lists</button>
+        </section>
+      </section>
+      <section id="settings" hidden>
+        <div class="settings-heading">
+          <p class="eyebrow">YOUR WORKSPACE / SETTINGS</p>
+          <h1>Make it yours.</h1>
+          <p class="muted">Fine-tune your library experience and manage the services behind it.</p>
+        </div>
+        <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+          <button
+            id="settings-tab-preferences"
+            role="tab"
+            aria-selected="true"
+            aria-controls="settings-preferences"
+            tabindex="0"
+            data-settings-tab="preferences"
+          >
+            Preferences</button
+          ><button
+            id="settings-tab-connections"
+            role="tab"
+            aria-selected="false"
+            aria-controls="settings-connections"
+            tabindex="-1"
+            data-settings-tab="connections"
+          >
+            Connections</button
+          ><button
+            id="settings-tab-requests"
+            role="tab"
+            aria-selected="false"
+            aria-controls="settings-requests"
+            tabindex="-1"
+            data-settings-tab="requests"
+          >
+            Requests</button
+          ><button
+            id="settings-tab-notifications"
+            role="tab"
+            aria-selected="false"
+            aria-controls="settings-notifications"
+            tabindex="-1"
+            data-settings-tab="notifications"
+          >
+            Notifications</button
+          ><button
+            id="settings-tab-backups"
+            role="tab"
+            aria-selected="false"
+            aria-controls="settings-backups"
+            tabindex="-1"
+            data-settings-tab="backups"
+          >
+            Backups
+          </button>
+        </div>
+        <section
+          id="settings-preferences"
+          role="tabpanel"
+          aria-labelledby="settings-tab-preferences"
+        >
+          <div id="rating-preferences-host"></div>
+          <div class="connection discovery-preferences">
+            <h2>Discovery &amp; releases</h2>
+            <p class="muted">
+              Choose the original languages you want to discover and the country used for release
+              dates.
+            </p>
+            <details id="explore-language-panel" class="language-preferences">
+              <summary id="explore-language-summary">All languages</summary>
+              <p class="muted">
+                Filter Explore by original language. This does not check dubbed audio or subtitles.
+                When filtering, titles with unknown original language are omitted. Saved source
+                lists and tracked releases remain unchanged.
+              </p>
+              <label
+                ><input id="explore-language-all" type="checkbox" checked /> All languages</label
+              >
+              <div id="explore-language-options" class="language-options"></div>
+              <p id="explore-language-status" class="muted" role="status"></p>
+              <button id="explore-language-apply" class="secondary">Apply languages</button>
+            </details>
+            <label
+              >Release country<select id="release-region">
+                <option value="CA">Canada</option>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+                <option value="AU">Australia</option>
+                <option value="DE">Germany</option>
+                <option value="FR">France</option>
+                <option value="JP">Japan</option>
+              </select></label
+            ><button class="secondary" data-manage-ignored>Manage ignored titles</button>
+          </div>
+          <div class="connection">
+            <h2>Spoiler protection</h2>
+            <label class="preference-check"
+              ><input id="spoiler-safe" type="checkbox" /> Hide unrevealed title descriptions,
+              backdrops and cast</label
+            >
+            <p class="muted">
+              Conservative protection applies until you reveal a title. List synopses and episode
+              names are also hidden. Posters can still contain spoilers. Nothing is marked watched.
+            </p>
+          </div>
+          <details id="taste-preferences" class="connection taste-preferences">
+            <summary>Taste &amp; recommendations</summary>
+            <p class="muted">
+              More like this and favorites strengthen personal recommendations. Less like this
+              reduces similar personal picks; it does not hide titles. Watched titles and high Plex
+              ratings also contribute. Ownership alone is not approval. Feedback is local and is
+              never sent to Plex.
+            </p>
+            <button id="taste-manage" class="secondary">Manage saved feedback</button>
+            <div id="taste-feedback-items"></div>
+          </details>
+          <div class="connection">
+            <h2>List appearance</h2>
+            <p class="muted">
+              Adjust poster and text size for saved lists. Remembered on this browser.
+            </p>
+            <label class="settings-size-label" for="settings-entry-size"
+              >Entry size <output id="settings-entry-size-value">100%</output></label
+            ><input
+              id="settings-entry-size"
+              type="range"
+              min="100"
+              max="200"
+              step="5"
+              value="100"
+            />
+          </div>
+        </section>
+        <section
+          id="settings-connections"
+          role="tabpanel"
+          aria-labelledby="settings-tab-connections"
+          hidden
+        >
+          <p class="muted settings-intro">
+            Sign in to Plex and connect your metadata and download services.
+          </p>
+          <div class="connection plex-connection">
+            <h2>Plex</h2>
+            <p id="plex-account" class="muted"></p>
+            <p id="plex-connected" class="footnote"></p>
+            <div class="plex-buttons">
+              <button id="plex-signin" class="primary" type="button">Sign in with Plex</button
+              ><button id="plex-check-login" class="secondary" type="button" hidden>
+                Check sign-in</button
+              ><button id="plex-load-servers" class="secondary" type="button" hidden>
+                Find servers</button
+              ><button id="plex-test" class="secondary" type="button" hidden>Test connection</button
+              ><button id="plex-disconnect" class="secondary" type="button" hidden>
+                Disconnect
+              </button>
+            </div>
+            <p class="footnote">
+              You’ll sign in on Plex’s website and return here. Listweavarr never sees your
+              password.
+            </p>
+            <div id="plex-server-picker" hidden>
+              <p id="plex-server-message" class="muted" role="status"></p>
+              <label>Your Plex server<select id="plex-servers"></select></label>
+              <details>
+                <summary>Use a specific NAS address</summary>
+                <label
+                  >Server address (optional)<input
+                    id="plex-address"
+                    type="url"
+                    placeholder="http://192.168.1.20:32400"
+                /></label>
+                <p class="footnote">
+                  Only needed if automatic connection fails. The address must belong to the server
+                  selected above.
+                </p>
+              </details>
+              <button id="plex-connect" class="primary" type="button">
+                Connect selected server
+              </button>
+            </div>
+          </div>
+          <form id="settings-form">
+            <div id="connection-fields"></div>
+            <p class="footnote">
+              Credentials are saved locally in data/state.json. Leave an API key blank to keep its
+              saved value.
+            </p>
+            <button class="primary" type="submit">Save connections</button>
+          </form>
+        </section>
+        <section
+          id="settings-requests"
+          role="tabpanel"
+          aria-labelledby="settings-tab-requests"
+          hidden
+        >
+          <div class="connection">
+            <h2>Request workflow</h2>
+            <p class="muted">
+              Single-user review controls. Queued requests never reach your managers until you
+              approve them in Requests.
+            </p>
+            <label class="preference-check"
+              ><input id="workflow-approval" type="checkbox" /> Queue requests for approval before
+              sending to managers</label
+            ><button id="workflow-policy-save" class="secondary">Save workflow</button>
+            <p id="workflow-policy-status" class="muted" role="status"></p>
+          </div>
+          <div class="connection">
+            <div class="section-heading">
+              <div>
+                <h2>Manager routes</h2>
+                <p class="muted">
+                  Separate Radarr/Sonarr instances for standard and 4K libraries. Primary
+                  connections remain under Connections.
+                </p>
+              </div>
+              <button id="manager-add" class="secondary">Add instance</button>
+            </div>
+            <div id="manager-route-list"></div>
+            <p id="manager-route-status" class="muted" role="status"></p>
+          </div>
+        </section>
+        <section
+          id="settings-notifications"
+          role="tabpanel"
+          aria-labelledby="settings-tab-notifications"
+          hidden
+        >
+          <div class="connection">
+            <h2>Discord</h2>
+            <p class="muted">
+              Send selected request events to your Discord channel. Create an incoming webhook in
+              Discord Server Settings / Integrations. Titles, request scope and status are shared
+              with that channel. Notifications run while the local Listweavarr server is running,
+              even if the browser is closed.
+            </p>
+            <label
+              >Webhook URL<input
+                id="discord-webhook"
+                type="password"
+                autocomplete="new-password"
+                placeholder="https://discord.com/api/webhooks/..." /></label
+            ><label class="preference-check"
+              ><input id="discord-enabled" type="checkbox" /> Enable Discord notifications</label
+            >
+            <fieldset class="notification-events">
+              <legend>Send these events</legend>
+              <label
+                ><input type="checkbox" data-discord-event="available" checked /> Available in
+                Plex</label
+              ><label><input type="checkbox" data-discord-event="failed" /> Request failed</label
+              ><label
+                ><input type="checkbox" data-discord-event="attention" /> Import needs
+                attention</label
+              ><label
+                ><input type="checkbox" data-discord-event="awaiting_approval" /> Awaiting
+                approval</label
+              ><label><input type="checkbox" data-discord-event="requested" /> Request sent</label
+              ><label
+                ><input type="checkbox" data-discord-event="monitored" /> Release monitoring
+                enabled</label
+              >
+            </fieldset>
+            <div class="workflow-buttons">
+              <button id="discord-save" class="primary">Save Discord settings</button
+              ><button id="discord-test" class="secondary">Send test notification</button>
+            </div>
+            <p id="discord-status" class="muted" role="status"></p>
+            <p class="footnote">
+              Blank webhook keeps the saved URL. Credentials are excluded from portable backups.
+              Enabling notifications starts with new events, not your old request history.
+            </p>
+          </div>
+        </section>
+        <section
+          id="settings-backups"
+          role="tabpanel"
+          aria-labelledby="settings-tab-backups"
+          hidden
+        >
+          <section class="connection backup-controls">
+            <h2>Workspace backups</h2>
+            <p class="muted">
+              Portable backups include lists, corrections, ignored titles, tracked releases and
+              preferences. Credentials, Plex login and cached metadata are excluded. The last 10
+              workspace versions are saved automatically under data/backups.
+            </p>
+            <button id="backup-export" class="secondary">Download portable backup</button
+            ><button id="backup-local-refresh" class="secondary">Show local backups</button
+            ><label
+              >Restore a backup file<input
+                id="backup-upload"
+                type="file"
+                accept="application/json,.json" /></label
+            ><label
+              >Or choose a local backup<select id="backup-local">
+                <option value="">Choose a rolling backup</option>
+              </select></label
+            ><button id="backup-preview" class="secondary">Preview restore</button>
+            <p id="backup-status" class="muted" role="status"></p>
+            <div id="backup-review" hidden>
+              <p id="backup-summary"></p>
+              <label
+                >Restore mode<select id="backup-mode">
+                  <option value="merge">Merge - keep current lists with matching IDs</option>
+                  <option value="replace">Replace workspace - keep current connections</option>
+                </select></label
+              >
+              <p class="muted">
+                Restore creates a safety backup first. Restored entries require a fresh Plex
+                comparison. No downloads or playlists will be created.
+              </p>
+              <button id="backup-restore" class="primary">Restore this previewed backup</button
+              ><button id="backup-cancel" class="secondary">Cancel</button>
+            </div>
+          </section>
+        </section>
+      </section>
+      <section
+        hidden
+        tabindex="-1"
+        class="workspace-panel"
+        id="title-dialog"
+        aria-labelledby="title-heading"
+      >
+        <div class="title-dialog-top">
+          <span class="eyebrow">TITLE / DETAILS</span
+          ><button class="secondary" data-close="title-dialog" aria-label="Go back">Back</button>
+        </div>
+        <div id="title-content"></div>
+        <div class="title-dialog-actions">
+          <button id="parent-request" class="primary" data-show-scope="show" hidden>
+            Request missing from whole show</button
+          ><button id="title-save" class="primary" hidden>Save title & compare with Plex</button
+          ><button id="title-add" class="primary" hidden>Add to Radarr</button
+          ><button class="secondary" data-close="title-dialog">Back</button>
+        </div>
+      </section>
+      <section hidden tabindex="-1" class="workspace-panel" id="discovery-dialog">
+        <div class="title-dialog-top">
+          <div>
+            <p class="eyebrow">EXPLORE / PROJECTS</p>
+            <h2 id="discovery-title">Explore projects</h2>
+          </div>
+          <button class="secondary" data-close="discovery-dialog">Back to title</button>
+        </div>
+        <div id="person-profile"></div>
+        <p id="discovery-note" class="muted"></p>
+        <p id="discovery-count" role="status" class="muted"></p>
+        <div class="discovery-tools">
+          <input
+            id="discovery-search"
+            placeholder="Search titles or credits"
+            aria-label="Search projects"
+          /><select id="discovery-type" aria-label="Project type">
+            <option value="">Both</option>
+            <option value="movie">Movies</option>
+            <option value="show">TV</option></select
+          ><select id="discovery-sort" aria-label="Sort projects">
+            <option value="original">Original order</option>
+            <option value="date-desc">Release date - newest</option>
+            <option value="date-asc">Release date - oldest</option>
+            <option value="title-asc">Title - A to Z</option>
+            <option value="title-desc">Title - Z to A</option>
+            <option value="rating-desc">Rating - highest first</option>
+            <option value="rating-asc">Rating - lowest first</option>
+            <option value="role-asc">Credited role - A to Z</option>
+            <option value="type-asc">Type - movies then TV</option></select
+          ><button id="discovery-all" class="secondary">Select visible</button
+          ><button id="discovery-none" class="secondary">Clear selection</button>
+        </div>
+        <div id="discovery-content"></div>
+        <div class="dialog-actions">
+          <button id="discovery-save" class="primary" disabled>
+            Save selected & compare with Plex
+          </button>
+        </div>
+        <p class="footnote">
+          Saving checks availability only. Review missing titles in the saved list before confirming
+          any downloads.
+        </p>
+      </section>
+      <section hidden tabindex="-1" id="trakt-explore" class="workspace-panel">
+        <div class="workspace-heading">
+          <div>
+            <p class="eyebrow">DISCOVER / TRACK / COLLECT</p>
+            <h1>Explore your next watch.</h1>
+            <p id="explore-personalization" class="muted">
+              Find more of what feels like you. Build on the library you already love.
+            </p>
+          </div>
+          <button id="trakt-upcoming" class="secondary">Upcoming from followed lists</button>
+        </div>
+        <div class="workspace-tabs" role="tablist" aria-label="Explore sections">
+          <button
+            role="tab"
+            aria-selected="true"
+            data-explore-tab="discover"
+            aria-controls="explore-discover"
+          >
+            Discover</button
+          ><button
+            role="tab"
+            aria-selected="false"
+            data-explore-tab="watchlist"
+            aria-controls="explore-watchlist"
+            tabindex="-1"
+          >
+            Release watchlist</button
+          ><button
+            role="tab"
+            aria-selected="false"
+            data-explore-tab="workbench"
+            aria-controls="explore-workbench"
+            tabindex="-1"
+          >
+            Workbench</button
+          ><button
+            role="tab"
+            aria-selected="false"
+            data-explore-tab="lists"
+            aria-controls="explore-lists"
+            tabindex="-1"
+          >
+            Lists &amp; watch orders
+          </button>
+        </div>
+        <section id="explore-discover" role="tabpanel">
+          <div class="explore-controls">
+            <label
+              >Discover<select id="explore-media">
+                <option value="both">Movies & TV</option>
+                <option value="movie">Movies</option>
+                <option value="show">TV shows</option>
+              </select></label
+            ><label
+              >Rating filter<select id="explore-quality">
+                <option value="5.0">5.0+</option>
+                <option value="6.0" selected>6.0+</option>
+                <option value="7.0">7.0+</option>
+                <option value="8.0">8.0+</option>
+                <option value="9.0">9.0+</option>
+              </select></label
+            >
+            <details class="explore-filter-options">
+              <summary>More filters</summary>
+              <div>
+                <label class="explore-cult-toggle"
+                  ><input type="checkbox" id="explore-downloads-missing" /> Popular downloads:
+                  missing only</label
+                ><label class="explore-cult-toggle"
+                  ><input type="checkbox" id="explore-indexers" /> Popular on my indexers</label
+                ><label class="explore-cult-toggle"
+                  ><input type="checkbox" id="explore-cult" /> Include “so bad it’s good”
+                  picks</label
+                >
+              </div>
+            </details>
+            <div class="explore-control-actions">
+              <button class="text-action" data-settings-open="preferences">
+                Language &amp; release settings</button
+              ><button id="explore-refresh" class="secondary">Refresh from Plex</button>
+            </div>
+          </div>
+          <p id="explore-quality-note" class="muted explore-quality-note"></p>
+          <p id="explore-home-status" class="muted" role="status"></p>
+          <div class="explore-pick-bar" hidden>
+            <span id="explore-pick-count"
+              >Select picks: available titles go to a comparison list; pending releases go to your
+              watchlist.</span
+            >
+            <div>
+              <button id="explore-clear-picks" class="secondary" disabled>Clear picks</button
+              ><button id="explore-save-picks" class="primary" disabled>Save selected picks</button>
+            </div>
+          </div>
+          <div id="explore-home-rows"></div>
+          <div id="explore-extra-rows"></div>
+          <section id="explore-shelf-page" hidden>
+            <button id="explore-shelf-back" class="secondary">Back to Discover</button>
+            <h1 id="explore-shelf-title"></h1>
+            <p id="explore-shelf-note" class="muted"></p>
+            <div id="explore-shelf-items" class="explore-browse-grid"></div>
+            <p id="explore-shelf-status" class="muted" role="status"></p>
+            <button id="explore-shelf-more" class="secondary">Load more titles</button>
+            <div id="explore-shelf-sentinel" aria-hidden="true"></div>
+          </section>
+        </section>
+        <section id="explore-workbench" role="tabpanel" hidden>
+          <div class="workbench-heading">
+            <div>
+              <p class="eyebrow">DISCOVER / PLAN / ENJOY</p>
+              <h2>Your discovery workbench</h2>
+            </div>
+            <label
+              >Tool<select id="workbench-tool">
+                <option value="recipes">Discovery recipes &amp; blind spots</option>
+                <option value="tonight">Tonight &amp; movie-night shortlist</option>
+                <option value="franchises">Franchise completion</option>
+                <option value="planning">Acquisition &amp; storage planning</option>
+                <option value="radar">Creator release radar</option>
+                <option value="inbox">Discovery inbox</option>
+                <option value="insights">Feedback insights</option>
+              </select></label
+            >
+          </div>
+          <button id="workbench-save-picks" class="secondary" disabled>
+            Save selected discoveries
+          </button>
+          <p id="workbench-status" class="muted" role="status"></p>
+          <div id="workbench-controls"></div>
+          <div id="workbench-results"></div>
+        </section>
+        <section id="explore-watchlist" role="tabpanel" hidden>
+          <section id="release-watch-panel" class="release-watch-panel">
+            <h2>Release watchlist <span id="release-watch-count"></span></h2>
+            <p class="muted">
+              Follow theatrical, digital and disc releases in your chosen country. Use Set up
+              automatic download when you want Radarr or Sonarr to monitor a title.
+            </p>
+            <button id="release-watch-check" class="secondary">Check releases</button>
+            <p id="release-watch-status" class="muted" role="status"></p>
+            <div id="release-watch-items"></div>
+          </section>
+        </section>
+        <section id="explore-lists" role="tabpanel" hidden>
+          <section class="explore-lists-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">CURATED BY PEOPLE</p>
+                <h2>Lists & watch orders</h2>
+              </div>
+              <span class="muted">Trakt · TMDB · your saved sources</span>
+            </div>
+            <p class="muted explore-shelf-note">
+              Search public Trakt lists, TMDB collections and your saved lists from other providers.
+              List previews retain every source entry; rating filters apply to the discovery rows
+              above.
+            </p>
+            <form id="trakt-search-form" class="trakt-search">
+              <label class="sr" for="trakt-query">Find lists and collections</label
+              ><input
+                id="trakt-query"
+                placeholder="Marvel chronological, Halloween, Star Wars..."
+                maxlength="200"
+              /><select id="explore-list-source" aria-label="List source">
+                <option value="all">All sources</option>
+                <option value="trakt">Trakt · public lists</option>
+                <option value="tmdb">TMDB · collections</option>
+                <option value="saved">Saved lists · all providers</option></select
+              ><select id="trakt-list-mode" aria-label="List discovery mode">
+                <option value="search">Search lists</option>
+                <option value="popular">Popular lists</option>
+                <option value="trending">Trending lists</option></select
+              ><button id="trakt-search-submit" class="primary" type="submit">Find lists</button>
+            </form>
+            <p id="trakt-explore-status" class="muted" role="status">
+              Search public lists, collections, and your saved sources.
+            </p>
+            <div id="trakt-list-results"></div>
+            <div id="trakt-list-pages">
+              <button id="trakt-page-prev" class="secondary" hidden>Previous page</button
+              ><button id="trakt-page-next" class="secondary" hidden>Next page</button>
+            </div>
+            <form id="explore-url-form" class="explore-url-form">
+              <label for="explore-list-url">Have a list in mind?</label>
+              <div>
+                <input
+                  id="explore-list-url"
+                  type="url"
+                  required
+                  placeholder="Paste a Letterboxd, MDBList, IMDb, ChronoCanon or Trakt URL"
+                /><button class="secondary" type="submit">Preview URL</button>
+              </div>
+              <p class="muted">
+                IMDb may require its CSV export when automated access is blocked; use Import a list
+                from My lists in that case.
+              </p>
+            </form>
+          </section>
+        </section>
+        <section id="trakt-preview" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">ORIGINAL RANK ORDER</p>
+              <h2 id="trakt-preview-title"></h2>
+              <p id="trakt-preview-summary" class="muted"></p>
+            </div>
+            <button id="trakt-preview-save" class="primary">Save full list & compare</button>
+          </div>
+          <label class="preview-filter"
+            >Preview entries<select id="trakt-preview-filter">
+              <option value="all">All entries</option>
+              <option value="missing">Missing / partial</option>
+              <option value="available">Available</option>
+            </select></label
+          >
+          <div id="trakt-preview-rows"></div>
+        </section>
+        <section id="trakt-calendar" hidden>
+          <div class="section-heading">
+            <h2>Coming up in the next 7 days</h2>
+            <button id="trakt-calendar-refresh" class="secondary">Refresh calendar</button>
+          </div>
+          <p id="trakt-calendar-note" class="muted"></p>
+          <div id="trakt-calendar-rows"></div>
+        </section>
+      </section>
+      <section id="requests-page" class="workspace-panel" hidden tabindex="-1">
+        <div class="workspace-heading">
+          <div>
+            <p class="eyebrow">FROM DISCOVERY TO YOUR LIBRARY</p>
+            <h1>Requests</h1>
+            <p class="muted">Track requests, resolve issues, and see what is ready to watch.</p>
+          </div>
+          <div class="workflow-buttons">
+            <button id="request-new" class="primary">Request a title</button
+            ><button id="requests-refresh" class="secondary">Refresh status</button>
+          </div>
+        </div>
+        <div class="requests-tools">
+          <input
+            id="requests-search"
+            placeholder="Search requests"
+            aria-label="Search requests"
+          /><select id="requests-filter" aria-label="Request status">
+            <option value="">All requests</option>
+            <option value="awaiting_approval">Awaiting approval</option>
+            <option value="pending">Awaiting confirmation</option>
+            <option value="requested">Requested</option>
+            <option value="monitored">Monitoring releases</option>
+            <option value="downloading">Downloading</option>
+            <option value="importing">Importing</option>
+            <option value="attention">Needs attention</option>
+            <option value="imported">Imported / waiting for Plex</option>
+            <option value="available">Available in Plex</option>
+            <option value="failed">Failed</option>
+            <option value="declined">Declined</option>
+            <option value="cancelled">Cancelled drafts</option></select
+          ><button id="requests-read" class="text-action">Dismiss availability notices</button>
+        </div>
+        <p id="requests-status" class="muted" role="status"></p>
+        <div id="requests-items"></div>
+      </section>
+      <dialog id="request-retry-dialog">
+        <h2 id="request-retry-heading">Review request</h2>
+        <p id="request-retry-scope" class="muted"></p>
+        <div id="request-retry-options"></div>
+        <p id="request-retry-status" class="muted" role="status"></p>
+        <div class="dialog-actions">
+          <button class="secondary" data-close="request-retry-dialog">Close</button
+          ><button id="request-retry-confirm" class="primary">Confirm request</button>
+        </div>
+      </dialog>
+      <footer>
+        <span>LISTWEAVARR</span
+        ><span
+          ><a
+            href="https://github.com/RayRayElite/Listweavarr"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Source code ? AGPLv3</a
+          >
+          &middot; Metadata and ratings:
+          <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">TMDB</a>
+          and <a href="https://trakt.tv" target="_blank" rel="noopener noreferrer">Trakt</a>. This
+          product uses the TMDB API but is not endorsed or certified by TMDB.</span
+        >
+      </footer>
+    </main>
+    <dialog id="import-dialog">
+      <form id="import-form">
+        <p class="eyebrow">ADD TO YOUR WATCH DESK</p>
+        <h2>Every great watch starts with a list.</h2>
+        <label
+          >List name (optional)<input name="name" placeholder="Use the source list’s name" /></label
+        ><label
+          >Public list URL<input
+            id="import-url"
+            type="url"
+            placeholder="https://letterboxd.com/user/list/list-name/"
+        /></label>
+        <p class="muted">
+          Letterboxd, MDBList, IMDb, ChronoCanon, and public Trakt lists. IMDb may require a CSV
+          export when access is blocked. ChronoCanon TV blocks need confirmed show/season matching.
+        </p>
+        <div class="builder-fields">
+          <label
+            >Import order<select id="import-order">
+              <option value="source">Original source order</option>
+              <option value="title_asc">Title: A to Z</option>
+              <option value="title_desc">Title: Z to A</option>
+              <option value="year_asc">Year: oldest first</option>
+              <option value="year_desc">Year: newest first</option>
+            </select></label
+          ><label
+            >Season entries<select id="import-seasons">
+              <option value="separate">Keep separate seasons</option>
+              <option value="shows">Combine into whole shows</option>
+            </select></label
+          >
+        </div>
+        <p class="muted">
+          These choices are saved for source refreshes and Plex playlist order. Combining seasons
+          creates one whole-show entry, so adding it may request all seasons, including seasons
+          absent from the source. Individual episode entries remain separate. URL sorting parameters
+          do not override these choices.
+        </p>
+        <button id="import-builder-open" type="button" class="secondary">
+          Build from any website or pasted text</button
+        ><label>Or import a file<input id="import-file" type="file" accept=".csv,.json" /></label
+        ><label class="inline-check"
+          ><input id="import-replace" type="checkbox" /> Update the currently selected list from
+          this file</label
+        >
+        <p class="muted">
+          CSV or JSON, including Letterboxd and IMDb exports. IMDb episode exports can be resolved
+          with a TMDB token under Connections.
+        </p>
+        <details>
+          <summary>IMDb CSV fallback and ChronoCanon timelines</summary>
+          <p>
+            If IMDb blocks the URL, use its list Export option and import the downloaded CSV.
+            <a
+              href="https://help.imdb.com/article/imdb/track-movies-tv/faq-for-the-list-feature/GNQMN47VZSE7KW38"
+              target="_blank"
+              rel="noopener noreferrer"
+              >IMDb export help</a
+            >
+          </p>
+          <p>
+            ChronoCanon imports all timelines in source watch order by default. For a single
+            Pok&eacute;mon continuity, append ?timeline=ash-continuity, ?timeline=au-movies,
+            ?timeline=horizons, or ?timeline=specials. Confirm exact movie IDs and TV season scope
+            using Correct match; source story blocks may span multiple seasons.
+          </p>
+        </details>
+        <details>
+          <summary>See the import format</summary>
+          <pre>
+type,title,year,tmdb,show_tvdb,season,episode
 movie,Iron Man,2008,1726,,,
-episode,Pilot,,,263365,1,1</pre><p>Types: movie, show, season, episode. IDs: tmdb, tvdb, imdb. For seasons/episodes: show_tmdb, show_tvdb, show_imdb, show_title. Episode numbers use your Plex/Sonarr ordering.</p></details><p id="import-progress" class="footnote" role="status">Large lists may take several minutes. IMDb may require a file export when it blocks automated access.</p><div class="dialog-actions"><button type="button" class="secondary" data-close="import-dialog">Close</button><button class="primary" type="submit">Import list →</button></div></form></dialog>
-<dialog id="edit-dialog"><form id="edit-form"><p class="eyebrow">MAKE THE MATCH</p><h2 id="edit-title">Correct an entry</h2><p class="muted">Corrections are saved and retained when the source list refreshes.</p><div class="fields" id="edit-fields"></div><details><summary>Find the exact title on TMDB</summary><label>Movie or parent show title<input id="identify-query"></label><button id="identify-search" class="secondary" type="button">Search TMDB</button><label>Confirm a title<select id="identify-choice"><option value="">Choose a result</option></select></label><p class="footnote">Selecting a result fills its exact ID. For a TV block, also enter the intended season number. Blocks spanning multiple seasons need separate entries; do not substitute a whole show.</p></details><details><summary>Match to an item in Plex</summary><label>Search your library<input id="match-query" placeholder="Movie or parent show title"></label><button id="match-search" class="secondary" type="button">Search Plex</button><label>Confirmed Plex match<select id="match-choice"><option value="">Keep current matching</option></select></label><p class="footnote">For a season or episode, select the parent show. Episode numbers still need to match your library’s ordering.</p></details><div class="dialog-actions"><button type="button" class="secondary" data-close="edit-dialog">Cancel</button><button class="primary" type="submit">Save correction</button></div></form></dialog>
-<dialog id="playlist-dialog"><form id="playlist-form"><p class="eyebrow">FROM LIST TO WATCH ORDER</p><h2>Send your watch order to Plex.</h2><p id="playlist-plan" class="muted"></p><div id="playlist-preview-items"></div><label>Playlist title<input id="playlist-title" required maxlength="200"></label><label id="playlist-replace-label" hidden><input type="checkbox" id="playlist-replace"> Replace the last playlist created by ReelCheck for this list</label><p class="footnote">Includes confirmed available movies and episodes in your selected watch order. Shows/seasons expand to available episodes. Replacing creates and verifies a new playlist before removing the previous one. Playback position in the old playlist is not transferred.</p><div class="dialog-actions"><button type="button" class="secondary" data-close="playlist-dialog">Cancel</button><button class="primary" type="submit">Save playlist in Plex</button></div></form></dialog>
-<dialog id="review-dialog"><p class="eyebrow">ONE LAST LOOK</p><h2>Send to your library managers.</h2><p class="muted">This adds missing titles or searches existing entries. Sonarr monitors and searches only episodes in the selected scope. Whole-show requests exclude specials.</p><div id="review-items"></div><div id="request-options"></div><div id="request-results"></div><div class="dialog-actions"><button class="secondary" data-close="review-dialog">Close</button><button class="primary" id="submit-requests">Confirm & search</button></div></dialog>
+episode,Pilot,,,263365,1,1</pre
+          >
+          <p>
+            Types: movie, show, season, episode. IDs: tmdb, tvdb, imdb. For seasons/episodes:
+            show_tmdb, show_tvdb, show_imdb, show_title. Episode numbers use your Plex/Sonarr
+            ordering.
+          </p>
+        </details>
+        <p id="import-progress" class="footnote" role="status">
+          Large lists may take several minutes. IMDb may require a file export when it blocks
+          automated access.
+        </p>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close="import-dialog">Close</button
+          ><button class="primary" type="submit">Import list →</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="edit-dialog">
+      <form id="edit-form">
+        <p class="eyebrow">MAKE THE MATCH</p>
+        <h2 id="edit-title">Correct an entry</h2>
+        <p class="muted">Corrections are saved and retained when the source list refreshes.</p>
+        <div class="fields" id="edit-fields"></div>
+        <details>
+          <summary>Find the exact title on TMDB</summary>
+          <label>Movie or parent show title<input id="identify-query" /></label
+          ><button id="identify-search" class="secondary" type="button">Search TMDB</button
+          ><label
+            >Confirm a title<select id="identify-choice">
+              <option value="">Choose a result</option>
+            </select></label
+          >
+          <p class="footnote">
+            Selecting a result fills its exact ID. For a TV block, also enter the intended season
+            number. Blocks spanning multiple seasons need separate entries; do not substitute a
+            whole show.
+          </p>
+        </details>
+        <details>
+          <summary>Match to an item in Plex</summary>
+          <label
+            >Search your library<input
+              id="match-query"
+              placeholder="Movie or parent show title" /></label
+          ><button id="match-search" class="secondary" type="button">Search Plex</button
+          ><label
+            >Confirmed Plex match<select id="match-choice">
+              <option value="">Keep current matching</option>
+            </select></label
+          >
+          <p class="footnote">
+            For a season or episode, select the parent show. Episode numbers still need to match
+            your library’s ordering.
+          </p>
+        </details>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close="edit-dialog">Cancel</button
+          ><button class="primary" type="submit">Save correction</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="playlist-dialog">
+      <form id="playlist-form">
+        <p class="eyebrow">FROM LIST TO WATCH ORDER</p>
+        <h2>Send your watch order to Plex.</h2>
+        <p id="playlist-plan" class="muted"></p>
+        <div id="playlist-preview-items"></div>
+        <label>Playlist title<input id="playlist-title" required maxlength="200" /></label
+        ><label id="playlist-replace-label" hidden
+          ><input type="checkbox" id="playlist-replace" /> Replace the last playlist created by
+          Listweavarr for this list</label
+        >
+        <p class="footnote">
+          Includes confirmed available movies and episodes in your selected watch order.
+          Shows/seasons expand to available episodes. Replacing creates and verifies a new playlist
+          before removing the previous one. Playback position in the old playlist is not
+          transferred.
+        </p>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close="playlist-dialog">Cancel</button
+          ><button class="primary" type="submit">Save playlist in Plex</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="review-dialog">
+      <p class="eyebrow">ONE LAST LOOK</p>
+      <h2>Send to your library managers.</h2>
+      <p class="muted">
+        This adds missing titles or searches existing entries. Sonarr monitors and searches only
+        episodes in the selected scope. Whole-show requests exclude specials.
+      </p>
+      <div id="review-items"></div>
+      <div id="request-options"></div>
+      <div id="request-results"></div>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="review-dialog">Close</button
+        ><button class="primary" id="submit-requests">Confirm & search</button>
+      </div>
+    </dialog>
 
-<dialog id="show-request-dialog"><p class="eyebrow">CHOOSE YOUR SCOPE</p><h2 id="show-request-title">Request missing episodes</h2><p id="show-request-description" class="muted"></p><div id="show-request-options"></div><p id="show-request-result" role="status"></p><div class="dialog-actions"><button class="secondary" data-close="show-request-dialog">Close</button><button id="show-request-submit" class="primary">Confirm & search Sonarr</button></div></dialog>
+    <dialog id="show-request-dialog">
+      <p class="eyebrow">CHOOSE YOUR SCOPE</p>
+      <h2 id="show-request-title">Request missing episodes</h2>
+      <p id="show-request-description" class="muted"></p>
+      <div id="show-request-options"></div>
+      <p id="show-request-result" role="status"></p>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="show-request-dialog">Close</button
+        ><button id="show-request-submit" class="primary">Confirm & search Sonarr</button>
+      </div>
+    </dialog>
 
-<dialog id="list-editor"><form id="list-editor-form"><p class="eyebrow">YOUR COLLECTION</p><h2 id="list-editor-heading">Edit list</h2><div class="list-editor-identity"><img id="list-poster-preview" alt="List poster" hidden><div><label>List name<input id="list-edit-name" required maxlength="200"></label><label>Description<textarea id="list-edit-description" rows="3" maxlength="5000"></textarea></label><label>Poster image<input id="list-edit-poster" type="file" accept="image/png,image/jpeg,image/webp"></label><button id="list-generate-poster" type="button" class="secondary">Create title poster</button><button id="list-clear-poster" type="button" class="text-action">Remove poster</button></div></div><details class="playlist-art-editor"><summary>Square Plex playlist cover</summary><p class="muted">Separate from the portrait collection poster. Uploaded images are centre-cropped to a square. Used when you create or update its Plex playlist.</p><img id="list-playlist-poster-preview" alt="Square playlist cover" hidden><label>Playlist cover image<input id="list-edit-playlist-poster" type="file" accept="image/png,image/jpeg,image/webp"></label><button id="list-generate-playlist-poster" type="button" class="secondary">Create square title cover</button><button id="list-clear-playlist-poster" type="button" class="text-action">Remove square cover</button></details><label>List mode<select id="list-edit-mode"><option value="local">Local list</option><option value="linked">Linked source list</option></select></label><label id="list-source-field">Source URL<input id="list-edit-source" type="url" placeholder="Paste a supported public list URL"></label><p id="list-source-help" class="muted"></p><label id="list-detach-warning" class="preference-check" hidden><input id="list-confirm-detach" type="checkbox"> Convert to local: adding, removing or reordering entries stops source updates. The original source is kept for reference.</label><h3>Entries <span id="list-editor-count"></span></h3><div class="list-add-tools"><label class="sr" for="list-add-query">Find a title</label><input id="list-add-query" placeholder="Find a title, or enter a TMDB ID / URL"><select id="list-add-type" aria-label="Title type"><option value="movie">Movie</option><option value="show">TV show</option></select><button id="list-add-search" type="button" class="secondary">Search</button><button id="list-add-tmdb" type="button" class="secondary">Look up TMDB ID</button></div><div id="list-add-results"></div><p class="muted">For a season or episode, use the parent TV show?s TMDB ID and choose the scope below, or paste its full TMDB season/episode URL. Choose Movie or TV show for numeric IDs.</p><div class="list-add-tools"><select id="list-add-scope" aria-label="TV scope"><option value="show">Whole show</option><option value="season">Season range</option><option value="episode">Episode</option></select><input id="list-add-season" type="number" min="0" placeholder="First season" aria-label="First season"><input id="list-add-season-end" hidden type="number" min="0" placeholder="Last season (optional)" aria-label="Last season for a season range"><input id="list-add-episode" type="number" min="1" placeholder="Episode" aria-label="Episode"></div><div id="list-editor-items"></div><p id="list-editor-status" class="muted" role="status"></p><div class="dialog-actions"><button type="button" class="secondary" data-close="list-editor">Cancel</button><button type="submit" class="primary">Save list</button></div></form></dialog>
-<dialog id="release-monitor-dialog"><h2 id="release-monitor-heading">Monitor release</h2><p class="muted">Radarr will monitor for a released movie. Sonarr will monitor the whole show and future seasons, excluding specials. This submits no immediate search. Automatic acquisition depends on your manager, indexers and quality settings.</p><div id="release-monitor-options"></div><p id="release-monitor-status" role="status"></p><div class="dialog-actions"><button class="secondary" data-close="release-monitor-dialog">Close</button><button id="release-monitor-submit" class="primary">Confirm monitoring</button></div></dialog>
-<dialog id="manager-editor"><form id="manager-form"><h2 id="manager-editor-title">Manager instance</h2><label>Name<input id="manager-name" required maxlength="80" placeholder="Radarr 4K"></label><div class="fields"><label>Service<select id="manager-service"><option value="radarr">Radarr</option><option value="sonarr">Sonarr</option></select></label><label>Library tier<select id="manager-tier"><option value="standard">Standard</option><option value="4k">4K</option></select></label></div><label>Server URL<input id="manager-url" type="url" required placeholder="http://192.168.1.20:7879"></label><label>API key<input id="manager-key" type="password" autocomplete="new-password" placeholder="Leave blank to keep saved key"></label><label class="preference-check"><input id="manager-enabled" type="checkbox" checked> Enable this route</label><label class="preference-check"><input id="manager-default" type="checkbox"> Default route for this service and tier</label><p id="manager-editor-status" class="muted" role="status"></p><div class="dialog-actions"><button type="button" class="secondary" data-close="manager-editor">Cancel</button><button id="manager-test" type="button" class="secondary">Test connection</button><button type="submit" class="primary">Save instance</button></div></form></dialog>
-<dialog id="request-new-dialog"><h2>Request a title</h2><p class="muted">Choose the title, exact scope and library tier. Nothing is sent until you confirm the review.</p><div class="list-add-tools"><input id="request-new-query" placeholder="Movie or show title" aria-label="Find title"><select id="request-new-type" aria-label="Media type"><option value="movie">Movie</option><option value="show">TV</option></select><button id="request-new-search" class="secondary">Find title</button></div><div id="request-new-results"></div><div class="fields"><label>TV scope<select id="request-new-scope"><option value="show">Whole show</option><option value="season">Season</option><option value="episode">Episode</option></select></label><label>Season<select id="request-new-season"><option value="">Choose a season</option></select></label><label>Episode<select id="request-new-episode"><option value="">Choose an episode</option></select></label><label>Library tier<select id="request-new-tier"><option value="standard">Standard</option><option value="4k">4K</option></select></label></div><label>Manager route<select id="request-new-route"></select></label><label>Action<select id="request-new-mode"><option value="search">Request / search now</option><option value="monitor">Monitor future releases (movie or whole show)</option></select></label><label class="preference-check"><input id="request-new-queue" type="checkbox"> Queue for later approval</label><p id="request-new-selection" class="muted"></p><p id="request-new-status" class="muted" role="status"></p><div class="dialog-actions"><button class="secondary" data-close="request-new-dialog">Cancel</button><button id="request-new-continue" class="primary" disabled>Continue to review</button></div></dialog>
-<dialog id="request-decision-dialog"><h2 id="request-decision-heading">Decline request</h2><label>Reason (optional)<input id="request-decision-reason" maxlength="500"></label><p class="muted">This changes only the queued request. It does not cancel or delete anything in Radarr, Sonarr or qBittorrent.</p><div class="dialog-actions"><button class="secondary" data-close="request-decision-dialog">Back</button><button id="request-decision-confirm" class="primary">Confirm</button></div></dialog>
-<dialog id="list-share-dialog"><h2 id="list-share-heading">Share list</h2><p class="muted">Download a portable list file and send it however you prefer. It includes the name, description and entries in source order. Plex availability, watched history, manager settings, request history and credentials are excluded.</p><label class="preference-check"><input id="list-share-poster" type="checkbox" checked> Include the list poster</label><p class="muted">The recipient imports an independent local copy. Changes are not automatically synced, and your server is not exposed.</p><p id="list-share-status" class="muted" role="status"></p><div class="dialog-actions"><button class="secondary" data-close="list-share-dialog">Close</button><button id="list-share-download" class="primary">Download shared list</button></div></dialog>
-<dialog id="shared-list-dialog"><h2>Import a shared list</h2><label>ReelCheck list file<input id="shared-list-file" type="file" accept="application/json,.json"></label><p class="muted">Preview the list before importing. It will become a new local copy; nothing is downloaded or added to Plex.</p><p id="shared-list-status" class="muted" role="status"></p><div id="shared-list-preview" hidden></div><div class="dialog-actions"><button class="secondary" data-close="shared-list-dialog">Close</button><button id="shared-list-accept" class="primary" hidden>Import local copy</button></div></dialog>
-<dialog id="list-builder" class="list-builder"><div class="section-heading"><div><p class="eyebrow">EXTRACT / MATCH / CONFIRM</p><h2>Build a list from text</h2></div><button class="secondary" data-close="list-builder">Close</button></div><p class="muted">Website layouts vary. Edit the extracted text to keep the watch order you want, then confirm each match. Saving creates or updates a local list. Manual entry changes stop automatic source updates.</p><label>Save to<select id="builder-destination"><option value="">New local list</option></select></label><div id="builder-update-options" hidden><label>Update action<select id="builder-mode"><option value="append">Append new entries</option><option value="replace">Replace entries with this revised order</option></select></label><label class="preference-check"><input id="builder-skip-duplicates" type="checkbox" checked> Skip exact duplicate titles and TV scopes</label><p id="builder-replace-note" class="muted" hidden>Replacing uses the reviewed entries in their new order. Existing entries omitted from this input will be removed from the list.</p><label id="builder-detach-warning" class="preference-check" hidden><input id="builder-confirm-detach" type="checkbox"> Convert this linked list to local. Manual entry changes stop automatic source updates. Use Refresh source to keep the link instead.</label></div><label>List name<input id="builder-name" maxlength="200" placeholder="My watch order"></label><div id="builder-input"><div class="builder-fields"><label>Default parent show / franchise (optional)<input id="builder-context" maxlength="200" placeholder="Infer from text, or enter e.g. Pokemon"></label><label>Source episode numbering<select id="builder-numbering"><option value="season">Starts over each season</option><option value="absolute">Continuous / absolute</option></select></label></div><div id="builder-dragon-options" hidden><label>Dragon Ball Z guide edition<select id="builder-dragon-edition"><option value="original">Original / uncut English dub (291 episodes)</option><option value="dub">Older edited DUB (276 episodes; manual mapping)</option></select></label><p class="muted">This choice applies to the Dragon Ball guide. Audio language does not change episode numbering. Continuous episode ranges are automatically split across TMDB seasons; specials are excluded.</p></div><div class="builder-url"><label>Public website or Google Sheets URL<input id="builder-url" type="url" placeholder="https://example.com/watch-order"></label><label>Google Sheets tabs<select id="builder-sheet-scope"><option value="all">All worksheets (tab order)</option><option value="selected">Selected worksheet only</option></select></label><button id="builder-fetch" class="secondary">Extract source text</button></div><label>List text<textarea id="builder-text" rows="12" maxlength="200000" placeholder="Paste one entry per line. Movies, shows, seasons and episodes can be mixed.&#10;Captain America: The First Avenger (2011)&#10;Agents of S.H.I.E.L.D. S01E01-E03&#10;Daredevil Season 1"></textarea></label><p class="muted">Public Google Sheets links read all worksheets in workbook tab order by default. Choose Selected worksheet only to read just the URL gid. Sheets must be publicly readable; private sheets can be copied and pasted instead. Keep only the relevant section if a page contains multiple watch orders. Tables, S01E01, British Series 1 labels, parenthesized seasons 1-4, and Season 1 Subtitle (Ep 1-69) ranges are supported. Named episodes and specials can be matched within their parent show. Season and episode ranges stay together for review and expand into individual entries when saved. Anime source seasons can differ from TMDB; use continuous numbering only when episode numbers do not restart. Images and script-only lists may need pasted text. Every non-empty candidate line remains reviewable; article prose may need removing.</p><button id="builder-infer" class="primary">Review inferred entries</button></div><div id="builder-review" hidden><div class="builder-toolbar"><button id="builder-back" class="secondary">Edit source text</button><label>Show<select id="builder-filter"><option value="all">All entries</option><option value="pending">Needs confirmation</option><option value="confirmed">Confirmed</option></select></label><button id="builder-match-all" class="secondary">Find suggested matches</button><button id="builder-confirm-all" class="secondary" disabled>Confirm all proposed matches</button><span id="builder-count" class="muted" role="status"></span></div><p class="muted">Check media type, year and TV numbering, then confirm individually or use Confirm all proposed matches to accept every complete suggestion, including entries beyond this view. Exclude prose or duplicates using Remove; edit a query and use Find to correct a match. Unmatched entries must be corrected or removed before saving.</p><div id="builder-rows"></div><div class="dialog-actions"><button id="builder-save" class="primary" disabled>Create confirmed local list</button></div></div><p id="builder-status" class="muted" role="status"></p></dialog><dialog id="official-publish-dialog"><h2>Publish Official List</h2><p id="official-publish-summary"></p><p class="muted">Publishes this list's titles, order, poster and description into this installation's bundled official catalogue. Existing official versions are updated; your working list and history are preserved under Official Lists. Nothing is uploaded to a website or to other users automatically.</p><p id="official-publish-status" class="muted" role="status"></p><div class="dialog-actions"><button class="secondary" data-close="official-publish-dialog">Cancel</button><button id="official-publish-confirm" class="primary">Publish official version</button></div></dialog><dialog id="list-delete-dialog"><h2>Delete saved list?</h2><p id="list-delete-summary"></p><p class="muted">Removes this list from ReelCheck. Plex playlists, media files and download requests are kept.</p><p id="list-delete-status" class="muted" role="status"></p><div class="dialog-actions"><button class="secondary" data-close="list-delete-dialog">Cancel</button><button id="list-delete-confirm" class="primary">Delete saved list</button></div></dialog><dialog id="favorites-dialog"><h2>Favorites from your Plex history</h2><p class="muted">Review watched titles you rated highly or replayed before creating an editable personal list.</p><label>Maximum titles<select id="favorites-limit"><option>20</option><option selected>50</option><option>100</option></select></label><button id="favorites-preview" class="secondary">Find favorites</button><p id="favorites-status" role="status"></p><div id="favorites-items"></div><div class="dialog-actions"><button class="secondary" data-close="favorites-dialog">Cancel</button><button id="favorites-save" class="primary" disabled>Create Favorites list</button></div></dialog><div id="toast" role="status" hidden></div><script src="/app.js"></script><script src="/trakt.js"></script><script src="/enrichment.js"></script><script src="/explore.js"></script><script src="/lists.js"></script><script src="/taste.js"></script><script src="/collection-tools.js"></script><script src="/builder.js"></script><script src="/requests.js"></script><script src="/workflow.js"></script><script src="/workbench.js"></script><script src="/workspace.js"></script>
-<script src="/audit-workflows.js"></script><script src="/discovery-updates.js"></script><script src="/navigation.js"></script></body></html>
+    <dialog id="list-editor">
+      <form id="list-editor-form">
+        <p class="eyebrow">YOUR COLLECTION</p>
+        <h2 id="list-editor-heading">Edit list</h2>
+        <div class="list-editor-identity">
+          <img id="list-poster-preview" alt="List poster" hidden />
+          <div>
+            <label>List name<input id="list-edit-name" required maxlength="200" /></label
+            ><label
+              >Description<textarea
+                id="list-edit-description"
+                rows="3"
+                maxlength="5000"
+              ></textarea></label
+            ><label
+              >Poster image<input
+                id="list-edit-poster"
+                type="file"
+                accept="image/png,image/jpeg,image/webp" /></label
+            ><button id="list-generate-poster" type="button" class="secondary">
+              Create title poster</button
+            ><button id="list-clear-poster" type="button" class="text-action">Remove poster</button>
+          </div>
+        </div>
+        <details class="playlist-art-editor">
+          <summary>Square Plex playlist cover</summary>
+          <p class="muted">
+            Separate from the portrait collection poster. Uploaded images are centre-cropped to a
+            square. Used when you create or update its Plex playlist.
+          </p>
+          <img id="list-playlist-poster-preview" alt="Square playlist cover" hidden /><label
+            >Playlist cover image<input
+              id="list-edit-playlist-poster"
+              type="file"
+              accept="image/png,image/jpeg,image/webp" /></label
+          ><button id="list-generate-playlist-poster" type="button" class="secondary">
+            Create square title cover</button
+          ><button id="list-clear-playlist-poster" type="button" class="text-action">
+            Remove square cover
+          </button>
+        </details>
+        <label
+          >List mode<select id="list-edit-mode">
+            <option value="local">Local list</option>
+            <option value="linked">Linked source list</option>
+          </select></label
+        ><label id="list-source-field"
+          >Source URL<input
+            id="list-edit-source"
+            type="url"
+            placeholder="Paste a supported public list URL"
+        /></label>
+        <p id="list-source-help" class="muted"></p>
+        <label id="list-detach-warning" class="preference-check" hidden
+          ><input id="list-confirm-detach" type="checkbox" /> Convert to local: adding, removing or
+          reordering entries stops source updates. The original source is kept for reference.</label
+        >
+        <h3>Entries <span id="list-editor-count"></span></h3>
+        <div class="list-add-tools">
+          <label class="sr" for="list-add-query">Find a title</label
+          ><input id="list-add-query" placeholder="Find a title, or enter a TMDB ID / URL" /><select
+            id="list-add-type"
+            aria-label="Title type"
+          >
+            <option value="movie">Movie</option>
+            <option value="show">TV show</option></select
+          ><button id="list-add-search" type="button" class="secondary">Search</button
+          ><button id="list-add-tmdb" type="button" class="secondary">Look up TMDB ID</button>
+        </div>
+        <div id="list-add-results"></div>
+        <p class="muted">
+          For a season or episode, use the parent TV show?s TMDB ID and choose the scope below, or
+          paste its full TMDB season/episode URL. Choose Movie or TV show for numeric IDs.
+        </p>
+        <div class="list-add-tools">
+          <select id="list-add-scope" aria-label="TV scope">
+            <option value="show">Whole show</option>
+            <option value="season">Season range</option>
+            <option value="episode">Episode</option></select
+          ><input
+            id="list-add-season"
+            type="number"
+            min="0"
+            placeholder="First season"
+            aria-label="First season"
+          /><input
+            id="list-add-season-end"
+            hidden
+            type="number"
+            min="0"
+            placeholder="Last season (optional)"
+            aria-label="Last season for a season range"
+          /><input
+            id="list-add-episode"
+            type="number"
+            min="1"
+            placeholder="Episode"
+            aria-label="Episode"
+          />
+        </div>
+        <div id="list-editor-items"></div>
+        <p id="list-editor-status" class="muted" role="status"></p>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close="list-editor">Cancel</button
+          ><button type="submit" class="primary">Save list</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="release-monitor-dialog">
+      <h2 id="release-monitor-heading">Monitor release</h2>
+      <p class="muted">
+        Radarr will monitor for a released movie. Sonarr will monitor the whole show and future
+        seasons, excluding specials. This submits no immediate search. Automatic acquisition depends
+        on your manager, indexers and quality settings.
+      </p>
+      <div id="release-monitor-options"></div>
+      <p id="release-monitor-status" role="status"></p>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="release-monitor-dialog">Close</button
+        ><button id="release-monitor-submit" class="primary">Confirm monitoring</button>
+      </div>
+    </dialog>
+    <dialog id="manager-editor">
+      <form id="manager-form">
+        <h2 id="manager-editor-title">Manager instance</h2>
+        <label
+          >Name<input id="manager-name" required maxlength="80" placeholder="Radarr 4K"
+        /></label>
+        <div class="fields">
+          <label
+            >Service<select id="manager-service">
+              <option value="radarr">Radarr</option>
+              <option value="sonarr">Sonarr</option>
+            </select></label
+          ><label
+            >Library tier<select id="manager-tier">
+              <option value="standard">Standard</option>
+              <option value="4k">4K</option>
+            </select></label
+          >
+        </div>
+        <label
+          >Server URL<input
+            id="manager-url"
+            type="url"
+            required
+            placeholder="http://192.168.1.20:7879" /></label
+        ><label
+          >API key<input
+            id="manager-key"
+            type="password"
+            autocomplete="new-password"
+            placeholder="Leave blank to keep saved key" /></label
+        ><label class="preference-check"
+          ><input id="manager-enabled" type="checkbox" checked /> Enable this route</label
+        ><label class="preference-check"
+          ><input id="manager-default" type="checkbox" /> Default route for this service and
+          tier</label
+        >
+        <p id="manager-editor-status" class="muted" role="status"></p>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close="manager-editor">Cancel</button
+          ><button id="manager-test" type="button" class="secondary">Test connection</button
+          ><button type="submit" class="primary">Save instance</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="request-new-dialog">
+      <h2>Request a title</h2>
+      <p class="muted">
+        Choose the title, exact scope and library tier. Nothing is sent until you confirm the
+        review.
+      </p>
+      <div class="list-add-tools">
+        <input
+          id="request-new-query"
+          placeholder="Movie or show title"
+          aria-label="Find title"
+        /><select id="request-new-type" aria-label="Media type">
+          <option value="movie">Movie</option>
+          <option value="show">TV</option></select
+        ><button id="request-new-search" class="secondary">Find title</button>
+      </div>
+      <div id="request-new-results"></div>
+      <div class="fields">
+        <label
+          >TV scope<select id="request-new-scope">
+            <option value="show">Whole show</option>
+            <option value="season">Season</option>
+            <option value="episode">Episode</option>
+          </select></label
+        ><label
+          >Season<select id="request-new-season">
+            <option value="">Choose a season</option>
+          </select></label
+        ><label
+          >Episode<select id="request-new-episode">
+            <option value="">Choose an episode</option>
+          </select></label
+        ><label
+          >Library tier<select id="request-new-tier">
+            <option value="standard">Standard</option>
+            <option value="4k">4K</option>
+          </select></label
+        >
+      </div>
+      <label>Manager route<select id="request-new-route"></select></label
+      ><label
+        >Action<select id="request-new-mode">
+          <option value="search">Request / search now</option>
+          <option value="monitor">Monitor future releases (movie or whole show)</option>
+        </select></label
+      ><label class="preference-check"
+        ><input id="request-new-queue" type="checkbox" /> Queue for later approval</label
+      >
+      <p id="request-new-selection" class="muted"></p>
+      <p id="request-new-status" class="muted" role="status"></p>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="request-new-dialog">Cancel</button
+        ><button id="request-new-continue" class="primary" disabled>Continue to review</button>
+      </div>
+    </dialog>
+    <dialog id="request-decision-dialog">
+      <h2 id="request-decision-heading">Decline request</h2>
+      <label>Reason (optional)<input id="request-decision-reason" maxlength="500" /></label>
+      <p class="muted">
+        This changes only the queued request. It does not cancel or delete anything in Radarr,
+        Sonarr or qBittorrent.
+      </p>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="request-decision-dialog">Back</button
+        ><button id="request-decision-confirm" class="primary">Confirm</button>
+      </div>
+    </dialog>
+    <dialog id="list-share-dialog">
+      <h2 id="list-share-heading">Share list</h2>
+      <p class="muted">
+        Download a portable list file and send it however you prefer. It includes the name,
+        description and entries in source order. Plex availability, watched history, manager
+        settings, request history and credentials are excluded.
+      </p>
+      <label class="preference-check"
+        ><input id="list-share-poster" type="checkbox" checked /> Include the list poster</label
+      >
+      <p class="muted">
+        The recipient imports an independent local copy. Changes are not automatically synced, and
+        your server is not exposed.
+      </p>
+      <p id="list-share-status" class="muted" role="status"></p>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="list-share-dialog">Close</button
+        ><button id="list-share-download" class="primary">Download shared list</button>
+      </div>
+    </dialog>
+    <dialog id="shared-list-dialog">
+      <h2>Import a shared list</h2>
+      <label
+        >Listweavarr list file<input
+          id="shared-list-file"
+          type="file"
+          accept="application/json,.json"
+      /></label>
+      <p class="muted">
+        Preview the list before importing. It will become a new local copy; nothing is downloaded or
+        added to Plex.
+      </p>
+      <p id="shared-list-status" class="muted" role="status"></p>
+      <div id="shared-list-preview" hidden></div>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="shared-list-dialog">Close</button
+        ><button id="shared-list-accept" class="primary" hidden>Import local copy</button>
+      </div>
+    </dialog>
+    <dialog id="list-builder" class="list-builder">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">EXTRACT / MATCH / CONFIRM</p>
+          <h2>Build a list from text</h2>
+        </div>
+        <button class="secondary" data-close="list-builder">Close</button>
+      </div>
+      <p class="muted">
+        Website layouts vary. Edit the extracted text to keep the watch order you want, then confirm
+        each match. Saving creates or updates a local list. Manual entry changes stop automatic
+        source updates.
+      </p>
+      <label
+        >Save to<select id="builder-destination">
+          <option value="">New local list</option>
+        </select></label
+      >
+      <div id="builder-update-options" hidden>
+        <label
+          >Update action<select id="builder-mode">
+            <option value="append">Append new entries</option>
+            <option value="replace">Replace entries with this revised order</option>
+          </select></label
+        ><label class="preference-check"
+          ><input id="builder-skip-duplicates" type="checkbox" checked /> Skip exact duplicate
+          titles and TV scopes</label
+        >
+        <p id="builder-replace-note" class="muted" hidden>
+          Replacing uses the reviewed entries in their new order. Existing entries omitted from this
+          input will be removed from the list.
+        </p>
+        <label id="builder-detach-warning" class="preference-check" hidden
+          ><input id="builder-confirm-detach" type="checkbox" /> Convert this linked list to local.
+          Manual entry changes stop automatic source updates. Use Refresh source to keep the link
+          instead.</label
+        >
+      </div>
+      <label
+        >List name<input id="builder-name" maxlength="200" placeholder="My watch order"
+      /></label>
+      <div id="builder-input">
+        <div class="builder-fields">
+          <label
+            >Default parent show / franchise (optional)<input
+              id="builder-context"
+              maxlength="200"
+              placeholder="Infer from text, or enter e.g. Pokemon" /></label
+          ><label
+            >Source episode numbering<select id="builder-numbering">
+              <option value="season">Starts over each season</option>
+              <option value="absolute">Continuous / absolute</option>
+            </select></label
+          >
+        </div>
+        <div id="builder-dragon-options" hidden>
+          <label
+            >Dragon Ball Z guide edition<select id="builder-dragon-edition">
+              <option value="original">Original / uncut English dub (291 episodes)</option>
+              <option value="dub">Older edited DUB (276 episodes; manual mapping)</option>
+            </select></label
+          >
+          <p class="muted">
+            This choice applies to the Dragon Ball guide. Audio language does not change episode
+            numbering. Continuous episode ranges are automatically split across TMDB seasons;
+            specials are excluded.
+          </p>
+        </div>
+        <div class="builder-url">
+          <label
+            >Public website or Google Sheets URL<input
+              id="builder-url"
+              type="url"
+              placeholder="https://example.com/watch-order" /></label
+          ><label
+            >Google Sheets tabs<select id="builder-sheet-scope">
+              <option value="all">All worksheets (tab order)</option>
+              <option value="selected">Selected worksheet only</option>
+            </select></label
+          ><button id="builder-fetch" class="secondary">Extract source text</button>
+        </div>
+        <label
+          >List text<textarea
+            id="builder-text"
+            rows="12"
+            maxlength="200000"
+            placeholder="Paste one entry per line. Movies, shows, seasons and episodes can be mixed.&#10;Captain America: The First Avenger (2011)&#10;Agents of S.H.I.E.L.D. S01E01-E03&#10;Daredevil Season 1"
+          ></textarea>
+        </label>
+        <p class="muted">
+          Public Google Sheets links read all worksheets in workbook tab order by default. Choose
+          Selected worksheet only to read just the URL gid. Sheets must be publicly readable;
+          private sheets can be copied and pasted instead. Keep only the relevant section if a page
+          contains multiple watch orders. Tables, S01E01, British Series 1 labels, parenthesized
+          seasons 1-4, and Season 1 Subtitle (Ep 1-69) ranges are supported. Named episodes and
+          specials can be matched within their parent show. Season and episode ranges stay together
+          for review and expand into individual entries when saved. Anime source seasons can differ
+          from TMDB; use continuous numbering only when episode numbers do not restart. Images and
+          script-only lists may need pasted text. Every non-empty candidate line remains reviewable;
+          article prose may need removing.
+        </p>
+        <button id="builder-infer" class="primary">Review inferred entries</button>
+      </div>
+      <div id="builder-review" hidden>
+        <div class="builder-toolbar">
+          <button id="builder-back" class="secondary">Edit source text</button
+          ><label
+            >Show<select id="builder-filter">
+              <option value="all">All entries</option>
+              <option value="pending">Needs confirmation</option>
+              <option value="confirmed">Confirmed</option>
+            </select></label
+          ><button id="builder-match-all" class="secondary">Find suggested matches</button
+          ><button id="builder-confirm-all" class="secondary" disabled>
+            Confirm all proposed matches</button
+          ><span id="builder-count" class="muted" role="status"></span>
+        </div>
+        <p class="muted">
+          Check media type, year and TV numbering, then confirm individually or use Confirm all
+          proposed matches to accept every complete suggestion, including entries beyond this view.
+          Exclude prose or duplicates using Remove; edit a query and use Find to correct a match.
+          Unmatched entries must be corrected or removed before saving.
+        </p>
+        <div id="builder-rows"></div>
+        <div class="dialog-actions">
+          <button id="builder-save" class="primary" disabled>Create confirmed local list</button>
+        </div>
+      </div>
+      <p id="builder-status" class="muted" role="status"></p>
+    </dialog>
+    <dialog id="official-publish-dialog">
+      <h2>Publish Official List</h2>
+      <p id="official-publish-summary"></p>
+      <p class="muted">
+        Publishes this list's titles, order, poster and description into this installation's bundled
+        official catalogue. Existing official versions are updated; your working list and history
+        are preserved under Official Lists. Nothing is uploaded to a website or to other users
+        automatically.
+      </p>
+      <p id="official-publish-status" class="muted" role="status"></p>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="official-publish-dialog">Cancel</button
+        ><button id="official-publish-confirm" class="primary">Publish official version</button>
+      </div>
+    </dialog>
+    <dialog id="list-delete-dialog">
+      <h2>Delete saved list?</h2>
+      <p id="list-delete-summary"></p>
+      <p class="muted">
+        Removes this list from Listweavarr. Plex playlists, media files and download requests are
+        kept.
+      </p>
+      <p id="list-delete-status" class="muted" role="status"></p>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="list-delete-dialog">Cancel</button
+        ><button id="list-delete-confirm" class="primary">Delete saved list</button>
+      </div>
+    </dialog>
+    <dialog id="favorites-dialog">
+      <h2>Favorites from your Plex history</h2>
+      <p class="muted">
+        Review watched titles you rated highly or replayed before creating an editable personal
+        list.
+      </p>
+      <label
+        >Maximum titles<select id="favorites-limit">
+          <option>20</option>
+          <option selected>50</option>
+          <option>100</option>
+        </select></label
+      ><button id="favorites-preview" class="secondary">Find favorites</button>
+      <p id="favorites-status" role="status"></p>
+      <div id="favorites-items"></div>
+      <div class="dialog-actions">
+        <button class="secondary" data-close="favorites-dialog">Cancel</button
+        ><button id="favorites-save" class="primary" disabled>Create Favorites list</button>
+      </div>
+    </dialog>
+    <div id="toast" role="status" hidden></div>
+    <script src="/app.js"></script>
+    <script src="/trakt.js"></script>
+    <script src="/enrichment.js"></script>
+    <script src="/explore.js"></script>
+    <script src="/lists.js"></script>
+    <script src="/taste.js"></script>
+    <script src="/collection-tools.js"></script>
+    <script src="/builder.js"></script>
+    <script src="/requests.js"></script>
+    <script src="/workflow.js"></script>
+    <script src="/workbench.js"></script>
+    <script src="/workspace.js"></script>
+    <script src="/audit-workflows.js"></script>
+    <script src="/discovery-updates.js"></script>
+    <script src="/navigation.js"></script>
+  </body>
+</html>

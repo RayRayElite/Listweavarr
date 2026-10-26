@@ -1,0 +1,2 @@
+# Optional Python code formatting; the app itself has no pip dependencies.
+black==25.1.0

@@ -9,7 +9,7 @@ Manage list replaces the compressed dropdown with a grouped dialog: Edit & share
 ## Update delivery without app upgrades
 
 1. A publisher makes and reviews changes in their authoring workspace, then publishes a new local Official version.
-2. Export official-lists.json and official-lists.manifest.json. Upload both to the same protected publishing location, catalogue first and manifest last.
+2. Publishing generates official-lists.json and official-lists.manifest.json together in the private catalogue directory. Export them and upload both to the same protected publishing location, catalogue first and manifest last.
 3. A user configures that public catalogue URL once. Opening Official Lists checks only the small sibling manifest. A newer version produces an Updates available indicator and an inbox notice after the check. No full catalogue, personal list or Plex playlist is automatically replaced.
 4. The user opens Updates, previews the source and downloads/installs the reviewed catalogue when ready.
 5. They separately preview changes to their personal copy, choose merge/replace/skip, and can roll back the copy update.
@@ -19,7 +19,7 @@ Only compatible data changes can be delivered this way; a future catalogue schem
 
 ## Publisher and curator authority
 
-Normal launches disable the Official publishing API and hide the publisher tools. The developer launcher Start ReelCheck Curator.cmd enables local authoring via REELCHECK_CURATOR_MODE=1. Restart the server when switching modes.
+Normal launches disable the Official publishing API and hide the publisher tools. The developer launcher Start Listweavarr Curator.cmd enables local authoring via LISTWEAVARR_CURATOR_MODE=1. Restart the server when switching modes.
 
 This local flag prevents accidental publication in consumer installations; it is NOT authentication or proof of approved-curator identity. Anyone controls their own local installation. The shared source must enforce publishing authority independently: for the first release, GitHub repository permissions plus protected branches/review requirements. Users can edit their own copies but cannot write to your repository. No shared publisher credential should ever be embedded in the app. Curators submit changes for review; you retain final release control. A future hosted publishing API must check server-issued roles on every write and retain revocation/audit history.
 
