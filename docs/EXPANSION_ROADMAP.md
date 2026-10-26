@@ -4,6 +4,11 @@ Planning baseline: October 26, 2026. These are proposed increments, not claims
 that every integration or automation already exists. Existing features are
 documented in ROADMAP.md; this plan extends them rather than duplicating them.
 
+Additional discovery/list-manager references and eleven follow-up proposals are
+tracked in [Related-project review](RELATED_PROJECTS.md). In particular, O3
+extends L2 with reliable scheduler controls; O8 separates single-owner login from
+the deferred multi-user household milestone.
+
 ## Product direction
 
 Lists are the organizing unit: discover, curate, complete, watch and maintain a
