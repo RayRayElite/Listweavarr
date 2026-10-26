@@ -6,6 +6,8 @@ Exports only public title fields, artwork and curated paths; validates every imp
 See docs/CODE_MAP.md for related modules, routes and contribution guidance.
 """
 import datetime
+import csv
+import io
 import hashlib
 import json
 import secrets
@@ -27,6 +29,29 @@ FIELDS = (
     "episode",
     "metadata_unresolved",
 )
+
+
+def export_csv(entry):
+    """Export ordered public identities for spreadsheet editing, without runtime state.
+
+    Formula-looking text is escaped because spreadsheet applications can execute
+    formulas even inside correctly quoted CSV cells. JSON remains the lossless
+    format for covers, descriptions and alternate watch paths.
+    """
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=FIELDS)
+    writer.writeheader()
+    for item in entry["items"]:
+        row = {}
+        for field in FIELDS:
+            value = item.get(field, "")
+            if isinstance(value, str) and value.lstrip().startswith(
+                ("=", "+", "-", "@")
+            ):
+                value = "'" + value
+            row[field] = value
+        writer.writerow(row)
+    return {"name": entry["name"], "csv": output.getvalue()}
 
 
 def digest(document):

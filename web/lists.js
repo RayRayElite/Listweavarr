@@ -568,6 +568,21 @@ $('list-share-download').onclick = (e) =>
     $('list-share-status').textContent =
       'Shared-list file downloaded. The recipient can use Lists / My Lists / Import shared list.';
   });
+$('list-share-csv').onclick = (e) =>
+  task(e.target, async () => {
+    const result = await api('lists/share/csv', { list_id: sharingListId });
+    const url = URL.createObjectURL(
+      new Blob(['\ufeff', result.csv], { type: 'text/csv;charset=utf-8' })
+    );
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download =
+      (result.name.replace(/[^a-z0-9_-]+/gi, '-').slice(0, 80) || 'collection') + '.csv';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    $('list-share-status').textContent =
+      'Spreadsheet exported in list order. Covers and alternate watch paths are included only in the shared-list JSON file.';
+  });
 $('shared-list-open').onclick = () => {
   sharedListDocument = null;
   sharedListFingerprint = null;

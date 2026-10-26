@@ -1,5 +1,7 @@
 # Approved feature roadmap
 
+For the next list-first consolidation milestones, see [Expansion roadmap](EXPANSION_ROADMAP.md).
+
 All 18 ideas were approved on October 24, 2026. Add them progressively; keep routine browsing focused on posters, titles and primary actions. Put explanations and maintenance tools behind deliberate disclosure. Audit the overall UI after several increments.
 
 ## First increment

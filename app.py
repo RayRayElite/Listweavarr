@@ -2254,7 +2254,7 @@ class Handler(BaseHTTPRequestHandler):
                 with LOCK:
                     snapshot = read_state()
                 folder = DATA / "backups"
-                if action == "export":
+                if action in ("export", "csv"):
                     return self.respond(backups.export(snapshot))
                 if action == "list":
                     return self.respond(
@@ -2843,6 +2843,8 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     if not entry:
                         raise ValueError("Choose a saved list to share.")
+                    if action == "csv":
+                        return self.respond(list_sharing.export_csv(entry))
                     return self.respond(
                         list_sharing.export(
                             entry, bool(body.get("include_poster", True))
