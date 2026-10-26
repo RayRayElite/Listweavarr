@@ -1,0 +1,6 @@
+type,title,year,tmdb,show_tvdb,show_title,season,episode
+movie,Captain America: The First Avenger,2011,1771,,,,
+movie,Captain Marvel,2019,299537,,,,
+movie,Iron Man,2008,1726,,,,
+episode,Pilot,,,263365,Agents of S.H.I.E.L.D.,1,1
+season,Agents of S.H.I.E.L.D. season 2,,,263365,Agents of S.H.I.E.L.D.,2,
