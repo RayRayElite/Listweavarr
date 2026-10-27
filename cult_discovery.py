@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Heuristic so-bad-its-good discovery.
+"""Curated so-bad-its-good discovery with personal ranking.
 
-Low scores alone do not qualify a pick; use additional cult/genre signals and explain uncertainty.
+Explore uses curated_candidates. The earlier experimental scorer is retained
+for comparison tests, but is not an automatic fallback or membership source.
 
 See docs/CODE_MAP.md for related modules, routes and contribution guidance.
 """
@@ -17,10 +18,206 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 import providers
 import ratings
+import taste
+import ignored_titles
 
 _cache = {}
 _lock = threading.Lock()
 ANCHORS = ("tt0368226", "tt0105643", "tt0052077", "tt1316037")
+
+
+def curated_candidates(state, catalog, page=1, skip=lambda row: False):
+    """Curated eligibility, personalized ordering; no heuristic filler.
+
+    Rank a bounded pool per page to keep cold metadata requests manageable.
+    Daily stable rotation avoids permanently favoring the beginning of a list.
+    Ownership alone never counts as a positive preference.
+    """
+    selected = state.get("cult_list_id")
+    source = next(
+        (row for row in state.get("lists", []) if row["id"] == selected), None
+    )
+    if source is None and not selected:
+        source = next(
+            (
+                row
+                for row in state.get("lists", [])
+                if canonical(row.get("name", "")).replace("'", "") == "so bad its good"
+            ),
+            None,
+        )
+    if source is None:
+        return (
+            [],
+            [
+                "Create a saved list named So Bad Its Good to supply curated candidates. No experimental substitutes are used."
+            ],
+            False,
+        )
+    settings = state["settings"]
+    pool, seen = [], set()
+    for original in source["items"]:
+        row = dict(original)
+        if row.get("type") not in ("movie", "show") or row.get("metadata_unresolved"):
+            continue
+        if skip(row) or ignored_titles.matches(row, state.get("ignored_titles", [])):
+            continue
+        identity = (
+            row["type"],
+            str(row.get("tmdb") or row.get("imdb") or row.get("tvdb") or row["title"]),
+        )
+        if identity not in seen:
+            seen.add(identity)
+            pool.append(row)
+    day = datetime.date.today().isoformat()
+    pool.sort(
+        key=lambda row: hashlib.sha256(
+            (day + row["type"] + str(row.get("tmdb") or row["title"])).encode()
+        ).hexdigest()
+    )
+    start, limit = (page - 1) * 60, 60
+    seeds = [
+        row
+        for row in taste.catalog_with_feedback(catalog, state.get("taste_feedback", {}))
+        if row.get("_feedback") != "dislike"
+        and (
+            row.get("_feedback") in ("favorite", "like")
+            or row.get("watched")
+            and (not row.get("user_rating") or row["user_rating"] >= 5)
+        )
+        and not ignored_titles.matches(
+            {**row, **row.get("ids", {})}, state.get("ignored_titles", [])
+        )
+    ]
+    seeds.sort(
+        key=lambda row: (
+            row.get("_feedback") == "favorite",
+            row.get("user_rating") or 0,
+            row.get("last_viewed_at") or 0,
+        ),
+        reverse=True,
+    )
+
+    def details(row):
+        value = dict(row)
+        if not value.get("tmdb"):
+            value = providers.enrich(value, settings)
+        if not value.get("tmdb"):
+            raise ValueError("No exact metadata match")
+        media = "movie" if value["type"] == "movie" else "tv"
+        return providers.cached_tmdb(
+            media + "/" + str(value["tmdb"]) + "?append_to_response=credits,keywords",
+            settings,
+        )
+
+    seed_features = []
+    for seed in seeds[:8]:
+        try:
+            data = details({**seed, **seed.get("ids", {})})
+            seed_features.append((seed, data))
+        except ValueError:
+            continue
+
+    def features(data):
+        genres = {row.get("name") for row in data.get("genres", [])}
+        credits = data.get("credits") or {}
+        people = {
+            str(row["id"]) for row in credits.get("cast", [])[:8] if row.get("id")
+        }
+        people.update(
+            str(row["id"])
+            for row in credits.get("crew", [])
+            if row.get("id") and row.get("job") == "Director"
+        )
+        keywords = data.get("keywords") or {}
+        tags = {
+            str(row["id"])
+            for row in keywords.get("keywords", keywords.get("results", []))
+            if row.get("id")
+        }
+        return genres, people, tags
+
+    def evaluate(row):
+        try:
+            data = details(row)
+            genres, people, tags = features(data)
+            reasons, points = ["Selected from your curated list: " + source["name"]], 0
+            for seed, metadata in seed_features:
+                other_genres, other_people, other_tags = features(metadata)
+                overlap = (
+                    min(len(genres & other_genres), 2) * 0.3
+                    + min(len(people & other_people), 2) * 1.2
+                    + min(len(tags & other_tags), 3) * 0.4
+                )
+                points += overlap * (
+                    1.5
+                    if seed.get("_feedback") == "favorite"
+                    or (seed.get("user_rating") or 0) >= 8
+                    else 1
+                )
+                if overlap and len(reasons) < 4:
+                    signal = (
+                        "credited people"
+                        if people & other_people
+                        else "story themes" if tags & other_tags else "genres"
+                    )
+                    reasons.append(
+                        "Shares "
+                        + signal
+                        + " with "
+                        + seed["title"]
+                        + (
+                            ", which you favorited"
+                            if seed.get("_feedback") == "favorite"
+                            else (
+                                ", which you liked"
+                                if seed.get("_feedback") == "like"
+                                else (
+                                    ", which you highly rated"
+                                    if (seed.get("user_rating") or 0) >= 8
+                                    else ", which you watched"
+                                )
+                            )
+                        )
+                    )
+            candidate = {
+                "type": row["type"],
+                "tmdb": str(data["id"]),
+                "genre_ids": [g["id"] for g in data.get("genres", [])],
+                "people_ids": list(people),
+            }
+            adjustment, feedback_reasons = taste.affinity(
+                candidate, state.get("taste_feedback", {})
+            )
+            if adjustment <= -100:
+                return None
+            return {
+                "details": {**data, "genre_ids": candidate["genre_ids"]},
+                "kind": row["type"],
+                "score": points + adjustment,
+                "reasons": list(dict.fromkeys(reasons + feedback_reasons)),
+                "confidence": (
+                    "Personally curated eligibility; ranked using available taste and watch-history signals"
+                    if seed_features or state.get("taste_feedback")
+                    else "Personally curated pick; watch history and feedback can personalize its ranking"
+                ),
+            }
+        except ValueError:
+            return None
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        found = [
+            value
+            for value in executor.map(evaluate, pool[start : start + limit])
+            if value
+        ]
+    found.sort(key=lambda value: -value["score"])
+    notices = [
+        "Personalized within a rotating pool of up to 60 curated titles per page; no outside titles are added."
+    ]
+    return found, notices, start + limit < len(pool)
+
+
 STRONG = {"so bad it's good", "so bad its good", "bad movie night"}
 CULT = {"cult", "cult film", "cult classic", "cult movie", "midnight movie"}
 CAMP = {

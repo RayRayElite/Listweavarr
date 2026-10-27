@@ -161,7 +161,7 @@ class ExploreTests(unittest.TestCase):
         with (
             patch("providers.cached_tmdb", side_effect=tmdb),
             patch(
-                "cult_discovery.candidates",
+                "cult_discovery.curated_candidates",
                 return_value=(
                     [
                         {
@@ -176,6 +176,7 @@ class ExploreTests(unittest.TestCase):
                         }
                     ],
                     [],
+                    False,
                 ),
             ),
         ):

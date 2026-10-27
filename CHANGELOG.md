@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- So-bad-it's-good recommendations now take eligibility from the saved list
+  named So Bad Its Good. Personal taste, watched/highly rated titles, credited
+  people, genres and themes rank the curated candidates; no heuristic filler is
+  added. Pools rotate daily and load in bounded pages. Existing ownership,
+  ignore, tracking and language filters remain; rating minimums are bypassed.
+
 - Merge supported Trakt, Letterboxd, IMDb, MDBList and ChronoCanon links into a
   list draft, with preview, exact-scope deduplication and linked-list detachment
   confirmation. Preserve parent-show IDs when saving TV entries in the editor.

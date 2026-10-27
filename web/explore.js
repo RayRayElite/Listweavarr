@@ -613,13 +613,13 @@ async function loadExploreExtras(sequence, refresh = false) {
   const options = [
     ...($('explore-media').value !== 'show' ? ['downloads_movies'] : []),
     ...($('explore-media').value !== 'movie' ? ['downloads_tv'] : []),
-    ...($('explore-cult').checked && $('explore-media').value !== 'show' ? ['cult'] : []),
+    ...($('explore-cult').checked ? ['cult'] : []),
     ...($('explore-indexers').checked ? ['indexers'] : []),
   ];
   $('explore-extra-rows').innerHTML = options
     .map(
       (id) =>
-        `<div id="extra-shelf-${id}"><p class="muted" role="status">Finding ${id === 'cult' ? 'experimental enjoyable-bad matches' : id === 'downloads_movies' ? 'TorrentFreak movie chart' : id === 'downloads_tv' ? 'popular recent TV shows from EZTV' : 'popular titles on your indexers'}...</p></div>`
+        `<div id="extra-shelf-${id}"><p class="muted" role="status">Finding ${id === 'cult' ? 'personalized picks from your curated list' : id === 'downloads_movies' ? 'TorrentFreak movie chart' : id === 'downloads_tv' ? 'popular recent TV shows from EZTV' : 'popular titles on your indexers'}...</p></div>`
     )
     .join('');
   await Promise.all(

@@ -770,22 +770,27 @@ def home(state, body, loader):
     if (
         body.get("guilty")
         and not body.get("defer_extra")
-        and media_filter != "show"
         and (not target or target == "cult")
     ):
-        found, notices = cult_discovery.candidates(settings, bool(body.get("refresh")))
+        found, notices, more = cult_discovery.curated_candidates(
+            state, catalog, page, lambda row: owned(row) or tracked(row, state)
+        )
+        if more:
+            next_pages.append(True)
         warnings.extend(notices)
         items = []
         for candidate in found:
             item = card(
-                candidate["details"], "movie", "Experimental enjoyable-bad match"
+                candidate["details"],
+                "movie" if candidate.get("kind", "movie") == "movie" else "tv",
+                "From your personally curated enjoyable-bad list",
             )
             item["reasons"] = candidate["reasons"] + [candidate["confidence"]]
             items.append(item)
         add(
             "cult",
-            "So bad it might be good",
-            "Experimental: camp/cult evidence and sustained audience interest. Low ratings alone never qualify. Enjoyment is subjective.",
+            "So bad it's good",
+            "Your curated selection, personalized using taste and watch history. Rating minimums do not apply; ownership, ignore, tracking and language preferences still apply.",
             items,
             exception=True,
         )
@@ -918,6 +923,10 @@ def collection(identifier, settings):
 
 
 def extra_shelf(state, body, loader, call):
+    page = int(body.get("page", 1))
+    if not 1 <= page <= 167:
+        raise ValueError("Choose a valid discovery page.")
+    more = False
     target = body.get("shelf")
     if target not in ("cult", "indexers", "downloads_movies", "downloads_tv"):
         raise ValueError("Choose a supported optional shelf.")
@@ -975,15 +984,19 @@ def extra_shelf(state, body, loader, call):
         )
         note += " Rating and language preferences do not filter these charts. Ignored titles stay hidden."
     elif target == "cult":
-        found, notices = cult_discovery.candidates(settings, bool(body.get("refresh")))
+        found, notices, more = cult_discovery.curated_candidates(
+            state, catalog, page, lambda row: owned(row) or tracked(row, state)
+        )
         for candidate in found:
             item = card(
-                candidate["details"], "movie", "Experimental enjoyable-bad match"
+                candidate["details"],
+                "movie" if candidate.get("kind", "movie") == "movie" else "tv",
+                "From your personally curated enjoyable-bad list",
             )
             item["reasons"] = candidate["reasons"] + [candidate["confidence"]]
             items.append(item)
-        name = "So bad it might be good"
-        note = "Experimental scoring: camp/cult evidence, established audience interest and relevant similarity. Low ratings alone never qualify; enjoyment is subjective."
+        name = "So bad it's good"
+        note = "Your curated selection, personalized using taste and watch history. Rating minimums do not apply; ownership, ignore, tracking and language preferences still apply."
     else:
         found, notices = indexer_discovery.candidates(
             settings, call, bool(body.get("refresh"))
@@ -1059,7 +1072,7 @@ def extra_shelf(state, body, loader, call):
                 "items": visible,
             }
         ],
-        "has_more": False,
+        "has_more": more,
         "warnings": warnings,
         "checked_at": time.time(),
     }

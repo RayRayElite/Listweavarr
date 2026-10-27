@@ -44,7 +44,7 @@ A typical change follows this path:
 | [discord_notify.py](../discord_notify.py) | Optional outbound request/release notifications. | `validate_url`, `public`, `configure`, `collect`, `NoRedirect`, `DeliveryError` |
 | [indexer_discovery.py](../indexer_discovery.py) | Optional read-only Prowlarr popularity observations. | `identity`, `normalized`, `release_title`, `resolve_search`, `candidates` |
 | [popular_downloads.py](../popular_downloads.py) | Public movie/TV download-popularity discovery adapters. | `ChartParser`, `fetch`, `source_rows`, `candidates` |
-| [cult_discovery.py](../cult_discovery.py) | Heuristic so-bad-its-good discovery. | `score`, `candidates`, `review_evidence`, `canonical` |
+| [cult_discovery.py](../cult_discovery.py) | Curated enjoyable-bad eligibility with taste/history ranking. | `curated_candidates`; legacy `score`/`candidates` remain for comparison, not Explore fallback |
 | [taste.py](../taste.py) | Personal preference signals for discovery. | `validate`, `identity`, `record`, `catalog_with_feedback`, `affinity`, `rank` |
 
 runtime_config.py owns data paths, host allowlists, public URL and local curator mode. These are shared by the entry point, provider caches and Docker.
