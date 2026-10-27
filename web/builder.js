@@ -361,6 +361,7 @@ async function matchBuilderRows(rows, sequence) {
         source_numbering: row.source_numbering,
         alternatives: row.alternatives,
         episode_title: row.episode_title,
+        episode_catalogue: row.episode_catalogue,
         episode_aliases: row.episode_aliases,
         episode_parts: row.episode_parts,
         season_hint: row.season_hint,

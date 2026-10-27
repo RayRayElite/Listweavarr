@@ -89,7 +89,8 @@ def extract_sheet(text, gid="0", default_show=""):
     for index, row in enumerate(rows[:25]):
         labels = [cell.strip().casefold() for cell in row]
         if any(cell in aliases for cell in labels) and any(
-            cell in ("episode", "episode number", "season", "title", "episode title")
+            cell
+            in ("episode", "episode number", "season", "title", "episode title", "name")
             for cell in labels
         ):
             header_index = index
@@ -102,7 +103,7 @@ def extract_sheet(text, gid="0", default_show=""):
     show_col = column(aliases)
     episode_col = column({"episode", "episode number", "ep"})
     season_col = column({"season", "season number"})
-    title_col = column({"title", "episode title", "movie title"})
+    title_col = column({"title", "episode title", "movie title", "name"})
     data = rows[header_index + 1 :] if header_index is not None else rows
     # The combination of these abbreviations identifies the Chicago crossover format.
     shows = {
@@ -168,6 +169,10 @@ def extract_sheet(text, gid="0", default_show=""):
             line = show + " | " + episode + (" | " + title if title else "")
         elif show and season.isdigit():
             line = show + " Season " + season
+        elif show and title:
+            # Code/Number columns may be release-order keys, not S/E scopes.
+            # Explicitly request title matching within this parent's catalogue.
+            line = show + " | Episode title: " + title
         elif headers:
             line = title or show or episode or season
         else:
@@ -738,7 +743,10 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
             continue
         line = clean_bullet(raw)
         line = line.replace("\u2013", "-").replace("\u2014", "-").replace("\u2212", "-")
-        line, labelled_kind, labelled_year = entry_metadata(line)
+        if re.search(r"(?i)\|\s*Episode title:", line):
+            labelled_kind, labelled_year = "", ""
+        else:
+            line, labelled_kind, labelled_year = entry_metadata(line)
         source_main = main_clause(line)
         if not source_main and re.search(r"\b(?:18|19|20)\d{2}\b", line):
             raise ValueError(
@@ -803,6 +811,9 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
             source_main,
             flags=re.I,
         )
+        catalogue_pair = re.match(r"(?i)^(.+?)\s+\|\s+Episode title:\s*(.+)$", line)
+        if catalogue_pair:
+            named_pair = catalogue_pair
         if not named_pair:
             named_pair = re.match(
                 r"^(.+?)\s+pilot\s+['\"\u2018\u201c](.+?)['\"\u2019\u201d]$",
@@ -814,7 +825,13 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
             and source_main.endswith(("'", '"', "\u2019", "\u201d"))
             and ":" in source_main
         )
-        if typed:
+        if catalogue_pair:
+            title = unquote_title(catalogue_pair[1])
+            named_title = unquote_title(catalogue_pair[2])
+            kind = "episode"
+            year = None
+            hint = "Episode title from a structured table. Match within the named show's catalogue; custom source codes are not season/episode numbers."
+        elif typed:
             family, label, title = typed.groups()
             family = family.strip()
             title = title.strip()
@@ -1104,6 +1121,8 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
             }
             if named_title:
                 row["episode_title"] = named_title
+                if catalogue_pair:
+                    row["episode_catalogue"] = True
                 row["season_hint"] = (
                     str(current_season) if current_season is not None else ""
                 )
@@ -1515,7 +1534,8 @@ def named_scopes(row, parent, settings):
             )
     if choices:
         return choices
-    # Specials first, then the current main-series season. Do not scan every season of a long show.
+    # Ordinary named specials use a small scope. A structured show/title table
+    # explicitly asks for catalogue matching because it has no S/E coordinates.
     numbers = [0]
     if str(row.get("season_hint", "")).isdigit() and int(row["season_hint"]) > 0:
         numbers.append(int(row["season_hint"]))
@@ -1524,7 +1544,11 @@ def named_scopes(row, parent, settings):
         for value in details.get("seasons", [])
         if int(value.get("season_number", 0)) > 0
     ]
-    if len(regular) <= 3:
+    if row.get("episode_catalogue") is True and len(regular) > 100:
+        raise ValueError(
+            "This show has too many seasons for title-only matching. Enter a verified season and episode scope."
+        )
+    if len(regular) <= 3 or row.get("episode_catalogue") is True:
         numbers = list(dict.fromkeys(numbers + regular))
     episode_rows = []
     for season in numbers:
@@ -1538,6 +1562,10 @@ def named_scopes(row, parent, settings):
                 "tv/" + identifier + "/season/" + str(season), settings
             )
         except ValueError:
+            if row.get("episode_catalogue") is True:
+                raise ValueError(
+                    "Could not read the complete episode catalogue. Retry matching before confirming this title."
+                )
             continue
         for episode in metadata.get("episodes", []):
             if (
@@ -1617,6 +1645,80 @@ def named_scopes(row, parent, settings):
                     name,
                 )
             )
+    if not choices and row.get("episode_catalogue") is True:
+        # Only catalogue-table rows use these conservative title variants.
+        # They remain proposals; typos are not fuzzy-matched to an episode.
+        def catalogue_key(name):
+            name = plain(unquote_title(name)).replace("&", " and ")
+            part = re.search(
+                r"(?i)(?:\s*[:,-]?\s*\(?\s*part\s+|\s*\()(one|two|three|iv|iii|ii|i|\d+)\)?\s*$",
+                name,
+            )
+            number = None
+            if part:
+                word = part[1].lower()
+                number = {
+                    "one": 1,
+                    "two": 2,
+                    "three": 3,
+                    "i": 1,
+                    "ii": 2,
+                    "iii": 3,
+                    "iv": 4,
+                }.get(word)
+                if number is None and word.isdigit():
+                    number = int(word)
+                name = name[: part.start()]
+            name = re.sub(r"^the\s+", "", name)
+            return title_identity(name), number
+
+        requested_key, requested_part = catalogue_key(requested)
+        candidates = []
+        for sn, episode in episode_rows:
+            key, part = catalogue_key(episode.get("name", ""))
+            if key == requested_key and (
+                requested_part is None or part == requested_part
+            ):
+                candidates.append((sn, episode, part))
+        # A single source story may span TMDB's adjacent numbered parts.
+        ordered = sorted(
+            candidates, key=lambda value: (value[0], int(value[1]["episode_number"]))
+        )
+        if (
+            requested_part is None
+            and len(ordered) > 1
+            and len({value[0] for value in ordered}) == 1
+            and [value[2] for value in ordered] == list(range(1, len(ordered) + 1))
+            and [int(value[1]["episode_number"]) for value in ordered]
+            == list(
+                range(
+                    int(ordered[0][1]["episode_number"]),
+                    int(ordered[0][1]["episode_number"]) + len(ordered),
+                )
+            )
+        ):
+            choices.append(
+                choice(
+                    ordered[0][0],
+                    int(ordered[0][1]["episode_number"]),
+                    int(ordered[-1][1]["episode_number"]),
+                    requested,
+                )
+            )
+        else:
+            for sn, episode, part in candidates:
+                choices.append(
+                    choice(
+                        sn,
+                        int(episode["episode_number"]),
+                        int(episode["episode_number"]),
+                        episode.get("name", ""),
+                    )
+                )
+        for value in choices:
+            value[
+                "scope_note"
+            ] += " Source title matched using article, conjunction or part-label normalization. Review the proposed episode range."
     return choices
 
 

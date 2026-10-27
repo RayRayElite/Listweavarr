@@ -86,11 +86,81 @@ class SheetBuilderTests(unittest.TestCase):
             'Series,Season,Episode,Title\nExample,2,3,"A title\ncontinued"\nOther,,,Unknown\n'
         )
         self.assertEqual(
-            result["text"], "Example | S02E03 | A title continued\nUnknown"
+            result["text"],
+            "Example | S02E03 | A title continued\nOther | Episode title: Unknown",
         )
         self.assertEqual(len(builder.infer(result["text"])), 2)
         with self.assertRaises(ValueError):
             builder.extract_sheet("Show,Episode,Title\n,,\n")
+
+    def test_custom_release_codes_are_not_episode_numbers(self):
+        result = builder.extract_sheet(
+            "Release Order,Code,,Show,Name,Release Date,Date,Number\n"
+            '1,CSI101,9,CSI: Crime Scene Investigation,"""Pilot""",10/6/2000,36805,101\n'
+            '2,CSI103,9,CSI: Crime Scene Investigation,"""Cool Change""",10/13/2000,36812,103\n'
+            '3,WAT303,10,Without a Trace,"""Pilot""",9/26/2002,37525,303\n'
+        )
+        rows = builder.infer(result["text"])
+        self.assertEqual(
+            [r["episode_title"] for r in rows], ["Pilot", "Cool Change", "Pilot"]
+        )
+        self.assertEqual(
+            [r["query"] for r in rows],
+            ["CSI: Crime Scene Investigation"] * 2 + ["Without a Trace"],
+        )
+        self.assertTrue(all(r["episode_catalogue"] for r in rows))
+        self.assertTrue(all("episode" not in r for r in rows))
+        self.assertNotIn("CSI103", result["text"])
+
+    def test_title_only_catalogue_checks_later_seasons_and_keeps_ambiguity(self):
+        row = builder.infer('Example | Episode title: "Season 1 (2)"')[0]
+        parent = {"tmdb": "9", "type": "show", "title": "Example"}
+
+        def metadata(path, settings):
+            if path == "tv/9":
+                return {"seasons": [{"season_number": n} for n in range(1, 5)]}
+            return (
+                {"episodes": [{"id": 10, "episode_number": 7, "name": "Season 1 (2)"}]}
+                if path.endswith(("/3", "/4"))
+                else {"episodes": []}
+            )
+
+        with patch("providers.cached_tmdb", side_effect=metadata):
+            choices = builder.named_scopes(row, parent, {})
+        self.assertEqual([c["scope"]["season"] for c in choices], ["3", "4"])
+        self.assertEqual(row["episode_title"], "Season 1 (2)")
+
+    def test_catalogue_title_variants_and_split_story(self):
+        def metadata(path, settings):
+            if path == "tv/9":
+                return {"seasons": [{"season_number": 1}]}
+            return {
+                "episodes": [
+                    {"id": 1, "episode_number": 1, "name": "The Storm (1)"},
+                    {"id": 2, "episode_number": 2, "name": "The Storm (2)"},
+                    {"id": 3, "episode_number": 3, "name": "Blood and Water"},
+                ]
+            }
+
+        parent = {"tmdb": "9", "type": "show", "title": "Example"}
+        with patch("providers.cached_tmdb", side_effect=metadata):
+            for title, first, last in [
+                ("The Storm (Part II)", "2", "2"),
+                ("Storm", "1", "2"),
+                ("Blood & Water", "3", "3"),
+            ]:
+                row = builder.infer("Example | Episode title: " + title)[0]
+                choices = builder.named_scopes(row, parent, {})
+                self.assertEqual(len(choices), 1)
+                self.assertEqual(
+                    (
+                        choices[0]["scope"]["episode"],
+                        choices[0]["scope"]["episode_end"],
+                    ),
+                    (first, last),
+                )
+            row = builder.infer("Example | Episode title: Blod and Water")[0]
+            self.assertEqual(builder.named_scopes(row, parent, {}), [])
 
     def test_unknown_table_keeps_candidate_rows(self):
         result = builder.extract_sheet("Movie A (2001)\nMovie B (2002)\n")

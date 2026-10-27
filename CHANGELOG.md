@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Import structured show/episode-name spreadsheets even when they contain only
+  custom release codes rather than season/episode numbers. Match titles across
+  the parent's catalogue, retain ambiguities, and normalize conjunctions and
+  multipart labels without fuzzy matching spelling discrepancies.
+
 - Separate parenthesized years and media labels (movies, short films, TV/web
   series, anime, OVAs and specials) from search titles. Keep movie sequence labels
   out of queries, distinguish catalogue totals from requested scopes, and retain
