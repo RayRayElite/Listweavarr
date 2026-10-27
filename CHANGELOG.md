@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Automatically detect named continuous episode ranges without a season. Map
+  across verified TMDB season records, including anime that retain continuous
+  episode identifiers within seasons. Preserve interspersed movies and expose
+  expanded-order preview for these ranges. See
+  [continuous numbering](docs/CONTINUOUS_EPISODE_NUMBERING.md).
+
 - Parse explicit parallel notes and scoped slash-separated shows into alternating
   episode blocks, first listed title first. Review lane labels and expanded order,
   or make a block sequential. Unequal lanes finish without dropping episodes;

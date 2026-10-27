@@ -77,7 +77,18 @@ class DragonBallBuilderTests(unittest.TestCase):
                 for i, n in enumerate([39, 35, 33, 32, 26, 29, 25, 34, 38])
             ]
         }
-        with patch("providers.cached_tmdb", return_value=details):
+
+        def metadata(path, settings):
+            if path == "tv/12971":
+                return details
+            count = details["seasons"][int(path.split("/")[-1])]["episode_count"]
+            return {
+                "episodes": [
+                    {"id": n, "episode_number": n} for n in range(1, count + 1)
+                ]
+            }
+
+        with patch("providers.cached_tmdb", side_effect=metadata):
             result = b.scope_proposal(row, {"type": "show", "tmdb": "12971"}, {})
         self.assertEqual(
             result["scope_segments"],

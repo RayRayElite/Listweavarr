@@ -481,14 +481,25 @@ class TextBuilderTests(unittest.TestCase):
         self.assertIn("scope_error", result)
         self.assertEqual(row["episode_end"], "47")
         row["numbering"] = "absolute"
-        with patch(
-            "providers.cached_tmdb",
-            return_value={
+
+        def metadata(path, settings):
+            if "/season/" in path:
+                count = 40 if path.endswith("/1") else 50
+                return {
+                    "episodes": [
+                        {"id": n, "episode_number": n} for n in range(1, count + 1)
+                    ]
+                }
+            return {
                 "seasons": [
                     {"season_number": 1, "episode_count": 40},
                     {"season_number": 2, "episode_count": 50},
                 ]
-            },
+            }
+
+        with patch(
+            "providers.cached_tmdb",
+            side_effect=metadata,
         ):
             self.assertEqual(
                 builder.scope_proposal(row, {"type": "show", "tmdb": "9"}, {})[

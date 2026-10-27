@@ -764,6 +764,7 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
                 context = family
                 pokemon = plain(family) == "pokemon"
             if label.startswith(("movie", "film")):
+                family = re.sub(r"(?i)\s+the$", "", family)
                 kind = "movie"
                 if pokemon:
                     title = re.sub(r"(?i)\bheros\b", "Heroes", title)
@@ -877,6 +878,33 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
                         + " episodes."
                     )
                 parts[key] = (int(part[1]), end)
+        elif ep:
+            prefix = numeric_line[: ep.start()].strip(" |:-()")
+            title = unquote_title(prefix) or context
+            if not title:
+                raise ValueError(
+                    "Episode-only range at line "
+                    + str(number)
+                    + " needs a parent show name."
+                )
+            season = current_season if not prefix and current_season is not None else 1
+            start, end = int(ep[1]), int(ep[2] or ep[1])
+            kind = "episode"
+            numbering = (
+                default_numbering
+                if not prefix and current_season is not None
+                else "absolute"
+            )
+            hint = (
+                "No season supplied: continuous episode numbering inferred. Matching maps this range across verified TMDB seasons; specials are excluded. Review the mapping or choose Per season to override."
+                if numbering == "absolute"
+                else "Episode range uses the preceding explicit season context. Review the proposed scope."
+            )
+            context = title
+        elif re.search(r"(?i)\bthe\s+movie\b|\bmovie\s*:", source_main):
+            title = source_main
+            kind = "movie"
+            hint = "Explicit movie title; kept separate from the surrounding episode ranges. Optional source notes remain available for review."
         elif named_pair:
             title = unquote_title(named_pair[1])
             named_title = unquote_title(named_pair[2])
@@ -944,6 +972,8 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
             hint = "Named episode/special: match within the parent show, including season 0. Source notes remain visible; placement instructions are not automatically expanded."
         else:
             title = re.sub(r"\s*\((?:18|19|20)\d{2}\)\s*", " ", line).strip()
+            if re.search(r"(?i)\b(?:optional|retold|runs? parallel)\b", line):
+                title = source_main
             title = unquote_title(
                 re.sub(
                     r"(?i)\s*[-(]\s*(?:movie|film|tv series|tv show)\)?\s*$", "", title
@@ -1121,6 +1151,7 @@ def search(query, kind, year, settings):
         results.sort(
             key=lambda row: (
                 parent_identity(row.get("name", "")) != parent_identity(query),
+                plain(row.get("name", "")) != plain(query),
                 (row.get("first_air_date") or "9999") if original else "",
             )
         )
@@ -1237,13 +1268,36 @@ def scope_proposal(row, match, settings):
             first = max(int(episode), offset + 1)
             last = min(int(end), offset + count)
             if first <= last:
-                segments.append(
-                    {
-                        "season": str(value["season_number"]),
-                        "episode": str(first - offset),
-                        "episode_end": str(last - offset),
-                    }
+                # Counts locate the source range; actual records supply TMDB's
+                # identifiers. Some anime retain absolute numbers within seasons.
+                metadata = providers.cached_tmdb(
+                    "tv/" + match["tmdb"] + "/season/" + str(value["season_number"]),
+                    settings,
                 )
+                numbers = sorted(
+                    int(item["episode_number"])
+                    for item in metadata.get("episodes", [])
+                    if item.get("id") and str(item.get("episode_number", "")).isdigit()
+                )
+                if len(numbers) != count or len(set(numbers)) != count:
+                    return {
+                        "scope_error": "TMDB season episode records do not match its episode count. Correct the scope manually; no episodes were guessed."
+                    }
+                for number in numbers[first - offset - 1 : last - offset]:
+                    if (
+                        segments
+                        and segments[-1]["season"] == str(value["season_number"])
+                        and int(segments[-1]["episode_end"]) + 1 == number
+                    ):
+                        segments[-1]["episode_end"] = str(number)
+                    else:
+                        segments.append(
+                            {
+                                "season": str(value["season_number"]),
+                                "episode": str(number),
+                                "episode_end": str(number),
+                            }
+                        )
             offset += count
         if int(end) > offset:
             return {

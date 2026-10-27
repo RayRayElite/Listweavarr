@@ -199,7 +199,9 @@ function builderCounts() {
     !canUpdate;
   $('builder-confirm-all').disabled =
     builderMatching || !included.some((row) => !row.confirmed && builderValid(row));
-  $('builder-order-preview').hidden = !included.some((row) => row.parallel_group);
+  $('builder-order-preview').hidden = !included.some(
+    (row) => row.parallel_group || row.numbering === 'absolute'
+  );
   $('builder-order-preview').disabled =
     !included.length || confirmed.length !== included.length || builderMatching;
 }
@@ -226,6 +228,8 @@ function builderScopeLabel(row) {
     kind = row.type === 'auto' ? match?.type || 'Movie or TV' : row.type;
   if (kind === 'season')
     return `Seasons ${row.season || '?'}${row.season_end && row.season_end !== row.season ? '–' + row.season_end : ''}`;
+  if (kind === 'episode' && row.numbering === 'absolute')
+    return `Continuous episodes ${row.episode || '?'}${row.episode_end && row.episode_end !== row.episode ? '–' + row.episode_end : ''}`;
   if (kind === 'episode')
     return `S${row.season || '?'} · E${row.episode || '?'}${row.episode_end && row.episode_end !== row.episode ? '–' + row.episode_end : ''}${row.numbering === 'absolute' ? ' · Continuous numbering' : ''}`;
   return kind === 'show' ? 'Whole show' : kind === 'movie' ? 'Movie' : kind;
