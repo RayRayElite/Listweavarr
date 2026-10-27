@@ -145,7 +145,7 @@
             <button class="secondary" data-manage-ignored>Ignored titles</button
             ><button id="refresh-list" class="secondary" disabled>Refresh source</button
             ><button id="resolve-metadata" class="secondary" disabled>Resolve metadata</button
-            ><button id="playlist-open" class="secondary" disabled>Create Plex playlist</button
+            ><button id="playlist-open" class="secondary" disabled>Plex playlist</button
             ><button id="follow-list" class="secondary" hidden>Follow updates</button
             ><button id="check-followed" class="secondary">Check followed lists</button
             ><button id="progress-refresh" class="secondary">Refresh watched progress</button
@@ -1173,8 +1173,8 @@ episode,Pilot,,,263365,1,1</pre
         <div id="playlist-preview-items"></div>
         <label>Playlist title<input id="playlist-title" required maxlength="200" /></label
         ><label id="playlist-replace-label" hidden
-          ><input type="checkbox" id="playlist-replace" /> Replace the last playlist created by
-          Listweavarr for this list</label
+          ><input type="checkbox" id="playlist-replace" /> Update the saved Plex playlist (review
+          changes first)</label
         >
         <p class="footnote">
           Includes confirmed available movies and episodes in your selected watch order.
@@ -1316,6 +1316,31 @@ episode,Pilot,,,263365,1,1</pre
             aria-label="Episode"
           />
         </div>
+        <details id="list-provider-panel">
+          <summary>Merge entries from a supported list</summary>
+          <p class="muted">
+            Import Trakt, Letterboxd, IMDb, MDBList or ChronoCanon entries directly, without
+            guessing titles from page text. Review them before adding to this draft. Existing
+            entries stay first; incoming entries keep their source order.
+          </p>
+          <label
+            >Supported list URL<input id="list-provider-url" type="url" placeholder="https://…"
+          /></label>
+          <button type="button" id="list-provider-preview" class="secondary">Preview list</button>
+          <label class="preference-check"
+            ><input id="list-provider-dedupe" type="checkbox" checked /> Skip exact duplicate titles
+            and TV scopes</label
+          >
+          <p id="list-provider-status" role="status"></p>
+          <div id="list-provider-items"></div>
+          <button type="button" id="list-provider-add" class="secondary" disabled>
+            Add previewed entries to draft
+          </button>
+          <p class="muted">
+            Nothing is saved until you choose Save list. Combining sources creates a local
+            collection; a linked destination requires your confirmation to stop source updates.
+          </p>
+        </details>
         <div id="list-editor-items"></div>
         <p id="list-editor-status" class="muted" role="status"></p>
         <div class="dialog-actions">
@@ -1532,6 +1557,9 @@ episode,Pilot,,,263365,1,1</pre
         >List name<input id="builder-name" maxlength="200" placeholder="My watch order"
       /></label>
       <div id="builder-input">
+        <button id="builder-provider-open" class="secondary">
+          Merge a Trakt, Letterboxd, IMDb or other supported list
+        </button>
         <div class="builder-fields">
           <label
             >Default parent show / franchise (optional)<input

@@ -91,9 +91,12 @@ def edit(entry, body, normalize):
                         "tvdb",
                         "imdb",
                         "show_tmdb",
+                        "show_tvdb",
+                        "show_imdb",
                         "show_title",
                         "season",
                         "episode",
+                        "metadata_unresolved",
                     )
                 }
             )

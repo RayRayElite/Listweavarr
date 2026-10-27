@@ -1267,6 +1267,15 @@ vm.runInContext(
   assert.match(pinnedOrder, /previously #4/);
   assert.match(pinnedOrder, /data-token="checked-token"/);
   assert.match(pinnedOrder, /Apply this checked version/);
+  const providerMerge = vm.runInContext(
+    `mergeProviderDraft([{type:'movie',tmdb:'1'}],[{id:'remote1',type:'movie',tmdb:'1'},{id:'remote2',type:'movie',tmdb:'2'},{type:'movie',tmdb:'2'},{id:'remote3',type:'episode',show_tvdb:'42',season:'1',episode:'2'},{type:'episode',show_tvdb:'42',season:'1',episode:'3'}])`,
+    context
+  );
+  assert.equal(providerMerge.length, 3);
+  assert.equal(providerMerge[0].tmdb, '2');
+  assert.equal(providerMerge[0].id, undefined);
+  assert.equal(providerMerge[1].show_tvdb, '42');
+  assert.equal(providerMerge[2].episode, '3');
   console.log(
     'UI checks passed, including catalogue delivery, Workbench, paths, taste and maintenance.'
   );

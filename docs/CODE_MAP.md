@@ -24,6 +24,7 @@ A typical change follows this path:
 | [saved_lists.py](../saved_lists.py) | Validated edits to personal collections. | `revision`, `poster`, `edit`, `identity_keys`, `update_entries` |
 | [list_sharing.py](../list_sharing.py) | Portable list interchange without private runtime state. | `digest`, `export`, `validate` |
 | [list_updates.py](../list_updates.py) | Read-only linked-source differences and opt-in scheduling. | `fingerprint`, `summarize`, `due`, `finish`, `public`; orchestration in `app.check_linked_list` |
+| [plex_publications.py](../plex_publications.py) | Saved Plex target snapshots and publication differences. | `baseline`, `target`, `changes`; reviewed writes use `app.create_playlist` |
 | [official_lists.py](../official_lists.py) | Versioned Official catalogue authoring and personal-copy creation. | `prepare_publish`, `write_document`, `document`, `catalogue`, `get`, `instantiate` |
 | [collection_tools.py](../collection_tools.py) | Collection diagnostics and reviewable version merges. | `portable`, `snapshot`, `key`, `indexed`, `health`, `preview` |
 | [catalogue_feed.py](../catalogue_feed.py) | Public catalogue download, manifest checks and staged installation. | `digest`, `source_url`, `download`, `validate`, `compare_content`, `merge` |

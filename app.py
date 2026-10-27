@@ -36,6 +36,7 @@ import manager_routes
 import request_ledger
 import list_sharing
 import list_updates
+import plex_publications
 import text_list_builder
 import saved_lists
 import release_watch
@@ -60,6 +61,8 @@ JOBS = {}
 JOBS_LOCK = threading.Lock()
 LIST_UPDATE_LOCK = threading.Lock()
 LIST_UPDATE_RUNNING = None
+PUBLICATION_PLANS = {}
+PUBLICATION_LOCK = threading.Lock()
 
 
 def check_linked_list(list_id=None):
@@ -1885,7 +1888,7 @@ def request_show_scope(item, settings, body):
     }
 
 
-def create_playlist(entry, settings, title, replace=False):
+def create_playlist(entry, settings, title, replace=False, expected=None, guard=None):
     """Recheck available entries, verify their Plex order, then optionally replace the saved playlist."""
     title = title.strip()
     if not title or len(title) > 200:
@@ -1911,6 +1914,19 @@ def create_playlist(entry, settings, title, replace=False):
     # Recheck the catalog immediately before writing to Plex.
     entry["items"] = compare(entry["items"], settings)
     plan = playlist_preview(entry)
+    if expected and plan["fingerprint"] != expected["desired_fingerprint"]:
+        raise ValueError(
+            "Plex availability or artwork changed after preview. Review the publication again."
+        )
+    if guard:
+        guard()
+    if (
+        expected
+        and plex_publications.target(entry, settings, remote) != expected["target"]
+    ):
+        raise ValueError(
+            "The Plex playlist changed after preview. Review it again before replacing."
+        )
     if not plan["keys"]:
         raise ValueError(
             "No confirmed available items. Compare the list and resolve matches first."
@@ -1977,6 +1993,15 @@ def create_playlist(entry, settings, title, replace=False):
         except (ValueError, ET.ParseError):
             warning = "Playlist saved, but Plex did not confirm its poster. Your list image is retained; recreate the playlist to retry."
     if previous:
+        if guard:
+            guard()
+        if (
+            expected
+            and plex_publications.target(entry, settings, remote) != expected["target"]
+        ):
+            raise ValueError(
+                "The old playlist changed while the replacement was built. Both playlists were preserved; check Plex before retrying."
+            )
         try:
             remote(
                 cfg["url"],
@@ -2336,6 +2361,122 @@ class Handler(BaseHTTPRequestHandler):
             ):
                 raise ValueError("Request too large.")
             body = json.loads(self.rfile.read(length))
+            if self.path in ("/api/publications/preview", "/api/publications/apply"):
+                if not PUBLICATION_LOCK.acquire(blocking=False):
+                    raise ValueError(
+                        "A Plex publication is already being reviewed or updated. Try again shortly."
+                    )
+                try:
+                    with LOCK:
+                        snapshot = read_state()
+                    entry = next(
+                        (
+                            e
+                            for e in snapshot["lists"]
+                            if e["id"] == body.get("list_id")
+                        ),
+                        None,
+                    )
+                    if not entry:
+                        raise ValueError("Choose an existing saved list.")
+                    base = plex_publications.baseline(entry, snapshot["settings"])
+                    if self.path.endswith("/preview"):
+                        target = plex_publications.target(
+                            entry, snapshot["settings"], remote
+                        )
+                        view = copy.deepcopy(entry)
+                        order = (entry.get("playlist") or {}).get("watch_order")
+                        if order:
+                            view["items"] = companion.paths(entry, {"mode": order})[0]
+                        view["items"] = compare(view["items"], snapshot["settings"])
+                        desired = playlist_preview(view)
+                        token = secrets.token_hex(16)
+                        now = time.time()
+                        PUBLICATION_PLANS.clear()
+                        PUBLICATION_PLANS[token] = {
+                            "created": now,
+                            "list_id": entry["id"],
+                            "base": base,
+                            "target": target,
+                            "desired_fingerprint": desired["fingerprint"],
+                            "watch_order": order,
+                        }
+                        return self.respond(
+                            {
+                                "token": token,
+                                "title": target["title"],
+                                "omitted": desired["omitted"],
+                                "entries": desired["entries"],
+                                **plex_publications.changes(
+                                    target["keys"], desired["keys"]
+                                ),
+                            }
+                        )
+                    planned = PUBLICATION_PLANS.get(body.get("token"))
+                    if (
+                        not planned
+                        or planned["list_id"] != entry["id"]
+                        or planned["base"] != base
+                        or time.time() - planned["created"] > 900
+                    ):
+                        raise ValueError(
+                            "This publication preview expired or the list changed. Review it again."
+                        )
+
+                    def guard():
+                        with LOCK:
+                            current = read_state()
+                        saved = next(
+                            (e for e in current["lists"] if e["id"] == entry["id"]),
+                            None,
+                        )
+                        if (
+                            not saved
+                            or plex_publications.baseline(saved, current["settings"])
+                            != base
+                        ):
+                            raise ValueError(
+                                "The list or Plex connection changed during publication. Any new playlist is retained; check Plex before retrying."
+                            )
+
+                    view = copy.deepcopy(entry)
+                    if planned["watch_order"]:
+                        view["items"] = companion.paths(
+                            entry, {"mode": planned["watch_order"]}
+                        )[0]
+                    # Consume before external writes: an uncertain response must not replay them.
+                    PUBLICATION_PLANS.pop(body["token"])
+                    result = create_playlist(
+                        view,
+                        snapshot["settings"],
+                        planned["target"]["title"],
+                        True,
+                        expected=planned,
+                        guard=guard,
+                    )
+                    with LOCK:
+                        latest = read_state()
+                        saved = next(
+                            (e for e in latest["lists"] if e["id"] == entry["id"]), None
+                        )
+                        if (
+                            not saved
+                            or plex_publications.baseline(saved, latest["settings"])
+                            != base
+                        ):
+                            raise ValueError(
+                                "Plex publication completed, but the list changed. Check Plex before retrying; the changed list was preserved."
+                            )
+                        saved["playlist"] = dict(
+                            result,
+                            server=snapshot["settings"]["plex"]["url"],
+                            watch_order=planned["watch_order"],
+                        )
+                        saved["playlist_needs_update"] = False
+                        save_state(latest)
+                    return self.respond(result)
+                finally:
+                    PUBLICATION_LOCK.release()
             if self.path.startswith("/api/list-updates/"):
                 action = self.path.rsplit("/", 1)[-1]
                 if action == "check":
@@ -3016,6 +3157,23 @@ class Handler(BaseHTTPRequestHandler):
                     state["lists"].append(entry)
                     save_state(state)
                 return self.respond({"entry": entry})
+            if self.path == "/api/lists/provider-preview":
+                with LOCK:
+                    snapshot = read_state()
+                imported = providers.import_url(
+                    str(body.get("url", "")).strip(), settings=snapshot["settings"]
+                )
+                if len(imported["items"]) > 10000:
+                    raise ValueError("A list supports up to 10,000 entries.")
+                rows = [normalize(row) for row in imported["items"]]
+                return self.respond(
+                    {
+                        "name": imported["name"],
+                        "source": imported["source"],
+                        "items": rows,
+                        "warnings": imported.get("warnings", []),
+                    }
+                )
             if self.path in ("/api/lists/edit", "/api/lists/search"):
                 with LOCK:
                     snapshot = read_state()
@@ -4756,6 +4914,10 @@ class Handler(BaseHTTPRequestHandler):
                         view["items"] = companion.paths(entry, {"mode": order})[0]
                     return self.respond(dict(playlist_preview(view), watch_order=order))
                 if action == "/api/playlist/create":
+                    if body.get("replace"):
+                        raise ValueError(
+                            "Review the saved Plex publication before updating it."
+                        )
                     order = body.get("watch_order")
                     view = copy.deepcopy(entry) if order else entry
                     if order:

@@ -91,4 +91,14 @@ time, while specialized download engines remain supported.
   available while the list's curation remains unchanged; metadata/status refreshes
   do not block undo. Failed rechecks invalidate pending snapshots. Plex and
   downloads remain separate actions. Applying never refetches the provider.
-- Next: L3 managed Plex publications, building on pinned/reviewed list versions.
+- L3 first increment: saved Plex playlist targets can be reviewed against current
+  availability before replacement. Counts include duplicate occurrences and
+  retained-item reordering. Previews expire after 15 minutes and reject changes
+  to the saved list, artwork, Plex connection or remote playlist. The new playlist
+  is verified before the old one is removed. Uncertain failures require checking
+  Plex before retrying. Native Plex collections remain the next L3 increment.
+- Provider-link merging is available in Edit list and Add entries. Supported
+  import adapters provide a read-only preview; append to the draft in provider
+  order, optionally skipping exact IDs/scopes, then explicitly save. Linked
+  destinations require confirmation to become local. This does not establish a
+  new automatic relationship to the merged source.

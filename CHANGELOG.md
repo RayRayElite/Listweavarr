@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Merge supported Trakt, Letterboxd, IMDb, MDBList and ChronoCanon links into a
+  list draft, with preview, exact-scope deduplication and linked-list detachment
+  confirmation. Preserve parent-show IDs when saving TV entries in the editor.
+- Review and update saved Plex playlist targets with expiring previews,
+  availability/remote drift checks and verification before replacing old targets.
+
 - Apply the exact reviewed linked-source snapshot and undo its last application.
   Review the complete proposed order in increments, with previous-position
   markers. Stale previews and undo after intervening content edits are rejected.

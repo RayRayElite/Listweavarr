@@ -4,6 +4,7 @@ let listReturnTab = 'mine';
 let listEditor = null,
   listEditorSearch = [],
   releaseMonitor = null;
+let listProviderPreview = null;
 function listCover(entry) {
   return entry.poster
     ? `<img src="${esc(entry.poster)}" alt="" loading="lazy">`
@@ -285,6 +286,13 @@ async function editSavedList(id) {
   $('list-editor-heading').textContent = original ? 'Edit collection' : 'Create collection';
   $('list-confirm-detach').checked = false;
   $('list-add-results').innerHTML = '';
+  listProviderPreview = null;
+  $('list-provider-url').value = '';
+  $('list-provider-panel').open = false;
+  $('list-provider-status').textContent = '';
+  $('list-provider-items').innerHTML = '';
+  $('list-provider-add').disabled = true;
+  $('list-provider-dedupe').checked = true;
   $('list-editor-status').textContent = '';
   $('list-add-season-end').value = '';
   $('list-add-season-end').hidden = $('list-add-scope').value !== 'season';
@@ -300,6 +308,99 @@ function updateEditorPoster() {
   $('list-poster-preview').hidden = !listEditor.poster;
   $('list-poster-preview').src = listEditor.poster || '';
 }
+$('list-provider-url').oninput = () => {
+  listProviderPreview = null;
+  $('list-provider-add').disabled = true;
+  $('list-provider-items').innerHTML = '';
+};
+$('list-provider-preview').onclick = (event) =>
+  task(event.target, async () => {
+    const editor = listEditor;
+    const url = $('list-provider-url').value.trim();
+    listProviderPreview = null;
+    $('list-provider-add').disabled = true;
+    $('list-provider-items').innerHTML = '';
+    $('list-provider-status').textContent =
+      'Reading the supported provider list. Large lists may take longer…';
+    let result;
+    try {
+      result = await api('lists/provider-preview', { url });
+    } catch (error) {
+      if (editor === listEditor)
+        $('list-provider-status').textContent = 'Could not load this list. ' + error.message;
+      throw error;
+    }
+    if (editor !== listEditor || $('list-provider-url').value.trim() !== url) return;
+    listProviderPreview = result;
+    $('list-provider-status').textContent =
+      `${result.name}: ${result.items.length} entries.${result.warnings.length ? ' Import notes: ' + result.warnings.join(' ') : ''}`;
+    $('list-provider-items').innerHTML =
+      `<details><summary>Review imported entries</summary><ol>${result.items.map((row) => `<li>${esc(row.show_title ? row.show_title + ' / ' : '')}${esc(row.title)} / ${esc(row.type)}${row.season != null ? ' / S' + esc(row.season) : ''}${row.episode != null ? ' E' + esc(row.episode) : ''}${row.metadata_unresolved ? ' / needs matching' : ''}</li>`).join('')}</ol></details>`;
+    $('list-provider-add').disabled = !result.items.length;
+  });
+function mergeProviderDraft(existing, incoming, skip = true) {
+  const keys = new Set(
+    existing.flatMap((row) => {
+      const prefix = ['season', 'episode'].includes(row.type) ? 'show_' : '';
+      return ['tmdb', 'tvdb', 'imdb']
+        .filter((provider) => row[prefix + provider])
+        .map((provider) =>
+          JSON.stringify([
+            row.type,
+            provider,
+            String(row[prefix + provider]),
+            String(Number(row.season || 0)),
+            String(Number(row.episode || 0)),
+          ])
+        );
+    })
+  );
+  const added = [];
+  for (const row of incoming) {
+    const prefix = ['season', 'episode'].includes(row.type) ? 'show_' : '';
+    const identities = ['tmdb', 'tvdb', 'imdb']
+      .filter((provider) => row[prefix + provider])
+      .map((provider) =>
+        JSON.stringify([
+          row.type,
+          provider,
+          String(row[prefix + provider]),
+          String(Number(row.season || 0)),
+          String(Number(row.episode || 0)),
+        ])
+      );
+    if (skip && identities.some((key) => keys.has(key))) continue;
+    identities.forEach((key) => keys.add(key));
+    const { id, ...value } = row;
+    added.push(value);
+  }
+  return added;
+}
+$('list-provider-add').onclick = () => {
+  if (!listProviderPreview) return;
+  const added = mergeProviderDraft(
+    listEditor.items,
+    listProviderPreview.items,
+    $('list-provider-dedupe').checked
+  );
+  if (listEditor.items.length + added.length > 10000)
+    return toast('A saved list supports up to 10,000 entries.');
+  listEditor.items.push(...added);
+  if (!$('list-edit-name').value.trim()) $('list-edit-name').value = listProviderPreview.name;
+  $('list-provider-status').textContent =
+    `${added.length} entries added to draft; ${listProviderPreview.items.length - added.length} duplicates skipped. Choose Save list to keep these changes.`;
+  listProviderPreview = null;
+  $('list-provider-add').disabled = true;
+  drawEditorItems();
+};
+$('builder-provider-open').onclick = (event) =>
+  task(event.target, async () => {
+    const destination = $('builder-destination').value;
+    await editSavedList(destination || null);
+    $('list-builder').close();
+    $('list-provider-panel').open = true;
+    $('list-provider-url').focus?.();
+  });
 $('list-edit-mode').onchange = updateEditorLink;
 $('list-editor-items').onclick = (e) => {
   const remove = e.target.closest('[data-list-remove]'),

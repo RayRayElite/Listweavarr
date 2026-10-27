@@ -2226,8 +2226,14 @@ $('edit-form').onsubmit = (e) => {
     toast('Correction saved. Compare with Plex to apply it.');
   });
 };
+let publicationToken = null;
+let publicationListId = null;
+let originalPlaylistPlan = '';
 $('playlist-open').onclick = (e) =>
   task(e.target, async () => {
+    publicationToken = null;
+    publicationListId = active;
+    $('playlist-title').disabled = false;
     const plan = await api('playlist/preview', { list_id: active });
     $('playlist-preview-items').innerHTML =
       `<details><summary>Review selected watch order and omitted entries</summary><ol>${(plan.entries || []).map((r) => `<li><strong>${esc(r.title)}</strong> / ${esc(r.type)} / ${r.count ? r.count + ' playable item(s)' : 'Omitted: ' + esc(r.status)}${r.status === 'partial' ? ' / incomplete scope' : ''}<small>${esc(r.detail)}</small></li>`).join('')}</ol></details>`;
@@ -2237,18 +2243,48 @@ $('playlist-open').onclick = (e) =>
     $('playlist-replace').checked = false;
     $('playlist-plan').textContent =
       `${plan.count} available movies/episodes in ${plan.watch_order ? plan.watch_order + ' watch order' : 'original list order'}. ${plan.omitted} entries currently have no confirmed available items and will be omitted. Availability is checked again before creation.`;
+    originalPlaylistPlan = $('playlist-plan').textContent;
     $('playlist-dialog').showModal();
+  });
+$('playlist-replace').onchange = (e) =>
+  task(e.target, async () => {
+    publicationToken = null;
+    const submit = $('playlist-form').querySelector('[type=submit]');
+    $('playlist-title').disabled = e.target.checked;
+    if (!e.target.checked) {
+      $('playlist-plan').textContent = originalPlaylistPlan;
+      submit.disabled = false;
+      return;
+    }
+    submit.disabled = true;
+    $('playlist-plan').textContent =
+      'Reading the saved Plex playlist and comparing current availability…';
+    const plan = await api('publications/preview', { list_id: publicationListId });
+    publicationToken = plan.token;
+    $('playlist-title').value = plan.title;
+    $('playlist-plan').textContent =
+      `${plan.before_count} → ${plan.after_count} playable items: ${plan.added} added, ${plan.removed} removed${plan.reordered ? ', retained items reordered' : ''}. ${plan.omitted} list entries omitted. The playlist title is preserved. Review expires after 15 minutes; changes in Plex or this list require a fresh preview.`;
+    $('playlist-preview-items').innerHTML =
+      `<details><summary>Review proposed list order and omissions</summary><ol>${plan.entries.map((row) => `<li>${esc(row.title)} / ${row.count} playable item(s)${row.count ? '' : ' / omitted'}</li>`).join('')}</ol></details>`;
+    submit.disabled = !plan.after_count;
   });
 $('playlist-form').onsubmit = (e) => {
   e.preventDefault();
   task(e.submitter, async () => {
-    const result = await api('playlist/create', {
-      list_id: active,
+    const replacing = $('playlist-replace').checked;
+    if (replacing && !publicationToken) throw Error('Review this Plex update before saving.');
+    const result = await api(replacing ? 'publications/apply' : 'playlist/create', {
+      list_id: publicationListId,
+      token: publicationToken,
       title: $('playlist-title').value,
       replace: $('playlist-replace').checked,
     });
-    current().playlist = result;
-    current().playlist_needs_update = false;
+    const saved = state.lists.find((row) => row.id === publicationListId);
+    if (saved) {
+      saved.playlist = result;
+      saved.playlist_needs_update = false;
+    }
+    publicationToken = null;
     renderListUpdates();
     $('playlist-dialog').close();
     toast(result.warning || `Saved “${result.title}” in Plex with ${result.count} items.`);
