@@ -139,6 +139,12 @@ def extract_sheet(text, gid="0", default_show=""):
         season = cell(season_col)
         title = cell(title_col)
         if (
+            episode_col is not None
+            and not any((show, episode, season))
+            and title.casefold() in ("english", "french", "episode title")
+        ):
+            continue  # Multilingual subheaders are not episode entries.
+        if (
             headers
             and not show
             and not episode
@@ -151,6 +157,9 @@ def extract_sheet(text, gid="0", default_show=""):
             continue
         if chicago:
             show = names.get(show.casefold(), show)
+        show = {"ncis: la": "NCIS: Los Angeles", "ncis: no": "NCIS: New Orleans"}.get(
+            show.casefold(), show
+        )
         show = show or str(default_show).strip()
         if season.isdigit() and episode.isdigit():
             episode = "S" + season.zfill(2) + "E" + episode.zfill(2)
@@ -187,7 +196,10 @@ def sheet_tabs(text):
         r'items\.push\(\{name:\s*("(?:\\.|[^"\\])*"),\s*pageUrl:\s*"(?:\\.|[^"\\])*",\s*gid:\s*"(\d+)"',
         text,
     ):
-        name = json.loads(match[1])
+        # Google emits JavaScript strings (including \x26 and escaped apostrophes),
+        # not strictly JSON. Translate those escapes without evaluating scripts.
+        label = re.sub(r"\\x([0-9a-fA-F]{2})", r"\\u00\1", match[1])
+        name = json.loads(label.replace("\\'", "'"))
         gid = match[2]
         if gid not in seen:
             tabs.append((name, gid))

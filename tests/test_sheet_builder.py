@@ -5,6 +5,14 @@ import text_list_builder as builder
 
 
 class SheetBuilderTests(unittest.TestCase):
+    def test_ncis_aliases_and_language_subheader(self):
+        result = builder.extract_sheet(
+            "#,Show,Episode,Title,\n,,,English,French\n1,NCIS: LA,8x01,High-Value Target,\n2,NCIS: NO,1x01,Pilot,\n"
+        )
+        self.assertNotIn("English", result["text"])
+        self.assertIn("NCIS: Los Angeles | 8x01", result["text"])
+        self.assertIn("NCIS: New Orleans | 1x01", result["text"])
+
     def test_workbook_preserves_tab_order_and_context(self):
         html = 'items.push({name: "2012: Fire S01, PD S01", pageUrl: "ignored", gid: "0"});items.push({name: "2013", pageUrl: "ignored", gid: "7"});'
 

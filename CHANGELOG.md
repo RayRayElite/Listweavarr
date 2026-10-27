@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Handle JavaScript-escaped Google Sheets tab names, skip episode-sheet language
+  subheaders and expand NCIS: LA/NO aliases. Added a reusable order-preserving
+  source alignment helper that reports contradictory anchors for review.
+
 - So-bad-it's-good recommendations now take eligibility from the saved list
   named So Bad Its Good. Personal taste, watched/highly rated titles, credited
   people, genres and themes rank the curated candidates; no heuristic filler is
