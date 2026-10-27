@@ -615,6 +615,59 @@ def parent_identity(value):
     return title_identity(text)
 
 
+def entry_metadata(line):
+    """Remove only explicit catalogue labels, keeping title parentheses intact.
+
+    Counts following a TV-series label describe the catalogue, not a requested
+    episode scope. Special/OVA labels deliberately do not imply a movie record.
+    """
+    labels = []
+    years = []
+
+    def replace(match):
+        content = match[1].strip()
+        web_scope = re.fullmatch(
+            r"(?i)web series\s*[-—–]\s*(episodes?\s+\d+(?:\s*[-–—]\s*\d+)?)", content
+        )
+        if web_scope:
+            labels.append("series")
+            return " " + web_scope[1]
+        if re.fullmatch(r"(?i)\d+[- ]minute short companion piece", content):
+            labels.append("short film")
+            return ""
+        if re.fullmatch(r"(?:18|19|20)\d{2}", content):
+            years.append(content)
+            labels.append("year")
+            return ""
+        found = re.fullmatch(
+            r"(?i)(?:(18\d{2}|19\d{2}|20\d{2})\s+)?"
+            r"((?:short\s+)?(?:movie|film)(?:\s+\d{1,2})?|(?:upcoming\s+)?(?:prequel\s+)?(?:spin-off\s+)?(?:(?:tv|web)\s+)?series|tv show|anime|(?:epilogue\s+)?ova|ona|(?:tv\s+)?special)(?:\s+(18\d{2}|19\d{2}|20\d{2}))?",
+            content,
+        )
+        if not found:
+            return match[0]
+        labels.append(found[2].lower())
+        if found[1] or found[3]:
+            years.append(found[1] or found[3])
+        return ""
+
+    cleaned = re.sub(r"\(([^()]*)\)", replace, line).strip()
+    kind = ""
+    if labels:
+        if any(re.search(r"\b(movie|film)\b", label) for label in labels):
+            kind = "movie"
+        elif any(re.search(r"\b(series|show)\b", label) for label in labels):
+            kind = "show"
+        else:
+            kind = "auto"
+    if kind == "show":
+        cleaned = re.sub(
+            r"(?i)\s*[-—–]\s*\d+\s+seasons?\s*,\s*\d+\s+episodes?\b", "", cleaned
+        )
+        cleaned = re.sub(r"(?i)\s*[-—–]\s*set\s+(?:in|before|after)\b.*$", "", cleaned)
+    return cleaned, kind, years[0] if years else ""
+
+
 def infer_context(text, default_show=""):
     if str(default_show).strip():
         return str(default_show).strip()[:200]
@@ -685,7 +738,14 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
             continue
         line = clean_bullet(raw)
         line = line.replace("\u2013", "-").replace("\u2014", "-").replace("\u2212", "-")
+        line, labelled_kind, labelled_year = entry_metadata(line)
         source_main = main_clause(line)
+        if not source_main and re.search(r"\b(?:18|19|20)\d{2}\b", line):
+            raise ValueError(
+                "Missing title at line "
+                + str(number)
+                + ". Enter the title before its year or media label."
+            )
         # Preserve compact range parentheses, but discard narrative placement references.
         numeric_line = source_main
         compact = re.search(
@@ -737,6 +797,7 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
         episode_aliases = []
         episode_parts = []
         last_season = None
+        extra_episode_scopes = []
         named_pair = re.match(
             r"^['\"\u2018\u201c](.+?)['\"\u2019\u201d]\s+(?:pilot\s+)?['\"\u2018\u201c](.+?)['\"\u2019\u201d]$",
             source_main,
@@ -814,6 +875,20 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
                 title = family + " " + title
                 kind = "auto"
                 hint = "Special: search movie and TV records. If catalogued as a parent-show special, choose Episode and season 0 manually."
+        elif labelled_kind and not (scope or words or ep):
+            title = re.sub(
+                r"(?i)\s*\((?:takes? place|set in|optional|runs? parallel|the first half|up to)\b[^)]*\)",
+                "",
+                line,
+            ).strip(" :-*")
+            if not title:
+                raise ValueError(
+                    "Missing title at line "
+                    + str(number)
+                    + ". Enter the title before its year or media label."
+                )
+            kind = labelled_kind
+            hint = "Media label separated from the title. Specials, OVAs and anime may be standalone records or parent-show specials; review the match."
         elif scope:
             season = int(scope[1] or scope[4])
             start = int(scope[2] or scope[5])
@@ -901,6 +976,15 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
                 else "Episode range uses the preceding explicit season context. Review the proposed scope."
             )
             context = title
+            # Explicitly repeated episode labels are separate scopes, not a
+            # range covering the intervening episodes or text to silently omit.
+            extra_episode_scopes = [
+                (int(value[1]), int(value[2] or value[1]))
+                for value in re.finditer(
+                    r"(?i)(?:&|\band\b|;)\s*episodes?\s+(\d{1,4})(?:\s*-\s*(\d{1,4}))?",
+                    numeric_line,
+                )
+            ]
         elif re.search(r"(?i)\bthe\s+movie\b|\bmovie\s*:", source_main):
             title = source_main
             kind = "movie"
@@ -1014,7 +1098,8 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
                 "raw": raw,
                 "query": title[:200],
                 "type": kind,
-                "year": year[1] if year else parent_years.get(plain(title), ""),
+                "year": labelled_year
+                or (year[1] if year else parent_years.get(plain(title), "")),
                 "hint": hint,
             }
             if named_title:
@@ -1044,6 +1129,17 @@ def _infer(text, default_show="", default_numbering="season", dragon_edition="du
             if kind in ("season", "episode"):
                 row["numbering"] = numbering or default_numbering
             result.append(row)
+            for first_extra, last_extra in extra_episode_scopes:
+                if (
+                    not 1 <= first_extra <= last_extra <= 9999
+                    or last_extra - first_extra >= 3000
+                ):
+                    raise ValueError(
+                        "Invalid additional episode range at line " + str(number) + "."
+                    )
+                result.append(
+                    dict(row, episode=str(first_extra), episode_end=str(last_extra))
+                )
             if len(result) > MAX_ROWS:
                 raise ValueError(
                     "Build at most 3,000 review entries at a time. Split the source into sections."

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Separate parenthesized years and media labels (movies, short films, TV/web
+  series, anime, OVAs and specials) from search titles. Keep movie sequence labels
+  out of queries, distinguish catalogue totals from requested scopes, and retain
+  explicitly selected episodes on multi-episode lines. Missing titles require
+  correction. Specials remain reviewable rather than being assumed to be films.
+
 - Automatically detect named continuous episode ranges without a season. Map
   across verified TMDB season records, including anime that retain continuous
   episode identifiers within seasons. Preserve interspersed movies and expose
