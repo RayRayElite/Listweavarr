@@ -1617,7 +1617,9 @@ episode,Pilot,,,263365,1,1</pre
           for review and expand into individual entries when saved. Anime source seasons can differ
           from TMDB; use continuous numbering only when episode numbers do not restart. Images and
           script-only lists may need pasted text. Every non-empty candidate line remains reviewable;
-          article prose may need removing.
+          article prose may need removing. Explicit parallel notes and two scoped titles separated
+          by / create alternating episode blocks. The first listed title starts; remaining episodes
+          finish when a shorter lane ends.
         </p>
         <button id="builder-infer" class="primary">Review inferred entries</button>
       </div>
@@ -1642,7 +1644,11 @@ episode,Pilot,,,263365,1,1</pre
           Unmatched entries must be corrected or removed before saving.
         </p>
         <div id="builder-rows"></div>
+        <div id="builder-order-items"></div>
         <div class="dialog-actions">
+          <button id="builder-order-preview" class="secondary" hidden disabled>
+            Preview expanded order
+          </button>
           <button id="builder-save" class="primary" disabled>Create confirmed local list</button>
         </div>
       </div>

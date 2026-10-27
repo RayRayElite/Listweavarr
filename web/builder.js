@@ -182,6 +182,7 @@ function builderValid(row) {
   );
 }
 function builderCounts() {
+  $('builder-order-items').innerHTML = '';
   const included = builderRows.filter((row) => !row.removed),
     confirmed = included.filter((row) => row.confirmed && builderValid(row));
   $('builder-count').textContent = `${confirmed.length} / ${included.length} confirmed`;
@@ -198,6 +199,9 @@ function builderCounts() {
     !canUpdate;
   $('builder-confirm-all').disabled =
     builderMatching || !included.some((row) => !row.confirmed && builderValid(row));
+  $('builder-order-preview').hidden = !included.some((row) => row.parallel_group);
+  $('builder-order-preview').disabled =
+    !included.length || confirmed.length !== included.length || builderMatching;
 }
 function builderRowEditorMarkup(row) {
   const match = builderChosen(row),
@@ -237,7 +241,7 @@ function builderRowMarkup(row) {
       : match
         ? 'Review suggestion'
         : 'Needs matching';
-  return `<article class="builder-row builder-review-card ${row.confirmed ? 'is-confirmed' : ''}" data-builder-row="${row.index}"><div class="builder-row-summary"><span class="builder-row-number">${row.index + 1}</span>${match?.poster ? `<img class="builder-summary-poster" src="${esc(match.poster)}" alt="" loading="lazy">` : '<span class="builder-summary-poster placeholder" aria-hidden="true">?</span>'}<div class="builder-summary-copy"><span class="builder-confidence ${row.confirmed ? 'confirmed' : issue ? 'error' : ''}">${status}</span><h3>${esc(match?.title || row.query || row.raw)}</h3><p>${esc(match?.year || row.year || 'Year unknown')} &middot; ${esc(builderScopeLabel(row))}</p><p class="builder-source-preview" title="${esc(row.raw)}">Source: ${esc(row.raw)}</p>${issue ? `<p class="metadata-error">${esc(issue)}</p>` : ''}</div><div class="builder-summary-actions">${match ? `<label class="builder-confirm"><input type="checkbox" data-builder-confirm="${row.index}" ${row.confirmed ? 'checked' : ''} ${valid ? '' : 'disabled'}>Confirm</label>` : `<button class="secondary" data-builder-find="${row.index}">Find match</button>`}<button class="text-action" data-builder-remove="${row.index}">Remove</button></div></div><details class="builder-correction" ${row.expanded ? 'open' : ''}><summary>Correct title, match or TV scope</summary>${builderRowEditorMarkup(row)}</details></article>`;
+  return `<article class="builder-row builder-review-card ${row.confirmed ? 'is-confirmed' : ''}" data-builder-row="${row.index}"><div class="builder-row-summary"><span class="builder-row-number">${row.index + 1}</span>${match?.poster ? `<img class="builder-summary-poster" src="${esc(match.poster)}" alt="" loading="lazy">` : '<span class="builder-summary-poster placeholder" aria-hidden="true">?</span>'}<div class="builder-summary-copy"><span class="builder-confidence ${row.confirmed ? 'confirmed' : issue ? 'error' : ''}">${status}</span><h3>${esc(match?.title || row.query || row.raw)}</h3><p>${esc(match?.year || row.year || 'Year unknown')} &middot; ${esc(builderScopeLabel(row))}${row.parallel_group ? ' / Parallel lane ' + (row.parallel_lane + 1) + (row.parallel_lane === 0 ? ' (starts first)' : '') : ''}</p><p class="builder-source-preview" title="${esc(row.raw)}">Source: ${esc(row.raw)}</p>${issue ? `<p class="metadata-error">${esc(issue)}</p>` : ''}</div><div class="builder-summary-actions">${match ? `<label class="builder-confirm"><input type="checkbox" data-builder-confirm="${row.index}" ${row.confirmed ? 'checked' : ''} ${valid ? '' : 'disabled'}>Confirm</label>` : `<button class="secondary" data-builder-find="${row.index}">Find match</button>`}<button class="text-action" data-builder-remove="${row.index}">Remove</button>${row.parallel_group ? `<button class="text-action" data-builder-unparallel="${esc(row.parallel_group)}">Make block sequential</button>` : ''}</div></div><details class="builder-correction" ${row.expanded ? 'open' : ''}><summary>Correct title, match or TV scope</summary>${builderRowEditorMarkup(row)}</details></article>`;
 }
 
 function renderBuilderRows() {
@@ -374,6 +378,20 @@ async function matchBuilderRows(rows, sequence) {
   });
 }
 $('builder-rows').onclick = (e) => {
+  const sequential = e.target.closest('[data-builder-unparallel]');
+  if (sequential) {
+    for (const row of builderRows.filter(
+      (row) => row.parallel_group === sequential.dataset.builderUnparallel
+    )) {
+      delete row.parallel_group;
+      delete row.parallel_lane;
+      row.source_note =
+        'Parallel alternation disabled for this block; listed scopes will be saved sequentially.';
+      row.confirmed = false;
+    }
+    renderBuilderRows();
+    return;
+  }
   if (e.target.closest('[data-builder-more]')) {
     builderLimit += 80;
     renderBuilderRows();
@@ -414,6 +432,63 @@ $('builder-match-all').onclick = (e) =>
       }
     }
   });
+function builderOrderPayload(rows) {
+  return rows.map((row) => {
+    const match = builderChosen(row);
+    return {
+      confirmed: true,
+      type: row.type === 'auto' ? match?.type : row.type,
+      tmdb: match?.tmdb,
+      season: row.season,
+      season_end: row.season_end,
+      episode: row.episode,
+      episode_end: row.episode_end,
+      numbering: row.numbering,
+      source_numbering: row.source_numbering,
+      query: row.query,
+      parallel_group: row.parallel_group,
+      parallel_lane: row.parallel_lane,
+    };
+  });
+}
+let builderOrderItems = [],
+  builderOrderVisible = 100;
+function drawBuilderOrderPreview() {
+  $('builder-order-items').innerHTML =
+    `<details open><summary>Expanded order: ${builderOrderItems.length} entries (checked again when saved)</summary><ol>${builderOrderItems
+      .slice(0, builderOrderVisible)
+      .map(
+        (row) =>
+          `<li>${esc(row.show_title ? row.show_title + ' / ' : '')}${esc(row.title)}${row.season != null ? ' / S' + esc(row.season) : ''}${row.episode != null ? ' E' + esc(row.episode) : ''}</li>`
+      )
+      .join(
+        ''
+      )}</ol>${builderOrderVisible < builderOrderItems.length ? '<button class="secondary" data-builder-order-more>Show 100 more</button>' : ''}</details>`;
+}
+$('builder-order-items').onclick = (event) => {
+  if (event.target.closest('[data-builder-order-more]')) {
+    builderOrderVisible += 100;
+    drawBuilderOrderPreview();
+  }
+};
+$('builder-order-preview').onclick = (event) =>
+  task(event.target, async () => {
+    const rows = builderRows.filter((row) => !row.removed);
+    if (rows.some((row) => !row.confirmed || !builderValid(row)))
+      throw Error('Confirm every included scope before previewing its order.');
+    const payload = builderOrderPayload(rows),
+      signature = JSON.stringify(payload),
+      sequence = builderSequence;
+    const result = await api('lists/build/order-preview', { items: payload });
+    if (
+      sequence !== builderSequence ||
+      signature !== JSON.stringify(builderOrderPayload(builderRows.filter((row) => !row.removed)))
+    )
+      return;
+    builderOrderItems = result.items;
+    builderOrderVisible = 100;
+    drawBuilderOrderPreview();
+  });
 $('builder-save').onclick = (e) =>
   task(e.target, async () => {
     const rows = builderRows.filter((row) => !row.removed);
@@ -432,21 +507,7 @@ $('builder-save').onclick = (e) =>
       confirm_detach: $('builder-confirm-detach').checked,
       name: $('builder-name').value,
       reference: $('builder-url').value,
-      items: rows.map((row) => {
-        const match = builderChosen(row);
-        return {
-          confirmed: true,
-          type: row.type === 'auto' ? match.type : row.type,
-          tmdb: match.tmdb,
-          season: row.season,
-          season_end: row.season_end,
-          episode: row.episode,
-          episode_end: row.episode_end,
-          numbering: row.numbering,
-          source_numbering: row.source_numbering,
-          query: row.query,
-        };
-      }),
+      items: builderOrderPayload(rows),
     });
     $('list-builder').close();
     replaceList(result.entry);

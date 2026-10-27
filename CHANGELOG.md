@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Parse explicit parallel notes and scoped slash-separated shows into alternating
+  episode blocks, first listed title first. Review lane labels and expanded order,
+  or make a block sequential. Unequal lanes finish without dropping episodes;
+  ambiguous references and incomplete scopes require correction.
+
 - Handle JavaScript-escaped Google Sheets tab names, skip episode-sheet language
   subheaders and expand NCIS: LA/NO aliases. Added a reusable order-preserving
   source alignment helper that reports contradictory anchors for review.

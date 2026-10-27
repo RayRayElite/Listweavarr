@@ -3023,6 +3023,11 @@ class Handler(BaseHTTPRequestHandler):
                             )
                         }
                     )
+                if action == "order-preview":
+                    items = text_list_builder.confirmed_items(
+                        body.get("items"), snapshot["settings"], normalize
+                    )
+                    return self.respond({"items": items, "count": len(items)})
                 if action != "save":
                     raise ValueError("Unknown text-list builder action.")
                 target = next(

@@ -18,6 +18,7 @@ import unicodedata
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import providers
+import parallel_orders
 
 MAX_TEXT = 200_000
 MAX_ROWS = 3000
@@ -644,6 +645,15 @@ def infer_context(text, default_show=""):
 
 
 def infer(text, default_show="", default_numbering="season", dragon_edition="dub"):
+    if not isinstance(text, str) or not text.strip() or len(text) > MAX_TEXT:
+        raise ValueError("Paste between 1 and 200,000 characters of list text.")
+    prepared, annotations = parallel_orders.prepare(text)
+    return parallel_orders.annotate(
+        _infer(prepared, default_show, default_numbering, dragon_edition), annotations
+    )
+
+
+def _infer(text, default_show="", default_numbering="season", dragon_edition="dub"):
     if default_numbering not in ("season", "absolute"):
         raise ValueError("Choose season or absolute episode numbering.")
     if not isinstance(text, str) or not text.strip() or len(text) > MAX_TEXT:
@@ -1575,6 +1585,16 @@ def match_batch(rows, settings):
 
 
 def confirmed_items(rows, settings, normalize):
+    if not isinstance(rows, list) or not 1 <= len(rows) <= MAX_ROWS:
+        raise ValueError("Confirm between 1 and 3,000 entries.")
+    if any(isinstance(row, dict) and row.get("parallel_group") for row in rows):
+        return parallel_orders.expand(
+            rows, settings, normalize, _confirmed_items, providers.cached_tmdb
+        )
+    return _confirmed_items(rows, settings, normalize)
+
+
+def _confirmed_items(rows, settings, normalize):
     if not isinstance(rows, list) or not 1 <= len(rows) <= MAX_ROWS:
         raise ValueError("Confirm between 1 and 3,000 entries.")
     expanded = []

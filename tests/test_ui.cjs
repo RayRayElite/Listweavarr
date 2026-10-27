@@ -1276,6 +1276,18 @@ vm.runInContext(
   assert.equal(providerMerge[0].id, undefined);
   assert.equal(providerMerge[1].show_tvdb, '42');
   assert.equal(providerMerge[2].episode, '3');
+  const parallelPayload = vm.runInContext(
+    `builderOrderPayload([{type:'season',season:'1',parallel_group:'parallel-1',parallel_lane:0,matches:[{type:'show',tmdb:'42'}],chosen:0}])`,
+    context
+  );
+  assert.equal(parallelPayload[0].parallel_lane, 0);
+  assert.equal(parallelPayload[0].parallel_group, 'parallel-1');
+  const parallelMarkup = vm.runInContext(
+    `builderRowMarkup({index:0,raw:'Alpha (Season 1)',query:'Alpha',type:'season',season:'1',season_end:'1',parallel_group:'parallel-1',parallel_lane:0,matches:[{type:'show',tmdb:'42',title:'Alpha'}],chosen:0})`,
+    context
+  );
+  assert.match(parallelMarkup, /Parallel lane 1 \(starts first\)/);
+  assert.match(parallelMarkup, /Make block sequential/);
   console.log(
     'UI checks passed, including catalogue delivery, Workbench, paths, taste and maintenance.'
   );

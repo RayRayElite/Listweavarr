@@ -29,6 +29,7 @@ A typical change follows this path:
 | [collection_tools.py](../collection_tools.py) | Collection diagnostics and reviewable version merges. | `portable`, `snapshot`, `key`, `indexed`, `health`, `preview` |
 | [catalogue_feed.py](../catalogue_feed.py) | Public catalogue download, manifest checks and staged installation. | `digest`, `source_url`, `download`, `validate`, `compare_content`, `merge` |
 | [text_list_builder.py](../text_list_builder.py) | Text, article and spreadsheet interpretation into proposed list entries. | `public_target`, `google_sheet_export`, `extract_sheet`, `sheet_tabs`, `fetch_workbook`, `fetch_page` |
+| [parallel_orders.py](../parallel_orders.py) | Explicit parallel blocks and round-robin verified episode expansion. | `prepare`, `annotate`, `expand`; see [parallel watch orders](PARALLEL_WATCH_ORDERS.md) |
 | [request_ledger.py](../request_ledger.py) | Durable records of reviewed acquisition and monitoring requests. | `fingerprint`, `routed_fingerprint`, `record`, `migrate`, `apply_status`, `public` |
 | [manager_routes.py](../manager_routes.py) | Named Radarr/Sonarr instances and route-specific defaults. | `validate_url`, `choices`, `public`, `config`, `routed`, `default` |
 | [activity.py](../activity.py) | Read-only download queue and manager status summaries. | `cached`, `queue`, `queue_label`, `summarize` |
