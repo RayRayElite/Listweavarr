@@ -7,12 +7,16 @@
     const registry = require(3467);
     const app = registry.hd('appModel');
     const store = registry.hd('appStore');
-    const ajax = require(74692).ajax;
+    const transport = require(74692);
+    const ajax = transport.ajax;
     if (!app || !store || !ajax) throw new Error('Plex services are not ready');
     let binding = null;
     let revision = 0;
     let error = '';
     let report = () => {};
+    let disposed = false;
+    let intentSequence = 0;
+    let nativeTracking = false;
     function progress(message) {
       report(message);
       console.info('[Listweavarr Playlist Companion] ' + message);
@@ -34,6 +38,7 @@
         dataType: 'json',
         timeout: 20000,
       });
+      options.listweavarrOwnQueue = true;
       options.headers = { ...options.headers, Accept: 'application/json' };
       let result;
       try {
@@ -75,6 +80,103 @@
         }
       }
       return result;
+    }
+    async function poster(selection) {
+      const source = (await sources()).find(
+        (value) => String(get(value.server, 'machineIdentifier')) === selection.serverId
+      );
+      if (!source || selection.userId !== userId()) return null;
+      const data = await request(source.provider, '/playlists/' + selection.playlistId);
+      const path = data.Metadata?.[0]?.thumb || data.Metadata?.[0]?.composite;
+      if (typeof path !== 'string' || !/^\/(?:playlists|library)\//.test(path)) return null;
+      const options = source.provider.getXHROptions(path, { type: 'GET', timeout: 15000 });
+      options.xhrFields = { ...options.xhrFields, responseType: 'blob' };
+      delete options.dataType;
+      const blob = await Promise.resolve(ajax(options));
+      return blob instanceof Blob && /^image\/(?:jpeg|png|webp|gif)$/i.test(blob.type)
+        ? blob
+        : null;
+    }
+    function notify() {
+      if (typeof root.dispatchEvent === 'function')
+        root.dispatchEvent(new Event('listweavarr-playlist-progress'));
+    }
+    // Observe the existing client's queue request, rather than guessing playlist
+    // membership from the currently playing episode. Never replace its callback.
+    if (typeof transport.ajaxPrefilter === 'function') {
+      nativeTracking = true;
+      transport.ajaxPrefilter((options, original, xhr) => {
+        if (disposed || original.listweavarrOwnQueue) return;
+        let url;
+        try {
+          url = new URL(options.url);
+        } catch {
+          return;
+        }
+        if (!/\/playQueues\/?$/.test(url.pathname) || String(options.type).toUpperCase() !== 'POST')
+          return;
+        const sequence = ++intentSequence;
+        const id = url.searchParams.get('playlistID');
+        if (!id || !/^\d+$/.test(id) || url.searchParams.get('shuffle') === '1') return;
+        const profile = userId();
+        xhr.done(async (response) => {
+          try {
+            if (disposed || sequence !== intentSequence || profile !== userId()) return;
+            let queue = response?.MediaContainer;
+            // Plex's model transport intentionally receives JSON as text and
+            // parses it after the jqXHR callback. Observe that same format.
+            if (!queue && typeof response === 'string' && response.trim().startsWith('{')) {
+              const parsed = JSON.parse(response);
+              queue = parsed.MediaContainer || parsed;
+            }
+            if (!queue && typeof DOMParser !== 'undefined') {
+              const document =
+                typeof response === 'string'
+                  ? new DOMParser().parseFromString(response, 'application/xml')
+                  : response;
+              const element = document?.documentElement;
+              if (element?.nodeName === 'MediaContainer')
+                queue = Object.fromEntries(
+                  Array.from(element.attributes, (attr) => [attr.name, attr.value])
+                );
+            }
+            if (
+              !queue?.playQueueID ||
+              String(queue.playQueueShuffled) === '1' ||
+              queue.playQueueShuffled === true
+            )
+              return;
+            const source = (await sources()).find((value) => {
+              const candidate = value.provider.getXHROptions('/playQueues', { type: 'POST' });
+              return new URL(candidate.url).origin === url.origin;
+            });
+            if (!source) return;
+            const metadata = await request(source.provider, '/playlists/' + id);
+            const playlist = metadata.Metadata?.[0];
+            if (!playlist || playlist.smart || playlist.playlistType !== 'video') return;
+            const items = await contents(source.provider, id);
+            if (
+              Number(queue.playQueueTotalCount) !== items.length ||
+              disposed ||
+              sequence !== intentSequence ||
+              profile !== userId()
+            )
+              return;
+            binding = {
+              ...context(source.server, id),
+              title: playlist.title,
+              items,
+              queueId: String(queue.playQueueID),
+            };
+            revision = core.load(storage, binding)?.revision || 0;
+            error = '';
+            console.info('[Listweavarr Playlist Companion] normal Plex playlist queue bound');
+            observe();
+          } catch {
+            error = 'Could not bind this playlist; ordinary Plex playback was left unchanged';
+          }
+        });
+      });
     }
     async function contents(provider, playlistId) {
       const result = [];
@@ -154,14 +256,22 @@
         title: binding.title,
         itemTitle: entry.title,
         showTitle: entry.showTitle,
+        entryNumber: index + 1,
+        totalEntries: binding.items.length,
+        durationMs: Math.max(0, Math.floor((get(p, 'durationSeconds') || 0) * 1000)),
+        paused: !!get(p, 'isPaused'),
         updatedAt: Date.now(),
       };
       core.save(storage, bookmark);
+      const previous = binding.bookmark;
       binding.bookmark = bookmark;
+      if (!previous || previous.entryId !== bookmark.entryId || previous.paused !== bookmark.paused)
+        notify();
       error = '';
       return bookmark;
     }
     async function start(selection, resume) {
+      ++intentSequence; // A pending normal Play response must not replace this intent.
       progress('Checking playlist playback context…');
       if (selection.userId !== userId())
         throw new Error('Plex user changed; refresh the playlist list');
@@ -258,6 +368,8 @@
     const timer = setInterval(observe, 2000);
     return {
       playlists,
+      poster,
+      nativeTracking,
       start,
       pause,
       status,
@@ -267,6 +379,7 @@
       },
       dispose() {
         observe();
+        disposed = true;
         clearInterval(timer);
         binding = null;
       },

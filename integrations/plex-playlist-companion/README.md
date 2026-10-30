@@ -7,7 +7,16 @@ an installer intended for general distribution yet.
 
 ## Implemented
 
-Development update: Plex Web 4.160.0's registered player services now have a
+Current development update: the adapter observes explicit, unshuffled video
+playlist queue creation from Plex's normal Play controls. It does not substitute
+Plex's Play action or assign unrelated title playback to a playlist. The new home
+row uses portrait resume cards and optional device-local posters in IndexedDB;
+it falls back to existing Plex playlist artwork. Local artwork is never uploaded.
+Live normal-workflow and home-row placement checks are pending. The original
+virtualized Plex playlist grid still uses its native dimensions; changing that
+grid remains a separate compatibility task.
+
+Earlier development milestone: Plex Web 4.160.0's registered player services have a
 desktop adapter, with a small Playlist companion panel for Start, Resume and
 Pause & save. Automatic checkpoints apply only to queues started/resumed through
 this panel, not arbitrary playback elsewhere in Plex. The adapter validates
@@ -73,12 +82,15 @@ disables its controls; the desktop adapter must not be assumed to support it.
 1. Extend the passed desktop episode resume test to movies, actual queue advances,
    duplicate occurrences, rewatches and final-item completion. The adapter has no
    Listweavarr HTTP dependency; its bookmarks are local to the client.
-2. Track playback started through normal Plex controls once its originating
-   playlist can be established without guessing from shared titles.
+2. Verify normal Play observation and the home-row placement in the installed
+   client; test portrait artwork and native playlist-grid metrics separately.
 3. Verify the hosted/local Plex Web adapters rather than assuming compatibility
    with this particular desktop bundle.
 4. Add portrait video-playlist layout and Continue row in desktop and web adapters.
 5. Add optional paired Listweavarr synchronization and artwork/update integration.
+   Import the matching list poster automatically and cache it on the Plex device,
+   so artwork remains available when Listweavarr is closed. Local poster changes
+   use the pencil overlay shown on hover or keyboard focus.
 
 Tests: `node tests/test_playlist_bookmarks.cjs` from the repository root, plus the
 desktop tests included in `python -m unittest discover -s tests -q`. Windows

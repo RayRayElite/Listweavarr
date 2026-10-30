@@ -15,6 +15,14 @@ A typical change follows this path:
 
 ## Backend reference
 
+The optional [Plex playlist companion](../integrations/plex-playlist-companion/README.md)
+is separate from the HTTP application. `bookmarks.js` holds offline identity and
+resume rules; `plex-adapter.js` owns version-specific player/transport integration;
+`home.js` owns the portrait resume row and local artwork; `runtime.js` initializes
+them. `desktop.py` installs/restores only verified client assets. Its Python and
+Node tests are included in CI. Do not add Plex credentials or proprietary client
+bundles to fixtures.
+
 | Module | Responsibility | Useful entry points |
 |---|---|---|
 | [app.py](../app.py) | HTTP application and workflow orchestration. | `start_import_job`, `refresh_request_state`, `dispatch_discord_once`, `start_background_tasks`, `public_state`, `plex_account` |

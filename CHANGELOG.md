@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Observe explicit playlist queue creation from normal Plex desktop Play controls
+  for automatic bookmark binding. Add a portrait Continue Playlists home row,
+  one-click resume and optional device-local artwork. The user confirmed the row
+  and resume work. Place it after the complete Continue Watching hub and expose
+  poster editing through a hover/focus pencil. Final placement verification is
+  pending; native playlist-grid poster dimensions are unchanged.
+
 - Add a version-specific desktop playlist player adapter and development controls
   for Start, Resume and Pause & save. It reads full playlist contents, validates
   the queue's selected occurrence, and observes progress only in the explicitly

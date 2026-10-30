@@ -18,11 +18,12 @@ KNOWN_INDEX = "d81687f1b5710890c3be9681236e8f92c39e9d48399f82a80dd67963297b92b7"
 ASSETS = {
     "bookmarks.js": "listweavarr-playlist-bookmarks.js",
     "plex-adapter.js": "listweavarr-playlist-adapter.js",
+    "home.js": "listweavarr-playlist-home.js",
     "runtime.js": "listweavarr-playlist-runtime.js",
 }
 BACKUP = "index.html.listweavarr-original"
 STATE = "listweavarr-playlist-install.json"
-MARKUP = b'\n<!-- Listweavarr playlist companion v1 -->\n<script src="listweavarr-playlist-bookmarks.js"></script>\n<script src="listweavarr-playlist-adapter.js"></script>\n<script src="listweavarr-playlist-runtime.js"></script>\n'
+MARKUP = b'\n<!-- Listweavarr playlist companion v1 -->\n<script src="listweavarr-playlist-bookmarks.js"></script>\n<script src="listweavarr-playlist-adapter.js"></script>\n<script src="listweavarr-playlist-home.js"></script>\n<script src="listweavarr-playlist-runtime.js"></script>\n'
 
 
 def digest(data):

@@ -6,7 +6,7 @@
   const core = globalThis.ListweavarrPlaylistCore;
   if (!core) return;
   const state = {
-    version: '0.2.0-development',
+    version: '0.3.0-development',
     platform: location.protocol === 'file:' ? 'desktop' : 'web',
     automaticTracking: false,
     resumeAdapter: false,
@@ -42,11 +42,19 @@
       const api = globalThis.ListweavarrPlexAdapter.create(require, localStorage, core);
       clearInterval(initialize);
       state.api = api;
-      state.automaticTracking = true;
+      state.automaticTracking = api.nativeTracking;
       state.resumeAdapter = true;
       console.info('[Listweavarr Playlist Companion] desktop player adapter ready');
       mount(api);
-      addEventListener('pagehide', () => api.dispose(), { once: true });
+      const stopHome = globalThis.ListweavarrPlaylistHome?.mount(api, core, localStorage);
+      addEventListener(
+        'pagehide',
+        () => {
+          stopHome?.();
+          api.dispose();
+        },
+        { once: true }
+      );
     } catch {
       if (++attempts >= 60) {
         clearInterval(initialize);
@@ -61,7 +69,7 @@
     host.style.cssText =
       'position:fixed;right:20px;bottom:100px;z-index:100000;font:14px system-ui;color:#eee';
     const toggle = document.createElement('button');
-    toggle.textContent = 'Playlist companion';
+    toggle.textContent = 'Playlist diagnostics';
     toggle.style.cssText =
       'background:#282828;color:#eee;border:1px solid #777;border-radius:6px;padding:10px 14px;cursor:pointer';
     toggle.setAttribute('aria-expanded', 'false');
@@ -75,7 +83,7 @@
     heading.style.cssText = 'font-size:20px;margin:0 0 12px';
     const note = document.createElement('p');
     note.textContent =
-      'Development preview · bookmarks stay on this device. Use Start or Resume here to track playback.';
+      'Development diagnostics · normal Plex playlist Play tracks automatically. Bookmarks stay on this device.';
     note.style.cssText = 'font-size:12px;color:#bbb;line-height:1.5';
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'Video playlist');
@@ -167,6 +175,11 @@
     api.onProgress((message) => {
       status.textContent = message;
     });
+    state.showDiagnostics = () => {
+      panel.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      action(refresh);
+    };
     toggle.onclick = () => {
       panel.hidden = !panel.hidden;
       toggle.setAttribute('aria-expanded', String(!panel.hidden));
