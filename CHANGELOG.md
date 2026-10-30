@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Refresh Continue Playlists after silent desktop Stop transitions, retaining the
+  newest saved time rather than an older model snapshot. Keep refresh requests
+  raised during an in-flight home-row load.
+
 - Persist bound playlist progress on player changes and before Stop clears the
   player, with window-close and periodic fallbacks. Record the final reported
   second as completion, resume at the next item, and remove finished playlists

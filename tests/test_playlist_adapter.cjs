@@ -151,6 +151,17 @@ async function main() {
     throw new Error('Unexpected request');
   };
   let native;
+  let sample;
+  const interval = global.setInterval;
+  const dispatchEvent = global.dispatchEvent;
+  let notices = 0;
+  global.dispatchEvent = () => {
+    notices += 1;
+  };
+  global.setInterval = (callback, delay) => {
+    sample = callback;
+    return interval(callback, delay);
+  };
   const api = create(
     (id) =>
       id === 3467
@@ -195,6 +206,20 @@ async function main() {
     assert.equal(core.load(storage, playlist).offsetMs, 43000);
     assert.equal(core.load(storage, playlist).completed, false);
     player.set({ ...player.previousAttributes(), isPaused: true, positionSeconds: 37 });
+    // Native desktop Stop may emit no model event. Polling must notify Home
+    // exactly once and must not overwrite a newer sample with stale attributes.
+    player.values.positionSeconds = 160;
+    sample();
+    const beforeStop = notices;
+    const openState = { ...player.values };
+    player.values.isOpen = false;
+    player.values.positionSeconds = 0;
+    sample();
+    assert.equal(notices, beforeStop + 1);
+    assert.equal(core.load(storage, playlist).offsetMs, 160000);
+    sample();
+    assert.equal(notices, beforeStop + 1);
+    player.set({ ...openState, positionSeconds: 37 });
     player.values.isPaused = true;
     const resumed = await api.start(playlist, true);
     assert.equal(resumed.offsetMs, 37000);
@@ -323,6 +348,9 @@ async function main() {
     assert.equal(observed, false);
   } finally {
     api.dispose();
+    global.setInterval = interval;
+    if (dispatchEvent) global.dispatchEvent = dispatchEvent;
+    else delete global.dispatchEvent;
     assert.equal(player.listeners.size, 0, 'Detach model observers on disposal');
   }
   console.log(

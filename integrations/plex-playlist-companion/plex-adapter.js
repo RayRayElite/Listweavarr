@@ -367,7 +367,9 @@
     }
     function observe() {
       try {
-        tick();
+        // Some desktop state changes are silent. Poll the lifecycle as well as
+        // position so Stop still refreshes Home when no model event arrives.
+        playerChanged();
       } catch {
         error = 'Could not save playlist progress';
       }
@@ -376,15 +378,11 @@
     function playerChanged() {
       if (disposed || !binding) return;
       try {
-        // Backbone retains the state before the current set(). Stop can clear
-        // queue, position and isOpen in one operation: checkpoint that state
-        // before considering the new one. Never borrow another profile/queue.
-        const old = observedPlayer.previousAttributes?.();
-        const stopped = (old?.isOpen || binding.wasOpen) && !get(observedPlayer, 'isOpen');
+        // Stop may silently clear the queue. The latest valid position is
+        // already persisted; previousAttributes can instead contain an older
+        // seek/pause snapshot, so never write it over that newer checkpoint.
+        const stopped = binding.wasOpen && !get(observedPlayer, 'isOpen');
         if (stopped) {
-          if (old?.isOpen) tick({ get: (key) => old[key] }, true);
-          // Some model implementations omit previousAttributes. Every valid
-          // position change is already durable; still refresh Home on Stop.
           binding.wasOpen = false;
           if (binding.userId === userId()) notify();
         } else tick();

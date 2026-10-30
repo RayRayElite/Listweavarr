@@ -230,12 +230,12 @@
     async function refresh() {
       if (loading || disposed || !isHome(location.hash)) return;
       loading = true;
+      dirty = false;
       try {
         rows = (await api.playlists())
           .filter((row) => row.bookmark)
           .sort((a, b) => (b.bookmark.updatedAt || 0) - (a.bookmark.updatedAt || 0));
         render();
-        dirty = false;
         if (!rows.length && retries++ < 10) {
           clearTimeout(retryTimer);
           retryTimer = setTimeout(() => {

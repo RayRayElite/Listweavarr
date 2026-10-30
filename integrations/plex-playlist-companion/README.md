@@ -38,7 +38,8 @@ layout in the native playlist grid remains a separate task.
 - A minimal Chrome/Edge extension development manifest for hosted Plex Web.
 - The original bootstrap proved local-storage availability; the current desktop
   adapter persists its bound player's progress on model changes, including the
-  state before Stop resets the player. Two-second polling and orderly window-close
+  latest valid state when Stop resets the player. Two-second polling detects
+  silent Stop transitions too, and orderly window-close
   handlers provide fallbacks. A known duration's final reported second records
   completion; resume then selects the next exact playlist occurrence at zero.
   A finished playlist leaves Continue Playlists. Unknown durations and errors
