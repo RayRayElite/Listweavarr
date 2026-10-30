@@ -3,6 +3,12 @@
 Investigated October 30, 2026. This is a feasibility report and proposed design,
 not an installed patch or a demonstrated playback integration.
 
+Implementation update: the source-checkout prototype now lives in
+`integrations/plex-playlist-companion/`. A backed-up loader probe was installed
+and its execution/storage availability verified inside Plex for Windows. The
+initial investigation below remains the pre-implementation evidence; queue
+resume, real playback tracking and portrait layout are still unverified.
+
 ## Recommended direction
 
 Build a Listweavarr playlist-progress service and a companion Plex Web extension.

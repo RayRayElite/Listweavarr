@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Listweavarr Playlist Companion — Development Probe",
+  "version": "0.1.0",
+  "description": "Development bootstrap for playlist enhancements. No automatic tracking or playback yet.",
+  "content_scripts": [
+    {
+      "matches": ["https://app.plex.tv/*"],
+      "js": ["bookmarks.js", "runtime.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

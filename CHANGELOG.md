@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Start an optional standalone Plex playlist companion prototype: shared offline
+  bookmark rules, a reversible version-checked Windows loader, and a minimal
+  browser-extension bootstrap. Desktop script loading and storage availability
+  have been verified; automatic tracking, poster layout and queue resume are
+  not implemented yet. See `integrations/plex-playlist-companion/README.md`.
+
 - Import structured show/episode-name spreadsheets even when they contain only
   custom release codes rather than season/episode numbers. Match titles across
   the parent's catalogue, retain ambiguities, and normalize conjunctions and

@@ -23,6 +23,7 @@ jobs:
           node-version: '22'
       - run: python -m unittest discover -s tests -q
       - run: node tests/test_ui.cjs
+      - run: node tests/test_playlist_bookmarks.cjs
       - run: python scripts/check_frontend.py
       - run: python scripts/check_release.py
       - run: python scripts/build_release.py
