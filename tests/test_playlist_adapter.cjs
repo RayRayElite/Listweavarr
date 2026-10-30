@@ -4,12 +4,37 @@ const core = require('../integrations/plex-playlist-companion/bookmarks.js');
 const {
   create,
   playlistIdFromSource,
+  queueMatchesPlaylist,
 } = require('../integrations/plex-playlist-companion/plex-adapter.js');
 assert.equal(playlistIdFromSource('library://x/directory/%2Fplaylists%2F3%2Fitems'), '3');
 assert.equal(playlistIdFromSource('/playlists/3/items?key=/library/metadata/101'), '3');
 assert.equal(playlistIdFromSource('library://x/item/%2Flibrary%2Fmetadata%2F3'), null);
 assert.equal(playlistIdFromSource('/playlists/3/items/4'), null);
 assert.equal(playlistIdFromSource('%invalid'), null);
+// Reproduce the NAS response: 200 total, selected at 165, but only entries
+// 1..199 returned, with no container offset. Canonical identity anchors it.
+const windowItems = Array.from({ length: 200 }, (_, index) => ({
+  ratingKey: String(1000 + index),
+}));
+const partialQueue = {
+  playQueueID: 8,
+  playQueuePlaylistID: 3,
+  playQueueTotalCount: 200,
+  playQueueSelectedItemOffset: 165,
+  playQueueSelectedItemID: 5165,
+  Metadata: windowItems.slice(1).map((item, index) => ({ ...item, playQueueItemID: 5001 + index })),
+};
+assert.equal(queueMatchesPlaylist(partialQueue, windowItems, '3', '8'), true);
+for (const changes of [
+  { playQueuePlaylistID: 4 },
+  { playQueuePlaylistID: undefined },
+  { playQueueSelectedItemID: undefined },
+  { playQueueSelectedItemOffset: 166 },
+  { playQueueShuffled: true },
+  { playQueueTotalCount: 199 },
+  { Metadata: [...partialQueue.Metadata].reverse() },
+])
+  assert.equal(queueMatchesPlaylist({ ...partialQueue, ...changes }, windowItems, '3', '8'), false);
 const {
   isHome,
   findHomeContainer,

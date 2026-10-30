@@ -14,6 +14,44 @@
     return value.match(/(?:^|\/)playlists\/(\d+)(?:\/items)?(?:$|[?#])/i)?.[1] || null;
   }
   const enabled = (value) => value === true || value === 1 || value === '1';
+  function queueMatchesPlaylist(actual, items, playlistId, queueId) {
+    const rows = actual.Metadata;
+    if (
+      String(actual.playQueueID) !== String(queueId) ||
+      enabled(actual.playQueueShuffled) ||
+      Number(actual.playQueueTotalCount) !== items.length ||
+      !Array.isArray(rows) ||
+      !rows.length
+    )
+      return false;
+    const canonical = actual.playQueuePlaylistID;
+    if (canonical != null && String(canonical) !== String(playlistId)) return false;
+    if (rows.length === items.length)
+      return rows.every((row, index) => String(row.ratingKey) === items[index].ratingKey);
+    // A native response can omit a prefix without a container offset. Its
+    // explicit playlist ID and absolute selected position anchor the window,
+    // including duplicates. Never find that offset by searching movie titles.
+    if (
+      canonical == null ||
+      actual.playQueueSelectedItemOffset == null ||
+      actual.playQueueSelectedItemID == null ||
+      rows.some((row) => row.playQueueItemID == null) ||
+      new Set(rows.map((row) => String(row.playQueueItemID))).size !== rows.length
+    )
+      return false;
+    const selected = Number(actual.playQueueSelectedItemOffset);
+    const within = rows.findIndex(
+      (row) => String(row.playQueueItemID) === String(actual.playQueueSelectedItemID)
+    );
+    const start = selected - within;
+    return (
+      Number.isSafeInteger(selected) &&
+      within >= 0 &&
+      start >= 0 &&
+      start + rows.length <= items.length &&
+      rows.every((row, index) => String(row.ratingKey) === items[start + index].ratingKey)
+    );
+  }
   function create(require, storage, core) {
     const registry = require(3467);
     const app = registry.hd('appModel');
@@ -304,18 +342,12 @@
         if (!sourceId && !pending) {
           // Some native requests never resolve the observed jqXHR. The explicit
           // request alone is insufficient proof: fetch the new queue read-only
-          // and require its ENTIRE ordered sequence to equal the playlist.
+          // and verify its sequence, anchored by canonical playlist/selection
+          // fields when Plex returns only a partial queue window.
           const actual = await request(source.provider, '/playQueues/' + queueId, 'GET', {
             window: 10000,
           });
-          if (
-            String(actual.playQueueID) !== queueId ||
-            enabled(actual.playQueueShuffled) ||
-            Number(actual.playQueueTotalCount) !== items.length ||
-            Number(actual.offset || 0) !== 0 ||
-            actual.Metadata?.length !== items.length ||
-            actual.Metadata.some((item, index) => String(item.ratingKey) !== items[index].ratingKey)
-          ) {
+          if (!queueMatchesPlaylist(actual, items, id, queueId)) {
             console.info(
               '[Listweavarr Playlist Companion] native queue ordered verification declined'
             );
@@ -584,6 +616,6 @@
     };
   }
   if (typeof module !== 'undefined' && module.exports)
-    module.exports = { create, playlistIdFromSource };
+    module.exports = { create, playlistIdFromSource, queueMatchesPlaylist };
   else root.ListweavarrPlexAdapter = { create };
 })(globalThis);

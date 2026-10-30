@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Accept Plex's partial queue windows for middle-entry playlist starts when the
+  server confirms the playlist ID and absolute selection, and every returned
+  entry matches its anchored position. Verified against the real 200-item
+  MindFuck Collection response, which returns 199 entries at position 165.
+
 - Verify native playlist starts even when the observed request never invokes its
   response callback. Require a recent explicit playlist request and an exact
   full ordered match between the new active queue and the playlist before saving.

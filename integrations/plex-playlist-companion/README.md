@@ -23,9 +23,15 @@ identity only after its returned queue ID, user, server and playback intent matc
 the active player. This avoids relying on connection URL aliases being identical.
 If the observed response callback never fires, a recent explicit playlist request
 can identify a candidate only when its user/server match and a new queue appears.
-The companion then reads that queue without modifying it and verifies every item
-in order against the full playlist. Partial, shuffled or differently ordered queues
-are rejected. This fallback is covered by tests; live verification is pending.
+The companion then reads that queue without modifying it and verifies its order
+against the full playlist. When Plex returns a partial window, its explicit
+`playQueuePlaylistID`, selected queue entry ID and absolute selection anchor the
+window. Every returned entry must match that position in the playlist. Unanchored,
+shuffled or differently ordered queues are rejected. This passed both synthetic
+tests and a real server response for Being John Malkovich at position 165 in a
+200-item list, where Plex returns only 199 entries. Desktop UI verification of
+that middle-entry path is pending; the user confirmed whole-playlist native Play
+now creates an Aliens Vs Predator resume card.
 Both paths verify a video playlist and its full queue size; the selected metadata
 must match the exact playlist occurrence before a checkpoint is written. A movie
 or episode playing by itself is never assigned to a list by title or membership.
