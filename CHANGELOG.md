@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Verify native playlist starts even when the observed request never invokes its
+  response callback. Require a recent explicit playlist request and an exact
+  full ordered match between the new active queue and the playlist before saving.
+
 - Retain native playlist response identity across intervening queue requests.
   Match that identity to the actual active queue/user/server instead of dropping
   it solely because another request was observed before its response arrived.

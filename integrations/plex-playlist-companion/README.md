@@ -21,6 +21,11 @@ when request observation misses a native start, including an entry in the middle
 When native queues omit that URI, an observed playlist request can supply the
 identity only after its returned queue ID, user, server and playback intent match
 the active player. This avoids relying on connection URL aliases being identical.
+If the observed response callback never fires, a recent explicit playlist request
+can identify a candidate only when its user/server match and a new queue appears.
+The companion then reads that queue without modifying it and verifies every item
+in order against the full playlist. Partial, shuffled or differently ordered queues
+are rejected. This fallback is covered by tests; live verification is pending.
 Both paths verify a video playlist and its full queue size; the selected metadata
 must match the exact playlist occurrence before a checkpoint is written. A movie
 or episode playing by itself is never assigned to a list by title or membership.

@@ -31,6 +31,7 @@
     let inspectedQueue = '';
     let reportedQueue = '';
     let pendingNative = null;
+    let nativeRequest = null;
     function progress(message) {
       report(message);
       console.info('[Listweavarr Playlist Companion] ' + message);
@@ -139,6 +140,14 @@
         console.info('[Listweavarr Playlist Companion] native playlist queue request observed');
         const profile = userId();
         const requestServerEntity = get(player(), 'serverEntityID');
+        nativeRequest = {
+          id,
+          profile,
+          serverEntity: requestServerEntity,
+          sequence,
+          previousQueueId: String(get(get(player(), 'playQueue'), 'playQueueID') || ''),
+          receivedAt: Date.now(),
+        };
         xhr.done(async (response) => {
           try {
             console.info(
@@ -247,7 +256,16 @@
         pendingNative.serverEntity === get(p, 'serverEntityID')
           ? pendingNative
           : null;
-      const id = playlistIdFromSource(get(queue, 'playQueueSourceURI')) || pending?.id;
+      const candidate =
+        nativeRequest?.profile === userId() &&
+        nativeRequest.serverEntity === get(p, 'serverEntityID') &&
+        nativeRequest.sequence === intentSequence &&
+        nativeRequest.previousQueueId !== queueId &&
+        Date.now() - nativeRequest.receivedAt < 30000
+          ? nativeRequest
+          : null;
+      const sourceId = playlistIdFromSource(get(queue, 'playQueueSourceURI'));
+      const id = sourceId || pending?.id || candidate?.id;
       const reportKey = JSON.stringify([userId(), get(p, 'serverEntityID'), queueId, !!id]);
       if (reportedQueue !== reportKey) {
         reportedQueue = reportKey;
@@ -256,6 +274,8 @@
             JSON.stringify({
               playlistSource: !!id,
               count: Number(get(queue, 'playQueueTotalCount')) || 0,
+              requestSameServer: nativeRequest?.serverEntity === get(p, 'serverEntityID'),
+              requestLatest: nativeRequest?.sequence === intentSequence,
             })
         );
       }
@@ -281,6 +301,27 @@
         const playlist = data.Metadata?.[0];
         if (!playlist || enabled(playlist.smart) || playlist.playlistType !== 'video') return;
         const items = await contents(source.provider, id);
+        if (!sourceId && !pending) {
+          // Some native requests never resolve the observed jqXHR. The explicit
+          // request alone is insufficient proof: fetch the new queue read-only
+          // and require its ENTIRE ordered sequence to equal the playlist.
+          const actual = await request(source.provider, '/playQueues/' + queueId, 'GET', {
+            window: 10000,
+          });
+          if (
+            String(actual.playQueueID) !== queueId ||
+            enabled(actual.playQueueShuffled) ||
+            Number(actual.playQueueTotalCount) !== items.length ||
+            Number(actual.offset || 0) !== 0 ||
+            actual.Metadata?.length !== items.length ||
+            actual.Metadata.some((item, index) => String(item.ratingKey) !== items[index].ratingKey)
+          ) {
+            console.info(
+              '[Listweavarr Playlist Companion] native queue ordered verification declined'
+            );
+            return;
+          }
+        }
         if (
           disposed ||
           profile !== userId() ||
@@ -296,6 +337,7 @@
         observe();
       } catch {
         error = 'Could not verify the active playlist; ordinary playback was left unchanged';
+        console.info('[Listweavarr Playlist Companion] active native queue verification failed');
       }
     }
     async function contents(provider, playlistId) {

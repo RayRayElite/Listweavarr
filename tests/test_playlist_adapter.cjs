@@ -86,6 +86,7 @@ async function main() {
   const requests = [];
   let wrongOccurrence = false;
   let omitTotal = false;
+  let queueMismatch = false;
   const rows = [
     {
       playlistItemID: 10,
@@ -137,6 +138,17 @@ async function main() {
           ...(omitTotal ? {} : { totalSize: rows.length }),
           offset,
           Metadata: page,
+        },
+      };
+    }
+    if (/^\/playQueues\/\d+$/.test(path)) {
+      return {
+        MediaContainer: {
+          playQueueID: path.split('/').pop(),
+          playQueueTotalCount: rows.length,
+          offset: 0,
+          playQueueShuffled: false,
+          Metadata: queueMismatch ? [...rows].reverse() : [...rows],
         },
       };
     }
@@ -441,6 +453,45 @@ async function main() {
     sample();
     await new Promise(setImmediate);
     assert.equal(core.load(storage, playlist).offsetMs, 180000);
+    // The real native client exposes a request but never calls its observed
+    // jqXHR done handler. Full ordered queue verification is then mandatory.
+    native(
+      { url: 'http://plex.test/playQueues?playlistID=3', type: 'POST' },
+      {},
+      { done: () => {} }
+    );
+    player.values.playQueue.values.playQueueID = 95;
+    player.values.positionSeconds = 190;
+    sample();
+    await new Promise(setImmediate);
+    assert.equal(core.load(storage, playlist).offsetMs, 190000);
+    assert.equal(core.load(storage, playlist).entryNumber, 301);
+    const prior = core.load(storage, playlist);
+    queueMismatch = true;
+    native(
+      { url: 'http://plex.test/playQueues?playlistID=3', type: 'POST' },
+      {},
+      { done: () => {} }
+    );
+    player.values.playQueue.values.playQueueID = 96;
+    player.values.positionSeconds = 200;
+    sample();
+    await new Promise(setImmediate);
+    assert.deepEqual(core.load(storage, playlist), prior, 'Reject a differently ordered queue');
+    queueMismatch = false;
+    native(
+      { url: 'http://plex.test/playQueues?playlistID=3', type: 'POST' },
+      {},
+      { done: () => {} }
+    );
+    player.values.playQueue.values.playQueueID = 97;
+    player.values.playQueue.values.playQueueSelectedItemOffset = 0;
+    metadata.values.ratingKey = 1000;
+    player.values.positionSeconds = 10;
+    sample();
+    await new Promise(setImmediate);
+    assert.equal(core.load(storage, playlist).entryNumber, 1);
+    assert.equal(core.load(storage, playlist).offsetMs, 10000);
     let observed = false;
     native(
       { url: 'http://plex.test/playQueues?uri=unrelated', type: 'POST' },
