@@ -16,6 +16,12 @@ The user confirmed home-row placement, hover poster editing and resume. The orig
 virtualized Plex playlist grid still uses its native dimensions; changing that
 grid remains a separate compatibility task.
 
+The active queue's explicit playlist source URI provides a second binding path
+when request observation misses a native start, including an entry in the middle.
+Both paths verify a video playlist and its full queue size; the selected metadata
+must match the exact playlist occurrence before a checkpoint is written. A movie
+or episode playing by itself is never assigned to a list by title or membership.
+
 Earlier development milestone: Plex Web 4.160.0's registered player services have a
 desktop adapter, with a small Playlist companion panel for Start, Resume and
 Pause & save. Automatic checkpoints apply to explicitly bound playlist queues,

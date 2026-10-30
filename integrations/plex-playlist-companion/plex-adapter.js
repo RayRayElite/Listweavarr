@@ -3,6 +3,17 @@
  * credentials and internal models never enter bookmarks or diagnostic logs. */
 (function (root) {
   'use strict';
+  function playlistIdFromSource(value) {
+    if (typeof value !== 'string') return null;
+    try {
+      // Plex source URIs can contain an encoded /playlists/ID/items path.
+      for (let i = 0; i < 2; i++) value = decodeURIComponent(value);
+    } catch {
+      return null;
+    }
+    return value.match(/(?:^|\/)playlists\/(\d+)(?:\/items)?(?:$|[?#])/i)?.[1] || null;
+  }
+  const enabled = (value) => value === true || value === 1 || value === '1';
   function create(require, storage, core) {
     const registry = require(3467);
     const app = registry.hd('appModel');
@@ -17,6 +28,8 @@
     let disposed = false;
     let intentSequence = 0;
     let nativeTracking = false;
+    let inspectedQueue = '';
+    let reportedQueue = '';
     function progress(message) {
       report(message);
       console.info('[Listweavarr Playlist Companion] ' + message);
@@ -69,7 +82,7 @@
       for (const source of await sources()) {
         const data = await request(source.provider, '/playlists', 'GET', { playlistType: 'video' });
         for (const item of data.Metadata || []) {
-          if (item.smart || item.playlistType !== 'video') continue;
+          if (enabled(item.smart) || item.playlistType !== 'video') continue;
           const scope = context(source.server, item.ratingKey);
           result.push({
             ...scope,
@@ -116,8 +129,13 @@
         if (!/\/playQueues\/?$/.test(url.pathname) || String(options.type).toUpperCase() !== 'POST')
           return;
         const sequence = ++intentSequence;
-        const id = url.searchParams.get('playlistID');
-        if (!id || !/^\d+$/.test(id) || url.searchParams.get('shuffle') === '1') return;
+        const parameters = new URLSearchParams(
+          typeof options.data === 'string' ? options.data : options.data || {}
+        );
+        for (const [key, value] of url.searchParams) parameters.set(key, value);
+        const id = parameters.get('playlistID') || playlistIdFromSource(parameters.get('uri'));
+        if (!id || !/^\d+$/.test(id) || parameters.get('shuffle') === '1') return;
+        console.info('[Listweavarr Playlist Companion] native playlist queue request observed');
         const profile = userId();
         xhr.done(async (response) => {
           try {
@@ -153,7 +171,7 @@
             if (!source) return;
             const metadata = await request(source.provider, '/playlists/' + id);
             const playlist = metadata.Metadata?.[0];
-            if (!playlist || playlist.smart || playlist.playlistType !== 'video') return;
+            if (!playlist || enabled(playlist.smart) || playlist.playlistType !== 'video') return;
             const items = await contents(source.provider, id);
             if (
               Number(queue.playQueueTotalCount) !== items.length ||
@@ -177,6 +195,68 @@
           }
         });
       });
+    }
+    async function discoverActivePlaylist() {
+      const p = player();
+      const queue = get(p, 'playQueue');
+      const queueId = String(get(queue, 'playQueueID') || '');
+      if (
+        !queueId ||
+        !get(p, 'isOpen') ||
+        enabled(get(queue, 'playQueueShuffled')) ||
+        (binding?.queueId === queueId && binding.userId === userId())
+      )
+        return;
+      const id = playlistIdFromSource(get(queue, 'playQueueSourceURI'));
+      const reportKey = JSON.stringify([userId(), get(p, 'serverEntityID'), queueId, !!id]);
+      if (reportedQueue !== reportKey) {
+        reportedQueue = reportKey;
+        console.info(
+          '[Listweavarr Playlist Companion] native queue source inspected ' +
+            JSON.stringify({
+              playlistSource: !!id,
+              count: Number(get(queue, 'playQueueTotalCount')) || 0,
+            })
+        );
+      }
+      if (!id) return; // Never guess playlist membership from a movie/episode alone.
+      const profile = userId();
+      const serverEntity = get(p, 'serverEntityID');
+      const identity = JSON.stringify([
+        profile,
+        serverEntity,
+        queueId,
+        id,
+        get(queue, 'playQueueTotalCount'),
+      ]);
+      if (inspectedQueue === identity) return;
+      inspectedQueue = identity;
+      const sequence = intentSequence;
+      try {
+        const source = (await sources()).find(
+          (value) => value.server === queue.server || value.server.entityID() === serverEntity
+        );
+        if (!source) throw new Error('source');
+        const data = await request(source.provider, '/playlists/' + id);
+        const playlist = data.Metadata?.[0];
+        if (!playlist || enabled(playlist.smart) || playlist.playlistType !== 'video') return;
+        const items = await contents(source.provider, id);
+        if (
+          disposed ||
+          profile !== userId() ||
+          sequence !== intentSequence ||
+          queue !== get(player(), 'playQueue') ||
+          Number(get(queue, 'playQueueTotalCount')) !== items.length
+        )
+          return;
+        binding = { ...context(source.server, id), title: playlist.title, items, queueId };
+        revision = core.load(storage, binding)?.revision || 0;
+        error = '';
+        console.info('[Listweavarr Playlist Companion] active native playlist queue bound');
+        observe();
+      } catch {
+        error = 'Could not verify the active playlist; ordinary playback was left unchanged';
+      }
     }
     async function contents(provider, playlistId) {
       const result = [];
@@ -367,6 +447,9 @@
     }
     function observe() {
       try {
+        // Queue source metadata survives transport differences and also covers
+        // starting directly at an entry in the middle of a native playlist.
+        void discoverActivePlaylist();
         // Some desktop state changes are silent. Poll the lifecycle as well as
         // position so Stop still refreshes Home when no model event arrives.
         playerChanged();
@@ -418,6 +501,7 @@
       },
     };
   }
-  if (typeof module !== 'undefined' && module.exports) module.exports = { create };
+  if (typeof module !== 'undefined' && module.exports)
+    module.exports = { create, playlistIdFromSource };
   else root.ListweavarrPlexAdapter = { create };
 })(globalThis);

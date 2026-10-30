@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Recognize native playlist playback through verified active-queue source metadata
+  as well as queue creation requests, including starts in the middle of a list.
+  Accept explicit playlist parameters in request data and encoded source URIs.
+  Desktop verification with additional playlists is pending.
+
 - Refresh Continue Playlists after silent desktop Stop transitions, retaining the
   newest saved time rather than an older model snapshot. Keep refresh requests
   raised during an in-flight home-row load.

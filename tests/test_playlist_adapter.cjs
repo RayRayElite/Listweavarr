@@ -1,7 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 const assert = require('node:assert/strict');
 const core = require('../integrations/plex-playlist-companion/bookmarks.js');
-const { create } = require('../integrations/plex-playlist-companion/plex-adapter.js');
+const {
+  create,
+  playlistIdFromSource,
+} = require('../integrations/plex-playlist-companion/plex-adapter.js');
+assert.equal(playlistIdFromSource('library://x/directory/%2Fplaylists%2F3%2Fitems'), '3');
+assert.equal(playlistIdFromSource('/playlists/3/items?key=/library/metadata/101'), '3');
+assert.equal(playlistIdFromSource('library://x/item/%2Flibrary%2Fmetadata%2F3'), null);
+assert.equal(playlistIdFromSource('/playlists/3/items/4'), null);
+assert.equal(playlistIdFromSource('%invalid'), null);
 const {
   isHome,
   findHomeContainer,
@@ -335,6 +343,51 @@ async function main() {
     player.values.positionSeconds = 18;
     assert.equal(api.tick().entryId, '5');
     assert.equal(core.load(storage, playlist).offsetMs, 18000);
+    // A native queue can be discovered without observing its HTTP creation.
+    // Starting in the middle must use the absolute playlist occurrence.
+    player.values.serverEntityID = 'server-entity';
+    player.values.playQueue = new Model({
+      playQueueID: 88,
+      playQueueSourceURI: 'library://x/directory/%2Fplaylists%2F3%2Fitems',
+      playQueueTotalCount: 641,
+      playQueueSelectedItemOffset: 300,
+      playQueueSelectedItemID: 800,
+      playQueueItems: { get: () => entry },
+    });
+    metadata.values.ratingKey = 1300;
+    player.values.positionSeconds = 160;
+    sample();
+    await new Promise(setImmediate);
+    assert.equal(api.status().bookmark.entryId, '301');
+    assert.equal(core.load(storage, playlist).offsetMs, 160000);
+    assert.equal(core.load(storage, playlist).entryNumber, 301);
+    const verified = core.load(storage, playlist);
+    player.values.playQueue.values.playQueueID = 89;
+    player.values.playQueue.values.playQueueSourceURI = '/library/metadata/1300';
+    player.values.positionSeconds = 10;
+    sample();
+    await new Promise(setImmediate);
+    assert.deepEqual(core.load(storage, playlist), verified);
+    native(
+      { url: 'http://plex.test/playQueues', type: 'POST', data: 'playlistID=3&shuffle=0' },
+      {},
+      {
+        done: (callback) => {
+          work = callback(
+            JSON.stringify({
+              MediaContainer: {
+                playQueueID: 91,
+                playQueueTotalCount: 641,
+                playQueueShuffled: false,
+              },
+            })
+          );
+        },
+      }
+    );
+    await work;
+    player.values.playQueue.values.playQueueID = 91;
+    assert.equal(api.tick().entryId, '301', 'Accept native playlist parameters in request data');
     let observed = false;
     native(
       { url: 'http://plex.test/playQueues?uri=unrelated', type: 'POST' },
