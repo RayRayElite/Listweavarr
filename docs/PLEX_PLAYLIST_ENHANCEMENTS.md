@@ -7,7 +7,10 @@ Implementation update: the source-checkout prototype now lives in
 `integrations/plex-playlist-companion/`. A backed-up loader probe was installed
 and its execution/storage availability verified inside Plex for Windows. The
 initial investigation below remains the pre-implementation evidence; queue
-resume, real playback tracking and portrait layout are still unverified.
+resume and real playback tracking have since passed an initial desktop episode
+test with a 641-entry playlist. The user confirmed a saved 0:52 position survived
+restarting Plex and Up Next was correct. Portrait layout and the home row are
+still unimplemented; broader client/edge-case testing remains necessary.
 
 ## Recommended direction
 

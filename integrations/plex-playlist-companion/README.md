@@ -7,6 +7,19 @@ an installer intended for general distribution yet.
 
 ## Implemented
 
+Development update: Plex Web 4.160.0's registered player services now have a
+desktop adapter, with a small Playlist companion panel for Start, Resume and
+Pause & save. Automatic checkpoints apply only to queues started/resumed through
+this panel, not arbitrary playback elsewhere in Plex. The adapter validates
+selected occurrence/offset against the full playlist before dispatching playback,
+and preserves source ordering for mixed movies and episodes. It does not manually
+mark items watched or edit playlists; Plex still records normal playback history.
+On October 30, 2026, a live test with a 641-entry mixed playlist verified desktop
+playback, pause/save and resume after restarting Plex near the saved 0:52 position.
+The user confirmed the resumed point and playlist Up Next. This is one desktop
+episode test, not complete cross-client or movie-playback certification. Poster
+layout and the home row are not implemented.
+
 - Shared offline bookmark rules: server/user/playlist separation, exact entry IDs,
   offsets, explicit completion, session revisions and reconciliation after edits.
   Global watched flags are not consulted. Duplicates whose entry IDs were lost
@@ -14,8 +27,10 @@ an installer intended for general distribution yet.
 - A version-checked Windows loader with exact original-file backup and rollback.
   It refuses running Plex, unknown entry-point hashes and changed installed files.
 - A minimal Chrome/Edge extension development manifest for hosted Plex Web.
-- A bootstrap probe reporting local-storage availability. It does not save real
-  playback bookmarks, observe Plex events, change card layouts or control playback.
+- The original bootstrap proved local-storage availability; the current desktop
+  adapter additionally samples its bound player's progress every two seconds.
+  Closing the client can lose the most recent interval. It does not yet infer
+  final-item completion or automatically reassociate a queue after a restart.
 
 ## Desktop probe
 
@@ -48,17 +63,20 @@ general browsing/history permissions. Its JavaScript runs in the extension's
 isolated world; a future page/player bridge must be explicit and narrowly scoped.
 Local server Plex Web origins are not enabled in this first manifest.
 
-The console marker `[Listweavarr Playlist Companion] bootstrap` reports the
-platform and storage availability. The exposed diagnostics explicitly state that
-automatic tracking, poster layout and resume are disabled.
+The current console marker `[Listweavarr Playlist Companion] desktop player adapter
+ready` reports that the version-specific services were found. It is not evidence
+that playback succeeded. Hosted Web still has no verified player adapter and
+disables its controls; the desktop adapter must not be assumed to support it.
 
 ## Next acceptance gates
 
-1. Observe an explicitly selected playlist's playback context in the desktop client.
-2. Bind queue entries and timestamps to that context; persist a real checkpoint
-   and verify it survives closing/reopening Plex without Listweavarr running.
-3. Resume the intended item at its timestamp with the correct following queue.
-   Test duplicates and rewatches; opening a title page is not success.
+1. Extend the passed desktop episode resume test to movies, actual queue advances,
+   duplicate occurrences, rewatches and final-item completion. The adapter has no
+   Listweavarr HTTP dependency; its bookmarks are local to the client.
+2. Track playback started through normal Plex controls once its originating
+   playlist can be established without guessing from shared titles.
+3. Verify the hosted/local Plex Web adapters rather than assuming compatibility
+   with this particular desktop bundle.
 4. Add portrait video-playlist layout and Continue row in desktop and web adapters.
 5. Add optional paired Listweavarr synchronization and artwork/update integration.
 

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add a version-specific desktop playlist player adapter and development controls
+  for Start, Resume and Pause & save. It reads full playlist contents, validates
+  the queue's selected occurrence, and observes progress only in the explicitly
+  bound queue/profile. A live 641-entry playlist test verified desktop episode
+  resume after restarting Plex and preserved playlist Up Next. This remains an
+  experimental source-checkout integration with limited client compatibility.
+
 - Start an optional standalone Plex playlist companion prototype: shared offline
   bookmark rules, a reversible version-checked Windows loader, and a minimal
   browser-extension bootstrap. Desktop script loading and storage availability
