@@ -50,6 +50,20 @@ class Model {
   get(key) {
     return this.values[key];
   }
+  on(name, callback) {
+    (this.listeners ||= new Map()).set(callback, name);
+  }
+  off(name, callback) {
+    this.listeners?.delete(callback);
+  }
+  previousAttributes() {
+    return this.previous;
+  }
+  set(values) {
+    this.previous = { ...this.values };
+    Object.assign(this.values, values);
+    for (const [callback, name] of this.listeners || []) if (name === 'change') callback(this);
+  }
   entityID() {
     return this.id;
   }
@@ -170,6 +184,17 @@ async function main() {
       positionSeconds: 37,
     });
     assert.equal(api.tick().offsetMs, 37000);
+    player.set({ positionSeconds: 43, isPaused: false });
+    assert.equal(core.load(storage, playlist).offsetMs, 43000);
+    player.set({ positionSeconds: 99, durationSeconds: 100, hasError: true });
+    assert.equal(core.load(storage, playlist).offsetMs, 43000);
+    assert.equal(core.load(storage, playlist).completed, false);
+    player.set({ positionSeconds: 43, durationSeconds: 0, hasError: false });
+    // Stop atomically clears the player. Retain its last live state, not zero.
+    player.set({ isOpen: false, positionSeconds: 0, playQueue: null });
+    assert.equal(core.load(storage, playlist).offsetMs, 43000);
+    assert.equal(core.load(storage, playlist).completed, false);
+    player.set({ ...player.previousAttributes(), isPaused: true, positionSeconds: 37 });
     player.values.isPaused = true;
     const resumed = await api.start(playlist, true);
     assert.equal(resumed.offsetMs, 37000);
@@ -191,6 +216,51 @@ async function main() {
     await assert.rejects(api.start(playlist, true), /user changed/);
     user.id = 'user';
     wrongOccurrence = false;
+    player.values.playQueue.values.playQueueID = 9;
+    player.set({ durationSeconds: 100, positionSeconds: 99, isPaused: true });
+    assert.equal(core.load(storage, playlist).completed, true);
+    assert.equal(core.load(storage, playlist).nextTitle, 'Movie');
+    player.set({ isOpen: false, positionSeconds: 0, playQueue: null });
+    const next = await api.start(playlist, true);
+    assert.equal(next.index, 1);
+    assert.equal(next.offsetMs, 0);
+    // Checkpoint the final movie, including completion before player teardown.
+    metadata.values.ratingKey = 101;
+    player.set({
+      isOpen: true,
+      isPaused: false,
+      positionSeconds: 20,
+      durationSeconds: 120,
+      playQueue: new Model({
+        playQueueID: 9,
+        playQueueSelectedItemOffset: 1,
+        playQueueSelectedItemID: 45,
+        playQueueItems: { get: () => entry },
+      }),
+    });
+    assert.equal(core.load(storage, playlist).completed, false);
+    player.set({ positionSeconds: 120, isPaused: true });
+    player.set({ isOpen: false, positionSeconds: 0, playQueue: null });
+    assert.equal(
+      core.reconcile(core.load(storage, playlist), [
+        { entryId: '10', ratingKey: '100' },
+        { entryId: '11', ratingKey: '101' },
+      ]).status,
+      'finished'
+    );
+    // A changed profile must never flush the old profile's position on Stop.
+    const finished = core.load(storage, playlist);
+    user.id = 'other';
+    player.set({ isOpen: true, positionSeconds: 5 });
+    player.set({ isOpen: false, positionSeconds: 0 });
+    assert.deepEqual(core.load(storage, playlist), finished);
+    user.id = 'user';
+    player.values.playQueue = new Model({
+      playQueueID: 9,
+      playQueueSelectedItemOffset: 0,
+      playQueueSelectedItemID: 44,
+      playQueueItems: { get: () => entry },
+    });
     rows.splice(
       0,
       rows.length,
@@ -232,6 +302,8 @@ async function main() {
       }
     );
     await work;
+    player.values.isOpen = true;
+    player.values.isMediaLoading = false;
     player.values.playQueue.values.playQueueID = 77;
     player.values.playQueue.values.playQueueSelectedItemOffset = 4;
     metadata.values.ratingKey = 1004;
@@ -251,6 +323,7 @@ async function main() {
     assert.equal(observed, false);
   } finally {
     api.dispose();
+    assert.equal(player.listeners.size, 0, 'Detach model observers on disposal');
   }
   console.log(
     'Playlist adapter checks passed: source order, offsets, profile/queue isolation and no watched writes.'

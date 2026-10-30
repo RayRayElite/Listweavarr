@@ -219,9 +219,8 @@
       }
       return result;
     }
-    function tick() {
+    function tick(p = player(), forceNotify = false) {
       if (!binding) return null;
-      const p = player();
       const queue = get(p, 'playQueue');
       if (
         userId() !== binding.userId ||
@@ -232,7 +231,7 @@
       )
         return null;
       const index = get(queue, 'playQueueSelectedItemOffset');
-      const selected = get(queue, 'playQueueItems').get(get(queue, 'playQueueSelectedItemID'));
+      const selected = get(queue, 'playQueueItems')?.get(get(queue, 'playQueueSelectedItemID'));
       const metadata = get(selected, 'metadataItem');
       const entry = binding.items[index];
       const position = get(p, 'positionSeconds');
@@ -244,28 +243,36 @@
       )
         return null;
       const session = String(get(p, 'playbackSessionID') || binding.queueId);
+      const durationMs = Math.max(0, Math.floor((get(p, 'durationSeconds') || 0) * 1000));
+      const offsetMs = Math.floor(position * 1000);
+      // The desktop player reports whole seconds. Only its final second counts
+      // as complete; ordinary Stop, errors and Plex's watched threshold do not.
+      const completed = durationMs > 0 && offsetMs > 0 && offsetMs >= durationMs - 1000;
+      const previous = binding.bookmark;
       const bookmark = {
-        ...core.checkpoint(
-          binding,
-          binding.items,
-          entry.entryId,
-          Math.floor(position * 1000),
-          session,
-          ++revision
-        ),
+        ...core.checkpoint(binding, binding.items, entry.entryId, offsetMs, session, ++revision),
         title: binding.title,
         itemTitle: entry.title,
         showTitle: entry.showTitle,
         entryNumber: index + 1,
         totalEntries: binding.items.length,
-        durationMs: Math.max(0, Math.floor((get(p, 'durationSeconds') || 0) * 1000)),
+        durationMs,
+        completed,
+        nextTitle: binding.items[index + 1]?.title || '',
+        nextShowTitle: binding.items[index + 1]?.showTitle || '',
         paused: !!get(p, 'isPaused'),
         updatedAt: Date.now(),
       };
       core.save(storage, bookmark);
-      const previous = binding.bookmark;
       binding.bookmark = bookmark;
-      if (!previous || previous.entryId !== bookmark.entryId || previous.paused !== bookmark.paused)
+      binding.wasOpen = true;
+      if (
+        forceNotify ||
+        !previous ||
+        previous.entryId !== bookmark.entryId ||
+        previous.paused !== bookmark.paused ||
+        previous.completed !== bookmark.completed
+      )
         notify();
       error = '';
       return bookmark;
@@ -365,6 +372,31 @@
         error = 'Could not save playlist progress';
       }
     }
+    const observedPlayer = player();
+    function playerChanged() {
+      if (disposed || !binding) return;
+      try {
+        // Backbone retains the state before the current set(). Stop can clear
+        // queue, position and isOpen in one operation: checkpoint that state
+        // before considering the new one. Never borrow another profile/queue.
+        const old = observedPlayer.previousAttributes?.();
+        const stopped = (old?.isOpen || binding.wasOpen) && !get(observedPlayer, 'isOpen');
+        if (stopped) {
+          if (old?.isOpen) tick({ get: (key) => old[key] }, true);
+          // Some model implementations omit previousAttributes. Every valid
+          // position change is already durable; still refresh Home on Stop.
+          binding.wasOpen = false;
+          if (binding.userId === userId()) notify();
+        } else tick();
+      } catch {
+        error = 'Could not save playlist progress';
+      }
+    }
+    observedPlayer.on?.('change', playerChanged);
+    // Flush synchronously on an orderly window close. Regular model changes
+    // already persist progress, so this is a fallback rather than a requirement.
+    root.addEventListener?.('pagehide', observe);
+    root.addEventListener?.('beforeunload', observe);
     const timer = setInterval(observe, 2000);
     return {
       playlists,
@@ -380,6 +412,9 @@
       dispose() {
         observe();
         disposed = true;
+        observedPlayer.off?.('change', playerChanged);
+        root.removeEventListener?.('pagehide', observe);
+        root.removeEventListener?.('beforeunload', observe);
         clearInterval(timer);
         binding = null;
       },

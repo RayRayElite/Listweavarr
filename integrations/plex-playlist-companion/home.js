@@ -113,6 +113,7 @@
       for (const selection of rows) {
         const saved = core.load(storage, selection);
         if (!saved) continue;
+        if (saved.completed && saved.entryNumber === saved.totalEntries) continue;
         const article = document.createElement('article');
         article.className = 'lw-playlist-card';
         const cover = document.createElement('button');
@@ -139,11 +140,17 @@
           text('h3', selection.title),
           text(
             'p',
-            (saved.showTitle ? saved.showTitle + ' · ' : '') + (saved.itemTitle || 'Saved item')
+            saved.completed
+              ? 'Up next: ' +
+                  (saved.nextShowTitle ? saved.nextShowTitle + ' · ' : '') +
+                  (saved.nextTitle || 'Next playlist item')
+              : (saved.showTitle ? saved.showTitle + ' · ' : '') + (saved.itemTitle || 'Saved item')
           ),
           text(
             'p',
-            `${Math.floor(saved.offsetMs / 60000)}:${String(Math.floor(saved.offsetMs / 1000) % 60).padStart(2, '0')}${saved.entryNumber ? ' · ' + saved.entryNumber + ' of ' + saved.totalEntries : ''}`
+            saved.completed
+              ? `Ready for item ${saved.entryNumber + 1} of ${saved.totalEntries}`
+              : `${Math.floor(saved.offsetMs / 60000)}:${String(Math.floor(saved.offsetMs / 1000) % 60).padStart(2, '0')}${saved.entryNumber ? ' · ' + saved.entryNumber + ' of ' + saved.totalEntries : ''}`
           )
         );
         if (saved.totalEntries) {

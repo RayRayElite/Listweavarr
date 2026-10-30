@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Persist bound playlist progress on player changes and before Stop clears the
+  player, with window-close and periodic fallbacks. Record the final reported
+  second as completion, resume at the next item, and remove finished playlists
+  from Continue Playlists. Desktop Stop/completion live verification is pending.
+
 - Observe explicit playlist queue creation from normal Plex desktop Play controls
   for automatic bookmark binding. Add a portrait Continue Playlists home row,
   one-click resume and optional device-local artwork. The user confirmed the row

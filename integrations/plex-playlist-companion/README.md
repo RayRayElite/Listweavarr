@@ -12,14 +12,14 @@ playlist queue creation from Plex's normal Play controls. It does not substitute
 Plex's Play action or assign unrelated title playback to a playlist. The new home
 row uses portrait resume cards and optional device-local posters in IndexedDB;
 it falls back to existing Plex playlist artwork. Local artwork is never uploaded.
-Live normal-workflow and home-row placement checks are pending. The original
+The user confirmed home-row placement, hover poster editing and resume. The original
 virtualized Plex playlist grid still uses its native dimensions; changing that
 grid remains a separate compatibility task.
 
 Earlier development milestone: Plex Web 4.160.0's registered player services have a
 desktop adapter, with a small Playlist companion panel for Start, Resume and
-Pause & save. Automatic checkpoints apply only to queues started/resumed through
-this panel, not arbitrary playback elsewhere in Plex. The adapter validates
+Pause & save. Automatic checkpoints apply to explicitly bound playlist queues,
+including observed normal Play requests, not arbitrary playback elsewhere in Plex. The adapter validates
 selected occurrence/offset against the full playlist before dispatching playback,
 and preserves source ordering for mixed movies and episodes. It does not manually
 mark items watched or edit playlists; Plex still records normal playback history.
@@ -27,7 +27,7 @@ On October 30, 2026, a live test with a 641-entry mixed playlist verified deskto
 playback, pause/save and resume after restarting Plex near the saved 0:52 position.
 The user confirmed the resumed point and playlist Up Next. This is one desktop
 episode test, not complete cross-client or movie-playback certification. Poster
-layout and the home row are not implemented.
+layout in the native playlist grid remains a separate task.
 
 - Shared offline bookmark rules: server/user/playlist separation, exact entry IDs,
   offsets, explicit completion, session revisions and reconciliation after edits.
@@ -37,9 +37,14 @@ layout and the home row are not implemented.
   It refuses running Plex, unknown entry-point hashes and changed installed files.
 - A minimal Chrome/Edge extension development manifest for hosted Plex Web.
 - The original bootstrap proved local-storage availability; the current desktop
-  adapter additionally samples its bound player's progress every two seconds.
-  Closing the client can lose the most recent interval. It does not yet infer
-  final-item completion or automatically reassociate a queue after a restart.
+  adapter persists its bound player's progress on model changes, including the
+  state before Stop resets the player. Two-second polling and orderly window-close
+  handlers provide fallbacks. A known duration's final reported second records
+  completion; resume then selects the next exact playlist occurrence at zero.
+  A finished playlist leaves Continue Playlists. Unknown durations and errors
+  never imply completion. Power loss can still lose updates the operating system
+  has not flushed; no server or Listweavarr connection is required for bookmarks.
+  Live Stop and completion verification is pending.
 
 ## Desktop probe
 
