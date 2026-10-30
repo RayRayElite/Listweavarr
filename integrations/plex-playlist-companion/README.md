@@ -18,6 +18,9 @@ grid remains a separate compatibility task.
 
 The active queue's explicit playlist source URI provides a second binding path
 when request observation misses a native start, including an entry in the middle.
+When native queues omit that URI, an observed playlist request can supply the
+identity only after its returned queue ID, user, server and playback intent match
+the active player. This avoids relying on connection URL aliases being identical.
 Both paths verify a video playlist and its full queue size; the selected metadata
 must match the exact playlist occurrence before a checkpoint is written. A movie
 or episode playing by itself is never assigned to a list by title or membership.

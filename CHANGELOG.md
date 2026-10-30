@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Carry explicit native playlist request identity to the matching active player
+  queue when connection aliases differ and Plex omits a playlist source URI.
+  Keep user, server, queue and playback-intent checks before binding.
+
 - Recognize native playlist playback through verified active-queue source metadata
   as well as queue creation requests, including starts in the middle of a list.
   Accept explicit playlist parameters in request data and encoded source URIs.

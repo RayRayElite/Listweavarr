@@ -388,6 +388,32 @@ async function main() {
     await work;
     player.values.playQueue.values.playQueueID = 91;
     assert.equal(api.tick().entryId, '301', 'Accept native playlist parameters in request data');
+    // Native Plex may use a connection alias that differs from the provider's
+    // preferred URL, and its source URI may omit the playlist entirely.
+    player.values.playQueue.values.playQueueID = 92;
+    player.values.playQueue.values.playQueueSourceURI = '';
+    player.values.positionSeconds = 170;
+    native(
+      { url: 'http://connection-alias.test/playQueues?playlistID=3', type: 'POST' },
+      {},
+      {
+        done: (callback) => {
+          work = callback(
+            JSON.stringify({
+              MediaContainer: {
+                playQueueID: 92,
+                playQueueTotalCount: 641,
+                playQueueShuffled: false,
+              },
+            })
+          );
+        },
+      }
+    );
+    await work;
+    await new Promise(setImmediate);
+    assert.equal(api.status().bookmark.entryId, '301');
+    assert.equal(core.load(storage, playlist).offsetMs, 170000);
     let observed = false;
     native(
       { url: 'http://plex.test/playQueues?uri=unrelated', type: 'POST' },

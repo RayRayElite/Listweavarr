@@ -30,6 +30,7 @@
     let nativeTracking = false;
     let inspectedQueue = '';
     let reportedQueue = '';
+    let pendingNative = null;
     function progress(message) {
       report(message);
       console.info('[Listweavarr Playlist Companion] ' + message);
@@ -137,6 +138,7 @@
         if (!id || !/^\d+$/.test(id) || parameters.get('shuffle') === '1') return;
         console.info('[Listweavarr Playlist Companion] native playlist queue request observed');
         const profile = userId();
+        const requestServerEntity = get(player(), 'serverEntityID');
         xhr.done(async (response) => {
           try {
             if (disposed || sequence !== intentSequence || profile !== userId()) return;
@@ -162,13 +164,33 @@
               !queue?.playQueueID ||
               String(queue.playQueueShuffled) === '1' ||
               queue.playQueueShuffled === true
-            )
+            ) {
+              console.info(
+                '[Listweavarr Playlist Companion] native response has no usable ordered queue'
+              );
               return;
+            }
+            // The request may use a different connection URL from the server's
+            // current preferred URL. Retain its explicit identity, then verify
+            // against the actual player queue/server rather than guessing by host.
+            pendingNative = {
+              id,
+              queueId: String(queue.playQueueID),
+              profile,
+              sequence,
+              serverEntity: requestServerEntity,
+            };
             const source = (await sources()).find((value) => {
               const candidate = value.provider.getXHROptions('/playQueues', { type: 'POST' });
               return new URL(candidate.url).origin === url.origin;
             });
-            if (!source) return;
+            if (!source) {
+              console.info(
+                '[Listweavarr Playlist Companion] native request connection differs; awaiting active queue'
+              );
+              void discoverActivePlaylist();
+              return;
+            }
             const metadata = await request(source.provider, '/playlists/' + id);
             const playlist = metadata.Metadata?.[0];
             if (!playlist || enabled(playlist.smart) || playlist.playlistType !== 'video') return;
@@ -178,8 +200,12 @@
               disposed ||
               sequence !== intentSequence ||
               profile !== userId()
-            )
+            ) {
+              console.info(
+                '[Listweavarr Playlist Companion] native queue size or playback intent changed'
+              );
               return;
+            }
             binding = {
               ...context(source.server, id),
               title: playlist.title,
@@ -192,6 +218,7 @@
             observe();
           } catch {
             error = 'Could not bind this playlist; ordinary Plex playback was left unchanged';
+            console.info('[Listweavarr Playlist Companion] native queue verification failed');
           }
         });
       });
@@ -207,7 +234,14 @@
         (binding?.queueId === queueId && binding.userId === userId())
       )
         return;
-      const id = playlistIdFromSource(get(queue, 'playQueueSourceURI'));
+      const pending =
+        pendingNative?.queueId === queueId &&
+        pendingNative.profile === userId() &&
+        pendingNative.sequence === intentSequence &&
+        pendingNative.serverEntity === get(p, 'serverEntityID')
+          ? pendingNative
+          : null;
+      const id = playlistIdFromSource(get(queue, 'playQueueSourceURI')) || pending?.id;
       const reportKey = JSON.stringify([userId(), get(p, 'serverEntityID'), queueId, !!id]);
       if (reportedQueue !== reportKey) {
         reportedQueue = reportKey;
