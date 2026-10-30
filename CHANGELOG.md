@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Retain native playlist response identity across intervening queue requests.
+  Match that identity to the actual active queue/user/server instead of dropping
+  it solely because another request was observed before its response arrived.
+
 - Carry explicit native playlist request identity to the matching active player
   queue when connection aliases differ and Plex omits a playlist source URI.
   Keep user, server, queue and playback-intent checks before binding.

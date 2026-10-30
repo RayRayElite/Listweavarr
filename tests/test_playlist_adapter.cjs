@@ -414,6 +414,33 @@ async function main() {
     await new Promise(setImmediate);
     assert.equal(api.status().bookmark.entryId, '301');
     assert.equal(core.load(storage, playlist).offsetMs, 170000);
+    // Auxiliary queue requests must not discard proof for the queue that the
+    // player actually selected. Identity checks, not response timing, decide.
+    let deferred;
+    native(
+      { url: 'http://plex.test/playQueues?playlistID=3', type: 'POST' },
+      {},
+      {
+        done: (callback) => {
+          deferred = callback;
+        },
+      }
+    );
+    native({ url: 'http://plex.test/playQueues?uri=other', type: 'POST' }, {}, { done: () => {} });
+    player.values.playQueue.values.playQueueID = 94;
+    player.values.positionSeconds = 180;
+    await deferred(
+      JSON.stringify({
+        MediaContainer: {
+          playQueueID: 94,
+          playQueueTotalCount: 641,
+          playQueueShuffled: false,
+        },
+      })
+    );
+    sample();
+    await new Promise(setImmediate);
+    assert.equal(core.load(storage, playlist).offsetMs, 180000);
     let observed = false;
     native(
       { url: 'http://plex.test/playQueues?uri=unrelated', type: 'POST' },

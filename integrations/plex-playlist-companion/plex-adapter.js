@@ -141,7 +141,14 @@
         const requestServerEntity = get(player(), 'serverEntityID');
         xhr.done(async (response) => {
           try {
-            if (disposed || sequence !== intentSequence || profile !== userId()) return;
+            console.info(
+              '[Listweavarr Playlist Companion] native playlist response received ' +
+                JSON.stringify({
+                  latestRequest: sequence === intentSequence,
+                  sameUser: profile === userId(),
+                })
+            );
+            if (disposed || profile !== userId()) return;
             let queue = response?.MediaContainer;
             // Plex's model transport intentionally receives JSON as text and
             // parses it after the jqXHR callback. Observe that same format.
@@ -237,7 +244,6 @@
       const pending =
         pendingNative?.queueId === queueId &&
         pendingNative.profile === userId() &&
-        pendingNative.sequence === intentSequence &&
         pendingNative.serverEntity === get(p, 'serverEntityID')
           ? pendingNative
           : null;
