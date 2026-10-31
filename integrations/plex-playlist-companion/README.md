@@ -144,6 +144,7 @@ node tests/test_playlist_adapter.cjs
 node tests/test_playlist_features.cjs
 node tests/test_playlist_sync.cjs
 node tests/test_playlist_poster_sync.cjs
+node tests/test_playlist_home.cjs
 python -m unittest discover -s tests -q
 python scripts/build_playlist_companion.py
 ```

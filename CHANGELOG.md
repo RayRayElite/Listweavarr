@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Match Continue Playlists cards to native Plex sizing and row spacing. Separate
+  centered Resume, playlist navigation and bottom-left poster-edit controls;
+  reserve uniform metadata slots so cards and progress bars line up.
+
 - Insert editor entries after any item or at a numbered position, and move
   existing entries directly by position. Provider imports and season ranges keep
   their sequence at the chosen insertion point.
