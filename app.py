@@ -6,6 +6,7 @@ Owns state persistence, session checks, Plex/manager actions and API routing. Ke
 See docs/CODE_MAP.md for related modules, routes and contribution guidance.
 """
 import copy
+import errno
 import os
 import runtime_config
 import csv
@@ -5287,6 +5288,21 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Unknown action")
         except (ValueError, KeyError, TypeError, ET.ParseError) as exc:
             self.respond({"error": str(exc)}, 400)
+        except OSError as exc:
+            if exc.errno == errno.ENOSPC:
+                self.respond(
+                    {
+                        "error": "Not enough free disk space to save your changes. Your previous saved data is intact. Free space on the Listweavarr data drive, then retry."
+                    },
+                    507,
+                )
+            else:
+                self.respond(
+                    {
+                        "error": "A local or network I/O operation failed. Retry, and check the data folder and connection settings if it continues."
+                    },
+                    500,
+                )
         except Exception:
             self.respond(
                 {

@@ -217,6 +217,48 @@ class ScopedRequests(unittest.TestCase):
 
 
 class LocalHTTPWorkflow(unittest.TestCase):
+    def test_disk_full_comparison_preserves_saved_state_and_explains_storage(self):
+        import errno
+
+        with (
+            tempfile.TemporaryDirectory(dir=app.ROOT) as directory,
+            patch("app.DATA", Path(directory)),
+        ):
+            original = {
+                "settings": {},
+                "lists": [{"id": "test", "name": "Test", "items": []}],
+            }
+            app.save_state(original, backup=False)
+            before = (app.DATA / "state.json").read_bytes()
+            server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            try:
+                with (
+                    patch("app.compare", return_value=[]),
+                    patch(
+                        "app.save_state", side_effect=OSError(errno.ENOSPC, "disk full")
+                    ),
+                ):
+                    request = urllib.request.Request(
+                        f"http://127.0.0.1:{server.server_port}/api/compare",
+                        data=json.dumps({"list_id": "test"}).encode(),
+                        headers={
+                            "Host": "127.0.0.1:8765",
+                            "X-Listweavarr-Token": app.SESSION,
+                        },
+                    )
+                    with self.assertRaises(urllib.error.HTTPError) as caught:
+                        urllib.request.urlopen(request)
+                    self.assertEqual(caught.exception.code, 507)
+                    message = json.load(caught.exception)["error"]
+                    caught.exception.close()
+                    self.assertIn("disk space", message)
+                    self.assertNotIn("connection settings", message)
+                self.assertEqual((app.DATA / "state.json").read_bytes(), before)
+            finally:
+                server.shutdown()
+                server.server_close()
+
     def test_import_persists_and_requires_session_token(self):
         with (
             tempfile.TemporaryDirectory(dir=app.ROOT) as directory,
