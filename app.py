@@ -1092,6 +1092,7 @@ def plex_catalog(settings):
                         "year": node.get("year"),
                         "ids": ids,
                         "library": section.get("title"),
+                        "library_id": section.get("key"),
                         "view_count": int(node.get("viewCount", "0")),
                         "watched": int(node.get("viewCount", "0")) > 0
                         or (
@@ -1253,7 +1254,7 @@ def compare(items, settings):
                     else:
                         result.update(
                             status="partial" if available else "missing",
-                            detail=f"{len(available)} episodes in Plex; connect Sonarr or TMDB to verify completeness",
+                            detail=f"{len(available)} episodes in Plex; {source or 'connect Sonarr or TMDB to verify completeness'}",
                         )
         elif ids_present(item):
             result.update(status="missing", detail="Not found in Plex")
@@ -1434,11 +1435,75 @@ def plex_leaves(settings, key):
     return sorted(leaves, key=lambda n: (int(n["season"]), int(n["episode"])))
 
 
+def plex_episode_order(match, settings, cache):
+    """Resolve show overrides before inherited library numbering, once per check.
+
+    Sonarr uses TVDB aired coordinates. Those cannot be compared directly with a
+    Plex TMDB/DVD/absolute order, even if the total episode counts are identical.
+    Read preferences only: never change the user's Plex library to fit a source.
+    """
+    cfg = settings.get("plex", {})
+    if not match.get("key") or not cfg.get("key") or not cfg.get("url"):
+        return ""
+    key = ("plex-order", match["key"])
+    if key in cache:
+        return cache[key]
+    order = ""
+    try:
+        tree = remote(
+            cfg["url"],
+            f'/library/metadata/{match["key"]}?includePreferences=1',
+            cfg["key"],
+            plex=True,
+        )
+        order = next(
+            (
+                n.get("value", "")
+                for n in tree.iter("Setting")
+                if n.get("id") == "showOrdering"
+            ),
+            "",
+        )
+        if not order:
+            show = tree.find("Directory")
+            section = match.get("library_id") or (
+                show.get("librarySectionID") if show is not None else None
+            )
+            if section and str(section).isdigit():
+                library_key = ("plex-library-order", str(section))
+                if library_key not in cache:
+                    prefs = remote(
+                        cfg["url"],
+                        f"/library/sections/{section}/prefs",
+                        cfg["key"],
+                        plex=True,
+                    )
+                    cache[library_key] = next(
+                        (
+                            n.get("value", "")
+                            for n in prefs.iter("Setting")
+                            if n.get("id") == "showOrdering"
+                        ),
+                        "",
+                    )
+                order = cache[library_key]
+    except ValueError:
+        pass
+    cache[key] = order
+    return order
+
+
 def expected_episodes(item, match, settings, cache):
+    order = plex_episode_order(match, settings, cache)
+    if order and order not in ("tmdbAiring", "aired", "tvdbAiring"):
+        return (
+            None,
+            "Plex uses an alternate episode order; completeness needs an order-aware mapping",
+        )
     today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     tvdb = item.get("show_tvdb") or item.get("tvdb") or match["ids"].get("tvdb")
     try:
-        if settings.get("sonarr", {}).get("key") and tvdb:
+        if order != "tmdbAiring" and settings.get("sonarr", {}).get("key") and tvdb:
             if "sonarr_series" not in cache:
                 cache["sonarr_series"] = arr_call(settings, "sonarr", "series")
             series = next(
@@ -1476,6 +1541,11 @@ def expected_episodes(item, match, settings, cache):
                         }, "Sonarr aired metadata"
     except ValueError:
         pass
+    if order in ("aired", "tvdbAiring"):
+        return (
+            None,
+            "TVDB aired completeness metadata is unavailable; TMDB numbering was not substituted",
+        )
     tmdb_id = item.get("show_tmdb") or item.get("tmdb") or match["ids"].get("tmdb")
     if tmdb_id and settings.get("tmdb", {}).get("key"):
         try:
@@ -1507,6 +1577,11 @@ def expected_episodes(item, match, settings, cache):
                 }, "TMDB aired metadata"
         except (ValueError, KeyError):
             pass
+    if order == "tmdbAiring":
+        return (
+            None,
+            "TMDB completeness metadata is unavailable; Sonarr numbering was not substituted",
+        )
     return None, None
 
 
