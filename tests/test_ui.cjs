@@ -730,6 +730,55 @@ vm.runInContext(
   element('year-to').value = '';
   assert.equal(vm.runInContext(`matchesMovieYear({type:'movie'})`, context), true);
   vm.runInContext(fs.readFileSync('web/lists.js', 'utf8'), context);
+  vm.runInContext(
+    `
+    state.lists=[{id:'batch-a',name:'Batch A',items:[]},{id:'batch-b',name:'Batch B',items:[]},{id:'batch-empty',name:'Empty',items:[]}];
+    calls=[]; batchListSelection.my=new Set(['batch-a','batch-b','batch-empty']);
+    api=async(path,body)=>{calls.push({path,body});if(path==='playlist/preview')return {count:body.list_id==='batch-empty'?0:3,omitted:1};if(path==='playlist/create'){if(body.list_id==='batch-a')throw Error('one failed');return {key:'123',count:3,title:body.title};}throw Error('unexpected route');};
+  `,
+    context
+  );
+  await vm.runInContext(`previewBatchPlaylists('my')`, context);
+  assert.equal(context.calls.length, 3);
+  assert.equal(
+    context.calls.some((call) => call.path === 'playlist/create'),
+    false,
+    'Preview must not publish playlists'
+  );
+  assert.equal(vm.runInContext('batchPlaylistRows.filter(row=>row.ready).length', context), 2);
+  await element('batch-playlist-confirm').onclick({ target: element('batch-playlist-confirm') });
+  assert.equal(
+    context.calls.filter((call) => call.path === 'playlist/create').length,
+    2,
+    'One failure does not stop the remaining playlist'
+  );
+  assert.equal(
+    context.calls
+      .filter((call) => call.path === 'playlist/create')
+      .every((call) => call.body.replace === false && call.body.watch_order === null),
+    true
+  );
+  assert.equal(
+    element('batch-playlist-confirm').disabled,
+    true,
+    'Completed batches cannot be submitted again'
+  );
+  assert.match(element('batch-playlist-status').textContent, /1 of 2 playlists created/);
+  vm.runInContext(
+    `
+    officialCatalogue=[{id:'official-batch',name:'Official batch'}];batchListSelection.official=new Set(['official-batch']);calls=[];
+    api=async(path,body)=>{calls.push({path,body});if(path==='explore/official/open')return {entry:{id:'official-copy',official_id:'official-batch',name:'Official batch',items:[]}};return {count:2,omitted:0};};
+  `,
+    context
+  );
+  await vm.runInContext(`previewBatchPlaylists('official')`, context);
+  assert.equal(context.calls[0].path, 'explore/official/open');
+  assert.equal(context.calls[1].body.list_id, 'official-copy');
+  assert.equal(
+    context.calls.some((call) => call.path === 'playlist/create'),
+    false
+  );
+  element('batch-playlist-dialog').close();
   assert.equal(
     vm.runInContext(
       "catalogueSort([{name:'Z',count:3},{name:'A',count:1}],'title_asc').map(r=>r.name).join(',')",

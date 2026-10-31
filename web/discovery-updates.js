@@ -2,7 +2,7 @@
 /* Curated orders, native links and focused discovery decisions. */
 const apiBeforeSelectedOrder = api;
 api = async function (path, body = {}) {
-  if (['playlist/preview', 'playlist/create'].includes(path))
+  if (['playlist/preview', 'playlist/create'].includes(path) && body.watch_order === undefined)
     body = { ...body, watch_order: selectedCuratedOrder() || null };
   return apiBeforeSelectedOrder(path, body);
 };

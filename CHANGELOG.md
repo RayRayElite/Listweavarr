@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Select multiple My Lists or Official Lists and preview/create a Plex playlist
+  for each, with editable names, availability counts, saved artwork and individual
+  results. Existing playlists stay intact; failed rows do not stop the batch.
+
 - Preserve poster upload bytes through the Plex Direct HTTPS DNS fallback so
   newly created playlists receive their selected Listweavarr artwork.
 

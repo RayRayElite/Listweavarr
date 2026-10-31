@@ -432,11 +432,66 @@ dialog::backdrop {
   }
 }
 .saved-list-card {
+  position: relative;
   background: #172232;
   border: 1px solid #334159;
   border-radius: 12px;
   overflow: hidden;
   padding: 10px;
+}
+.catalogue-batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+.catalogue-select {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  background: #142033ef;
+  border: 1px solid #9bafca;
+  border-radius: 8px;
+  padding: 9px;
+  cursor: pointer;
+}
+.catalogue-select input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: #d8f477;
+}
+.catalogue-select span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.batch-playlist-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 1fr);
+  gap: 18px;
+  border-top: 1px solid #3b4b60;
+  padding: 16px 0;
+}
+#batch-playlist-dialog {
+  width: 760px;
+  max-width: 92vw;
+}
+#batch-playlist-items {
+  max-height: 55vh;
+  overflow: auto;
+}
+@media (max-width: 600px) {
+  .batch-playlist-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 .saved-list-card h2 {
   font-size: 18px;

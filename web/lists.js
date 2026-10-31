@@ -1,5 +1,166 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 let listReturnTab = 'mine';
+const batchListSelection = { my: new Set(), official: new Set() };
+const batchListMode = { my: false, official: false };
+let batchPlaylistRows = [],
+  batchPlaylistBusy = false;
+function batchListCheckbox(kind, id, name) {
+  return batchListMode[kind]
+    ? `<label class="catalogue-select"><input type="checkbox" data-batch-list="${kind}" value="${esc(id)}" ${batchListSelection[kind].has(id) ? 'checked' : ''}><span>Select ${esc(name)}</span></label>`
+    : '';
+}
+function batchSelectionStatus(kind) {
+  const count = batchListSelection[kind].size;
+  $(kind + '-batch-count').textContent = batchListMode[kind] ? `${count} selected` : '';
+  $(kind + '-batch-create').hidden = !batchListMode[kind];
+  $(kind + '-batch-create').disabled = !count;
+  $(kind + '-batch-clear').hidden = !batchListMode[kind];
+  $(kind + '-batch-toggle').textContent = batchListMode[kind] ? 'Done selecting' : 'Select lists';
+}
+for (const [kind, grid] of [
+  ['my', 'saved-list-grid'],
+  ['official', 'official-items'],
+]) {
+  $(kind + '-batch-toggle').onclick = () => {
+    batchListMode[kind] = !batchListMode[kind];
+    batchSelectionStatus(kind);
+    kind === 'my' ? drawListCatalogue() : drawOfficialCatalogue();
+  };
+  $(kind + '-batch-clear').onclick = () => {
+    batchListSelection[kind].clear();
+    batchSelectionStatus(kind);
+    kind === 'my' ? drawListCatalogue() : drawOfficialCatalogue();
+  };
+  $(grid).addEventListener('change', (e) => {
+    const input = e.target.closest('[data-batch-list]');
+    if (!input) return;
+    input.checked
+      ? batchListSelection[kind].add(input.value)
+      : batchListSelection[kind].delete(input.value);
+    batchSelectionStatus(kind);
+  });
+  $(kind + '-batch-create').onclick = (e) => task(e.target, () => previewBatchPlaylists(kind));
+}
+function drawBatchPlaylists() {
+  $('batch-playlist-items').innerHTML = batchPlaylistRows
+    .map(
+      (row, index) =>
+        `<div class="batch-playlist-row"><div><strong>${esc(row.name)}</strong><p class="muted">${esc(row.status)}</p></div><label>Playlist name<input data-batch-title="${index}" value="${esc(row.title)}" ${!row.ready || batchPlaylistBusy ? 'disabled' : ''}></label></div>`
+    )
+    .join('');
+}
+async function previewBatchPlaylists(kind) {
+  if (batchPlaylistBusy) return;
+  const ids = [...batchListSelection[kind]];
+  batchPlaylistRows = ids.map((id) => ({
+    id,
+    kind,
+    name:
+      kind === 'my'
+        ? state.lists.find((r) => r.id === id)?.name
+        : officialCatalogue.find((r) => r.id === id)?.name,
+    title: '',
+    status: 'Checking availability...',
+    ready: false,
+  }));
+  batchPlaylistBusy = true;
+  $('batch-playlist-confirm').disabled = true;
+  $('batch-playlist-close').disabled = true;
+  $('batch-playlist-status').textContent =
+    'Checking each list. No Plex playlists are created until you confirm.';
+  drawBatchPlaylists();
+  $('batch-playlist-dialog').showModal();
+  try {
+    for (const row of batchPlaylistRows) {
+      try {
+        let entry = state.lists.find((e) =>
+          kind === 'my' ? e.id === row.id : e.official_id === row.id
+        );
+        if (!entry && kind === 'official') {
+          entry = (await api('explore/official/open', { official_id: row.id })).entry;
+          if (!state.lists.some((e) => e.id === entry.id)) state.lists.push(entry);
+        }
+        if (!entry) throw Error('List no longer available.');
+        row.listId = entry.id;
+        row.name = entry.name;
+        row.title = entry.name;
+        const plan = await api('playlist/preview', { list_id: entry.id, watch_order: null });
+        row.ready = plan.count > 0;
+        row.status = `${plan.count} available movies/episodes; ${plan.omitted} entries omitted.${entry.playlist ? ' A prior playlist exists; this creates a separate one.' : ''}`;
+      } catch (error) {
+        row.status = error.message || 'Could not preview this list.';
+      }
+      drawBatchPlaylists();
+    }
+  } finally {
+    batchPlaylistBusy = false;
+    drawBatchPlaylists();
+    $('batch-playlist-close').disabled = false;
+    const ready = batchPlaylistRows.filter((r) => r.ready).length;
+    $('batch-playlist-confirm').disabled = !ready;
+    $('batch-playlist-confirm').textContent = `Create ${ready} playlist${ready === 1 ? '' : 's'}`;
+    $('batch-playlist-status').textContent =
+      `${ready} ready. Lists with no available items or preview errors will be skipped.`;
+  }
+}
+$('batch-playlist-items').addEventListener('input', (e) => {
+  const input = e.target.closest('[data-batch-title]');
+  if (!input) return;
+  batchPlaylistRows[Number(input.dataset.batchTitle)].title = input.value;
+});
+$('batch-playlist-close').onclick = () => {
+  if (!batchPlaylistBusy) $('batch-playlist-dialog').close();
+};
+$('batch-playlist-dialog').addEventListener('cancel', (e) => {
+  if (batchPlaylistBusy) e.preventDefault();
+});
+$('batch-playlist-confirm').onclick = (e) =>
+  task(e.target, async () => {
+    if (batchPlaylistBusy) return;
+    const pending = batchPlaylistRows.filter((r) => r.ready);
+    if (!pending.length) return;
+    if (pending.some((r) => !r.title.trim()))
+      throw Error('Enter a playlist name for every ready list.');
+    batchPlaylistBusy = true;
+    $('batch-playlist-close').disabled = true;
+    let saved = 0;
+    try {
+      for (const row of pending) {
+        row.ready = false;
+        row.status = 'Creating playlist...';
+        drawBatchPlaylists();
+        try {
+          const result = await api('playlist/create', {
+            list_id: row.listId,
+            title: row.title.trim(),
+            replace: false,
+            watch_order: null,
+          });
+          row.status = `Created with ${result.count} items.${result.warning ? ' ' + result.warning : ''}`;
+          const entry = state.lists.find((value) => value.id === row.listId);
+          if (entry) {
+            entry.playlist = { ...result, server: state.settings.plex?.url };
+            entry.playlist_needs_update = false;
+          }
+          batchListSelection[row.kind].delete(row.id);
+          batchSelectionStatus(row.kind);
+          saved++;
+        } catch (error) {
+          row.status = `Could not confirm creation: ${error.message || 'Unknown error'}. Check Plex before retrying.`;
+        }
+        drawBatchPlaylists();
+      }
+    } finally {
+      batchPlaylistBusy = false;
+      drawBatchPlaylists();
+      $('batch-playlist-close').disabled = false;
+      $('batch-playlist-confirm').disabled = true;
+      $('batch-playlist-status').textContent =
+        `${saved} of ${pending.length} playlists created. Review individual results above.`;
+    }
+  }).then(() => {
+    $('batch-playlist-confirm').disabled = !batchPlaylistRows.some((row) => row.ready);
+  });
 /* Saved-list catalogue and explicit local/source editing. */
 let listEditor = null,
   listEditorSearch = [],
@@ -57,7 +218,7 @@ function drawOfficialCatalogue() {
       .map((row) => {
         const saved = state.lists.find((entry) => entry.official_id === row.id),
           entry = saved?.official_authoring ? saved : row;
-        return `<article class="saved-list-card"><button class="saved-list-cover" data-official-open="${esc(row.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">OFFICIAL COLLECTION / V${esc(row.version)}${saved ? ' · ' + (saved.official_authoring ? 'Authoring original' : 'Personal copy saved') : ''}</span><h2><button class="title-link" data-official-open="${esc(row.id)}">${esc(entry.name)}</button></h2><p class="muted">${row.count} entries${entry.description ? ' &middot; ' + esc(entry.description) : ''}</p><div class="saved-list-actions">${saved?.official_authoring ? listActionButton('edit', 'data-edit-list', saved.id, 'Edit list & poster') + listActionButton('share', 'data-share-list', saved.id, 'Share list') + listActionButton('add', 'data-add-entries', saved.id, 'Add entries') + listActionButton('delete', 'data-delete-list', saved.id, 'Delete working copy') : listActionButton('add', 'data-official-open', row.id, saved ? 'Open my copy' : 'Add to My Lists')}</div></div></article>`;
+        return `<article class="saved-list-card">${batchListCheckbox('official', row.id, entry.name)}<button class="saved-list-cover" data-official-open="${esc(row.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">OFFICIAL COLLECTION / V${esc(row.version)}${saved ? ' · ' + (saved.official_authoring ? 'Authoring original' : 'Personal copy saved') : ''}</span><h2><button class="title-link" data-official-open="${esc(row.id)}">${esc(entry.name)}</button></h2><p class="muted">${row.count} entries${entry.description ? ' &middot; ' + esc(entry.description) : ''}</p><div class="saved-list-actions">${saved?.official_authoring ? listActionButton('edit', 'data-edit-list', saved.id, 'Edit list & poster') + listActionButton('share', 'data-share-list', saved.id, 'Share list') + listActionButton('add', 'data-add-entries', saved.id, 'Add entries') + listActionButton('delete', 'data-delete-list', saved.id, 'Delete working copy') : listActionButton('add', 'data-official-open', row.id, saved ? 'Open my copy' : 'Add to My Lists')}</div></div></article>`;
       })
       .join('') ||
     '<div class="empty"><h2>No official collections match.</h2><button class="secondary" data-clear-catalogue="official-list-search">Clear search</button></div>';
@@ -98,7 +259,7 @@ function drawListCatalogue() {
     )
       .map(
         (entry) =>
-          `<article class="saved-list-card"><button class="saved-list-cover" data-open-list="${esc(entry.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">${entry.source ? 'LINKED SOURCE' : 'LOCAL COLLECTION'}</span><h2><button class="title-link" data-open-list="${esc(entry.id)}">${esc(entry.name)}</button></h2><p class="muted">${entry.items.length} entries${entry.description ? ' · ' + esc(entry.description.slice(0, 140)) : ''}</p><div class="saved-list-actions" role="group" aria-label="List actions">${listActionButton('edit', 'data-edit-list', entry.id, 'Edit list & poster')}${listActionButton('share', 'data-share-list', entry.id, 'Share list')}${listActionButton('add', 'data-add-entries', entry.id, 'Add entries')}${listActionButton('delete', 'data-delete-list', entry.id, 'Delete list')}${entry.source ? listActionButton('refresh', 'data-refresh-saved', entry.id, 'Refresh source') : ''}</div></div></article>`
+          `<article class="saved-list-card">${batchListCheckbox('my', entry.id, entry.name)}<button class="saved-list-cover" data-open-list="${esc(entry.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">${entry.source ? 'LINKED SOURCE' : 'LOCAL COLLECTION'}</span><h2><button class="title-link" data-open-list="${esc(entry.id)}">${esc(entry.name)}</button></h2><p class="muted">${entry.items.length} entries${entry.description ? ' · ' + esc(entry.description.slice(0, 140)) : ''}</p><div class="saved-list-actions" role="group" aria-label="List actions">${listActionButton('edit', 'data-edit-list', entry.id, 'Edit list & poster')}${listActionButton('share', 'data-share-list', entry.id, 'Share list')}${listActionButton('add', 'data-add-entries', entry.id, 'Add entries')}${listActionButton('delete', 'data-delete-list', entry.id, 'Delete list')}${entry.source ? listActionButton('refresh', 'data-refresh-saved', entry.id, 'Refresh source') : ''}</div></div></article>`
       )
       .join('') ||
     (state.lists.some((row) => !row.official_authoring)

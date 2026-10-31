@@ -88,6 +88,14 @@
                 </select></label
               >
             </div>
+            <div class="catalogue-batch-bar">
+              <button id="my-batch-toggle" class="secondary">Select lists</button>
+              <span id="my-batch-count" class="muted" role="status"></span>
+              <button id="my-batch-create" class="primary" hidden disabled>
+                Create Plex playlists
+              </button>
+              <button id="my-batch-clear" class="text-action" hidden>Clear selection</button>
+            </div>
             <div id="saved-list-grid" class="saved-list-grid"></div>
           </section>
         </section>
@@ -334,6 +342,14 @@
             <p id="official-updates-status" class="muted" role="status"></p>
             <div id="official-update-items"></div>
           </section>
+          <div class="catalogue-batch-bar">
+            <button id="official-batch-toggle" class="secondary">Select lists</button>
+            <span id="official-batch-count" class="muted" role="status"></span>
+            <button id="official-batch-create" class="primary" hidden disabled>
+              Create Plex playlists
+            </button>
+            <button id="official-batch-clear" class="text-action" hidden>Clear selection</button>
+          </div>
           <div id="official-items" class="saved-list-grid"></div>
           <div id="official-sources" hidden></div>
         </section>
@@ -1725,6 +1741,20 @@ episode,Pilot,,,263365,1,1</pre
       <div class="dialog-actions">
         <button class="secondary" data-close="favorites-dialog">Cancel</button
         ><button id="favorites-save" class="primary" disabled>Create Favorites list</button>
+      </div>
+    </dialog>
+    <dialog id="batch-playlist-dialog" aria-labelledby="batch-playlist-heading">
+      <h2 id="batch-playlist-heading">Create Plex playlists</h2>
+      <p class="muted">
+        One playlist per selected list, in its original order, using available Plex items and saved
+        artwork. Existing playlists are kept. Official selections use your saved copy when one
+        exists.
+      </p>
+      <div id="batch-playlist-items"></div>
+      <p id="batch-playlist-status" role="status" class="muted"></p>
+      <div class="dialog-actions">
+        <button id="batch-playlist-close" class="secondary">Close</button>
+        <button id="batch-playlist-confirm" class="primary" disabled>Create playlists</button>
       </div>
     </dialog>
     <dialog id="list-updates-dialog" aria-labelledby="list-updates-heading">
