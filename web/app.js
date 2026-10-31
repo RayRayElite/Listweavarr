@@ -308,7 +308,7 @@ function requestRouteMarkup(options, service, prefix) {
       configured: true,
     },
   ];
-  return `<label>Manager route<select id="${prefix}-route" data-manager-route="${service}" data-route-prefix="${prefix}" data-loaded-route="${esc(options.route || 'primary')}">${routes.map((route) => `<option value="${esc(route.id)}" ${route.id === (options.route || 'primary') ? 'selected' : ''} ${!route.enabled || !route.configured ? 'disabled' : ''}>${esc(route.name)} - ${route.tier === '4k' ? '4K' : 'Standard'}</option>`).join('')}</select></label>`;
+  return `<p class="muted" data-route-note="${prefix}">${esc(options.warning || options.defaults_source || 'Normal defaults')}</p><label>Manager route<select id="${prefix}-route" data-manager-route="${service}" data-route-prefix="${prefix}" data-list-context="${esc(options.list_id || '')}" data-loaded-route="${esc(options.route || 'primary')}">${routes.map((route) => `<option value="${esc(route.id)}" ${route.id === (options.route || 'primary') ? 'selected' : ''} ${!route.enabled || !route.configured ? 'disabled' : ''}>${esc(route.name)} - ${route.tier === '4k' ? '4K' : 'Standard'}</option>`).join('')}</select></label>`;
 }
 
 function ratingPreferencesMarkup() {

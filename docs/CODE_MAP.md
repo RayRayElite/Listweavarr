@@ -118,3 +118,15 @@ tests/test_playlist_progress.py cover these contracts.
 - Catalogue updates and code updates are separate; incompatible schemas may still require an app upgrade.
 - Local curator mode is not authentication. Shared publication authority belongs to repository/server permissions.
 - The app is trusted single-user software, not an Internet-facing multi-user service.
+
+
+## Per-list acquisition defaults
+
+`app.request_options` merges validated local list defaults over service/route
+remembered defaults. `/api/lists/acquisition/{options,save,reset}` reads managers
+outside the state lock and checks preference revisions and manager signatures
+before saving. `web/discovery-updates.js` owns the dedicated Manage list editor;
+`requestRouteMarkup` and `web/workflow.js` carry the original list context when
+switching routes. `tests/test_list_acquisition.py` covers isolated defaults,
+invalid options, changed routes, revision conflicts, offline reset and export
+privacy. Saving preferences must never call manager write APIs.

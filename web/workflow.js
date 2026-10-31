@@ -130,7 +130,11 @@ document.addEventListener?.('change', (e) => {
       previous = select.dataset.loadedRoute || 'primary';
     try {
       const options = (
-        await api('options', { services: [service], routes: { [service]: select.value } })
+        await api('options', {
+          services: [service],
+          routes: { [service]: select.value },
+          list_id: select.dataset.listContext || undefined,
+        })
       )[service];
       $(prefix + '-profile').innerHTML = options.profiles
         .map((p) => `<option value="${p.id}">${esc(p.name)}</option>`)
@@ -140,6 +144,8 @@ document.addEventListener?.('change', (e) => {
         .join('');
       if (options.defaults?.profile) $(prefix + '-profile').value = options.defaults.profile;
       if (options.defaults?.root) $(prefix + '-root').value = options.defaults.root;
+      const note = document.querySelector(`[data-route-note="${prefix}"]`);
+      if (note) note.textContent = options.warning || options.defaults_source;
       select.dataset.loadedRoute = options.route;
     } catch (error) {
       select.value = previous;

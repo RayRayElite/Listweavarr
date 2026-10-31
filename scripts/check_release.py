@@ -28,6 +28,7 @@ PRIVATE_KEYS = {
     "manager_monitor",
     "plex_collection",
     "collection_attention",
+    "request_preferences",
 }
 
 

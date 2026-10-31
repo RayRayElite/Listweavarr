@@ -388,3 +388,22 @@ are reported separately and do not invalidate coverage of already aired seasons.
 For example, owning all six dated episodes remains 6/6 available even when a
 later season has undated placeholders. The detail says known aired and names the
 undated count; it does not claim those episodes are downloaded or already aired.
+
+
+### Per-list acquisition defaults
+
+Open a saved list, then **Manage list > Downloads > Acquisition defaults**.
+Choose Radarr or Sonarr and **Load manager options**, select a manager route,
+quality profile and destination, then save. Configure each service separately
+for mixed movie/TV lists. Opening or saving this panel never requests downloads.
+
+Batch and TV season/whole-show request reviews preselect these list defaults;
+you can override them before confirming. Requests made outside a saved list use
+normal remembered defaults. If the saved manager was removed, disabled or changed,
+the review warns and uses the normal configured route. Removed profiles or
+folders are never reused. An offline manager still reports its connection error
+rather than quietly moving requests to another server.
+
+**Use normal defaults for this list** clears both services' overrides and works
+even when the managers are offline. These installation-specific preferences do
+not detach linked lists or travel in shared/Official list exports.

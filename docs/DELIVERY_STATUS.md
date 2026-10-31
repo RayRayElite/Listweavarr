@@ -30,7 +30,7 @@ This checklist separates completed increments from full feature completion.
 
 ## Remaining implementation queue
 
-1. Per-list acquisition policies; expand request-stage diagnostics and a unified
+1. Extend per-list acquisition defaults with reviewed tag policies; expand request-stage diagnostics and a unified
    release calendar; additional notification transports.
 2. Single-owner authentication/session recovery before an external request API.
    Household/multi-user accounts remain deferred by the user's earlier choice.
@@ -63,3 +63,14 @@ No remaining feature authorizes unattended downloads, deleting media, replacing
 someone's Plex target, or uploading private lists. Those workflows still require
 their concrete review steps. Cross-platform research stays available in
 PLEX_PLAYLIST_CROSS_PLATFORM.md for a later decision.
+
+
+### Per-list acquisition defaults (2026-10-31)
+
+Implemented local manager route, quality profile and destination overrides in
+Manage list > Downloads. Both batch and TV scope reviews honor them, validate
+fresh manager options and explain fallbacks. Save/reset use preference revisions;
+manager configuration changes invalidate an open editor. Sharing and Official
+exports exclude these local preferences. No automatic acquisition or tag policy
+was added in this increment. Regression suite: 455 Python tests passed; UI harness
+and frontend/release checks passed. Live visual review remains pending.

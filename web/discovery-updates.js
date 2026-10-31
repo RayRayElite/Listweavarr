@@ -639,9 +639,16 @@ if (typeof document.createElement === 'function') {
     dialog.id = 'list-management-dialog';
     dialog.innerHTML =
       '<div class="section-heading"><div><p class="eyebrow">MANAGE COLLECTION</p><h2>List tools</h2></div><button class="secondary" data-close="list-management-dialog">Close</button></div><p class="muted">Choose a task. Your list stays in place when you close this panel.</p>';
+    const acquisition = document.createElement('button');
+    acquisition.id = 'list-acquisition-defaults';
+    acquisition.className = 'secondary';
+    acquisition.textContent = 'Acquisition defaults';
+    host.append(acquisition);
+    acquisition.onclick = () => task(acquisition, () => openListAcquisitionDefaults());
     const groups = [
       ['Edit & share', ['list-manage', 'list-add-entries', 'list-share']],
       ['Watch order', ['list-watch-paths', 'list-episode-orders']],
+      ['Downloads', ['list-acquisition-defaults']],
       ['Plex & watched progress', ['playlist-open', 'collection-open', 'progress-refresh']],
       [
         'Source & metadata',
@@ -685,4 +692,91 @@ if (typeof document.createElement === 'function') {
     });
     menu.replaceWith(button);
   }
+}
+
+// Local-only list defaults: opening or saving this editor never requests media.
+async function openListAcquisitionDefaults() {
+  const listId = active;
+  const initial = await api('lists/acquisition/options', { list_id: listId });
+  const dialog = document.createElement('dialog');
+  dialog.innerHTML = `<form><div class="section-heading"><h2>Acquisition defaults</h2><button type="button" data-dismiss class="secondary">Close</button></div><p class="muted">Choose where this list's requests go. Every request still requires review. These defaults stay on this installation and do not change source updates.</p><label>Manager<select data-service><option value="radarr">Radarr (movies)</option><option value="sonarr">Sonarr (TV)</option></select></label><button type="button" data-load class="secondary">Load manager options</button><div data-options></div><p data-status role="status" class="muted"></p><div class="actions"><button type="submit" data-save disabled>Save defaults</button><button type="button" data-reset class="secondary">Use normal defaults for this list</button></div></form>`;
+  document.body.append(dialog);
+  const find = (selector) => dialog.querySelector(selector);
+  let loaded = null,
+    revision = initial.revision,
+    generation = 0;
+  const status = find('[data-status]'),
+    save = find('[data-save]');
+  find('[data-dismiss]').onclick = () => dialog.close();
+  dialog.addEventListener('close', () => dialog.remove());
+  async function load(route) {
+    const ticket = ++generation;
+    save.disabled = true;
+    loaded = null;
+    status.textContent = 'Loading quality profiles and destinations...';
+    try {
+      const options = await api('lists/acquisition/options', {
+        list_id: listId,
+        service: find('[data-service]').value,
+        route,
+      });
+      if (ticket !== generation || !dialog.isConnected) return;
+      revision = options.revision;
+      loaded = options;
+      find('[data-options]').innerHTML =
+        `<label>Manager route<select data-route>${options.routes.map((r) => `<option value="${esc(r.id)}" ${r.id === options.route ? 'selected' : ''} ${!r.enabled || !r.configured ? 'disabled' : ''}>${esc(r.name)}</option>`).join('')}</select></label><label>Quality profile<select data-profile>${options.profiles.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Destination<select data-root>${options.roots.map((r) => `<option value="${esc(r.path)}">${esc(r.path)}</option>`).join('')}</select></label>`;
+      if (options.defaults.profile) find('[data-profile]').value = options.defaults.profile;
+      if (options.defaults.root) find('[data-root]').value = options.defaults.root;
+      find('[data-route]').onchange = (e) => load(e.target.value);
+      status.textContent = options.warning || options.defaults_source;
+      save.disabled = !options.profiles.length || !options.roots.length;
+    } catch (error) {
+      if (ticket === generation) status.textContent = error.message;
+    }
+  }
+  find('[data-load]').onclick = () => load();
+  find('[data-service]').onchange = () => {
+    generation++;
+    loaded = null;
+    save.disabled = true;
+    find('[data-options]').innerHTML = '';
+    status.textContent = 'Load options for the selected manager.';
+  };
+  find('form').onsubmit = async (e) => {
+    e.preventDefault();
+    if (!loaded) return;
+    save.disabled = true;
+    find('[data-service]').disabled = true;
+    find('[data-load]').disabled = true;
+    find('[data-reset]').disabled = true;
+    try {
+      await api('lists/acquisition/save', {
+        list_id: listId,
+        service: find('[data-service]').value,
+        route: loaded.route,
+        profile: find('[data-profile]').value,
+        root: find('[data-root]').value,
+        revision,
+        signature: loaded.signature,
+      });
+      await load(loaded.route);
+      status.textContent = 'List defaults saved. No downloads requested.';
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      save.disabled = !loaded;
+      find('[data-service]').disabled = false;
+      find('[data-load]').disabled = false;
+      find('[data-reset]').disabled = false;
+    }
+  };
+  find('[data-reset]').onclick = async () => {
+    try {
+      await api('lists/acquisition/reset', { list_id: listId, revision });
+      dialog.close();
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  };
+  dialog.showModal();
 }

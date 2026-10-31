@@ -1933,7 +1933,23 @@ def release_calendar(state):
     return result
 
 
-def request_options(state, service, route="primary"):
+def request_options(state, service, route=None, list_id=None, tier="standard"):
+    # List defaults are local preferences, never an automatic acquisition policy.
+    entry = next((r for r in state.get("lists", []) if r["id"] == list_id), {})
+    preferred = entry.get("request_preferences", {}).get(service, {})
+    warning = ""
+    if not route:
+        route = manager_routes.default(state, service, tier)
+        if preferred and tier == "standard":
+            try:
+                cfg = manager_routes.config(
+                    state, service, preferred.get("route", "primary")
+                )
+                if cfg.get("url") != preferred.get("server") or not cfg.get("key"):
+                    raise ValueError("Manager changed")
+                route = preferred.get("route", "primary")
+            except ValueError:
+                warning = "Saved list route is unavailable or changed. Review the normal defaults."
     settings = manager_routes.routed(state, service, route)
     profiles = arr_call(settings, service, "qualityprofile")
     roots = arr_call(settings, service, "rootfolder")
@@ -1946,7 +1962,23 @@ def request_options(state, service, route="primary"):
             defaults["profile"] = str(saved["profile"])
         if saved.get("root") in {r["path"] for r in roots}:
             defaults["root"] = saved["root"]
+    source = "Normal defaults"
+    if (
+        preferred
+        and preferred.get("route", "primary") == route
+        and preferred.get("server") == settings.get(service, {}).get("url")
+    ):
+        if str(preferred.get("profile")) in {
+            str(p["id"]) for p in profiles
+        } and preferred.get("root") in {r["path"] for r in roots}:
+            defaults = {"profile": str(preferred["profile"]), "root": preferred["root"]}
+            source = "List defaults"
+        else:
+            warning = "Saved list quality profile or destination was removed. Review the normal defaults."
     return {
+        "list_id": list_id,
+        "defaults_source": source,
+        "warning": warning,
         "profiles": profiles,
         "roots": roots,
         "defaults": defaults,
@@ -3566,6 +3598,72 @@ class Handler(BaseHTTPRequestHandler):
                         save_state(state)
                     return self.respond(request_ledger.public(state))
                 raise ValueError("Unknown request action.")
+            if self.path.startswith("/api/lists/acquisition/"):
+                action = self.path.rsplit("/", 1)[-1]
+                if action not in ("options", "save", "reset"):
+                    raise ValueError("Unknown acquisition preference action.")
+                with LOCK:
+                    snapshot = read_state()
+                entry = next(
+                    (r for r in snapshot["lists"] if r["id"] == body.get("list_id")),
+                    None,
+                )
+                if not entry:
+                    raise ValueError("List no longer exists.")
+                revision = saved_lists.revision(entry.get("request_preferences", {}))
+                if action == "options" and not body.get("service"):
+                    return self.respond({"revision": revision})
+                if action == "reset":
+                    result = None
+                else:
+                    service = body.get("service")
+                    result = request_options(
+                        snapshot, service, body.get("route"), entry["id"]
+                    )
+                    signature = saved_lists.revision(
+                        manager_routes.config(snapshot, service, result["route"])
+                    )
+                    if action == "options":
+                        return self.respond(
+                            {**result, "revision": revision, "signature": signature}
+                        )
+                    if body.get("signature") != signature:
+                        raise ValueError(
+                            "Manager settings changed. Reopen acquisition defaults."
+                        )
+                    if str(body.get("profile")) not in {
+                        str(p["id"]) for p in result["profiles"]
+                    } or body.get("root") not in {r["path"] for r in result["roots"]}:
+                        raise ValueError(
+                            "Quality profile or destination no longer exists. Reload the options."
+                        )
+                with LOCK:
+                    latest = read_state()
+                    saved = next(
+                        (r for r in latest["lists"] if r["id"] == entry["id"]), None
+                    )
+                    if not saved or body.get("revision") != saved_lists.revision(
+                        saved.get("request_preferences", {})
+                    ):
+                        raise ValueError(
+                            "List defaults changed. Reopen acquisition defaults."
+                        )
+                    if action == "reset":
+                        saved.pop("request_preferences", None)
+                    else:
+                        cfg = manager_routes.config(latest, service, result["route"])
+                        if saved_lists.revision(cfg) != signature:
+                            raise ValueError(
+                                "Manager settings changed. Reopen acquisition defaults."
+                            )
+                        saved.setdefault("request_preferences", {})[service] = {
+                            "route": result["route"],
+                            "server": cfg.get("url"),
+                            "profile": str(body["profile"]),
+                            "root": body["root"],
+                        }
+                    save_state(latest)
+                return self.respond({"saved": True})
             if self.path == "/api/options":
                 with LOCK:
                     snapshot = read_state()
@@ -3574,10 +3672,9 @@ class Handler(BaseHTTPRequestHandler):
                         service: request_options(
                             snapshot,
                             service,
-                            body.get("routes", {}).get(service)
-                            or manager_routes.default(
-                                snapshot, service, body.get("tier", "standard")
-                            ),
+                            body.get("routes", {}).get(service),
+                            body.get("list_id"),
+                            body.get("tier", "standard"),
                         )
                         for service in body.get("services", [])
                         if service in ("sonarr", "radarr")
@@ -5540,14 +5637,6 @@ class Handler(BaseHTTPRequestHandler):
                     entry["playlist_needs_update"] = False
                     save_state(state)
                     return self.respond(result)
-                if action == "/api/options":
-                    return self.respond(
-                        {
-                            s: request_options(state, s)
-                            for s in body["services"]
-                            if s in ("sonarr", "radarr")
-                        }
-                    )
                 if action == "/api/show/request":
                     item = next(
                         (i for i in entry["items"] if i["id"] == body.get("item_id")),
