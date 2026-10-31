@@ -28,6 +28,16 @@ def document(rows=None):
 
 
 class CatalogueFeedTests(unittest.TestCase):
+    def test_default_override_and_explicit_disable(self):
+        self.assertEqual(feed.configured_source({}), feed.DEFAULT_SOURCE)
+        self.assertEqual(feed.configured_source({"official_feed_url": ""}), "")
+        self.assertEqual(
+            feed.configured_source(
+                {"official_feed_url": "https://example.com/list.json"}
+            ),
+            "https://example.com/list.json",
+        )
+
     def test_sanitizes_runtime_fields_and_keeps_paths(self):
         raw = document()
         raw["lists"][0]["secret"] = "never export"

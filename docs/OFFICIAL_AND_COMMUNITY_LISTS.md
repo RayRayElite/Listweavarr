@@ -15,7 +15,28 @@ Manage list replaces the compressed dropdown with a grouped dialog: Edit & share
 5. They separately preview changes to their personal copy, choose merge/replace/skip, and can roll back the copy update.
 6. Updating a Plex playlist is a separate preview and confirmation. Media acquisition remains separate too.
 
-Only compatible data changes can be delivered this way; a future catalogue schema requiring new code still needs an app update. There is no configured public publisher endpoint yet. Automatic manifest checks currently occur once per browser session when Official Lists opens, not while the app is closed.
+Only compatible data changes can be delivered this way; a future catalogue schema requiring new code still needs an app update. The default public publisher endpoint is now the repository's raw `main/catalogue/bundled/official-lists.json`, with its sibling manifest. An explicitly saved custom URL is preserved; saving an empty source disables checks. Automatic manifest checks occur once per browser session when Official Lists opens, not while the app is closed.
+
+### Maintainer publishing procedure
+
+1. Publish/review local Official versions with curator mode. Export the public
+   catalogue and review it for redistribution rights. The public repository must
+   not include embedded third-party artwork or private runtime fields.
+2. Put the reviewed, artwork-free JSON at
+   `catalogue/bundled/official-lists.json`. Keep stable list IDs; increment each
+   changed list's version. No version increment is needed for unchanged lists.
+3. Run `python scripts/prepare_catalogue_feed.py`, then
+   `python scripts/check_release.py`. Commit the catalogue and generated manifest
+   together. CI rejects a missing/stale manifest.
+4. Review/merge that commit into main. GitHub serves the new data at the same raw
+   URL; users do not need to install new application code. Allow for HTTP caching.
+5. Users choose the catalogue update, personal-copy update and Plex update
+   independently. Publishing does not initiate any of those writes for them.
+
+The repository's CODEOWNERS requests publisher review for catalogue changes. It
+does not itself enforce review: required-review/ruleset configuration is a
+separate GitHub repository administration step. Direct write access must be
+restricted to trusted maintainers; no credentials are shipped to consumers.
 
 ## Publisher and curator authority
 

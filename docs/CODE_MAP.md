@@ -30,6 +30,7 @@ bundles to fixtures.
 | [companion.py](../companion.py) | Discovery workbench: Favorites, Tonight, planning and notifications. | `today`, `validate_state`, `recipe`, `discover`, `tonight`, `franchise` |
 | [explore.py](../explore.py) | Library-aware discovery shelves and public list browsing. | `library`, `title_key`, `normalized_title`, `ownership`, `card`, `qualifies` |
 | [saved_lists.py](../saved_lists.py) | Validated edits to personal collections. | `revision`, `poster`, `edit`, `identity_keys`, `update_entries` |
+| [composite_lists.py](../composite_lists.py) | Read-only exact-identity set operations and source-pinned generation. | `recipe`, `exact`, `Index`, `preview`; see COMPOSITE_LISTS.md |
 | [list_sharing.py](../list_sharing.py) | Portable list interchange without private runtime state. | `digest`, `export`, `validate` |
 | [list_updates.py](../list_updates.py) | Read-only linked-source differences and opt-in scheduling. | `fingerprint`, `summarize`, `due`, `finish`, `public`; orchestration in `app.check_linked_list` |
 | [plex_publications.py](../plex_publications.py) | Saved Plex target snapshots and publication differences. | `baseline`, `target`, `changes`; reviewed writes use `app.create_playlist` |

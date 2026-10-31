@@ -42,6 +42,7 @@ import playlist_artwork
 import playlist_progress
 import text_list_builder
 import saved_lists
+import composite_lists
 import release_watch
 import activity
 import official_lists
@@ -3353,6 +3354,37 @@ class Handler(BaseHTTPRequestHandler):
                         "warnings": imported.get("warnings", []),
                     }
                 )
+            if self.path in (
+                "/api/lists/composite-preview",
+                "/api/lists/composite-create",
+            ):
+                with LOCK:
+                    state = read_state()
+                    proposal = composite_lists.preview(body, state["lists"])
+                    if self.path.endswith("composite-preview"):
+                        return self.respond(proposal)
+                    if (
+                        body.get("confirmed") is not True
+                        or body.get("fingerprint") != proposal["fingerprint"]
+                    ):
+                        raise ValueError(
+                            "The sources changed or this preview expired. Preview again before creating the list."
+                        )
+                    entry = saved_lists.edit(
+                        None,
+                        {
+                            "name": body.get("name"),
+                            "description": "Generated from saved lists; inputs remain unchanged.",
+                            "items": proposal["items"],
+                        },
+                        normalize,
+                    )
+                    entry["composite"] = {
+                        k: proposal[k] for k in ("recipe", "sources", "provenance")
+                    }
+                    state["lists"].append(entry)
+                    save_state(state)
+                    return self.respond({"entry": entry})
             if self.path in ("/api/lists/edit", "/api/lists/search"):
                 with LOCK:
                     snapshot = read_state()
@@ -3724,9 +3756,7 @@ class Handler(BaseHTTPRequestHandler):
                 if self.path == "/api/explore/official":
                     return self.respond(official_lists.catalogue())
                 if self.path == "/api/explore/official/feed-check":
-                    url = catalogue_feed.source_url(
-                        snapshot.get("official_feed_url", "")
-                    )
+                    url = catalogue_feed.configured_source(snapshot)
                     if not url:
                         return self.respond({"configured": False, "count": 0})
                     result = catalogue_feed.check_manifest(
@@ -3763,7 +3793,7 @@ class Handler(BaseHTTPRequestHandler):
                         with LOCK:
                             latest = read_state()
                         return self.respond(
-                            {"url": latest.get("official_feed_url", "")}
+                            {"url": catalogue_feed.configured_source(latest)}
                         )
                     if self.path.endswith("/feed-preview"):
                         url = ""
@@ -3775,7 +3805,8 @@ class Handler(BaseHTTPRequestHandler):
                                 )
                         else:
                             url = catalogue_feed.source_url(
-                                body.get("url") or snapshot.get("official_feed_url", "")
+                                body.get("url")
+                                or catalogue_feed.configured_source(snapshot)
                             )
                             raw = catalogue_feed.download(url)
                         clean = catalogue_feed.validate(raw, normalize)

@@ -71,6 +71,16 @@ time, while specialized download engines remain supported.
 
 ## Work started
 
+- October 31 continuation: L4 now has reviewed union/intersection/difference
+  snapshots with an exclusion source, exact scoped identity, conflict checks,
+  local provenance and source-revision validation. Rebuild creates a new snapshot
+  rather than overwriting manual edits. Recursive live rules and portable rule
+  references remain future increments. See [Composite lists](COMPOSITE_LISTS.md).
+- L6 delivery: the public GitHub raw catalogue is the default feed, with a
+  generated sibling manifest checked in CI and a documented curator release
+  procedure. Custom/disabled sources remain respected. Repository review
+  enforcement and a hosted Community service are separate setup work.
+
 - L1: CSV export added to the existing Share dialog. Preserves list order and
   public identifiers, handles quoted/multiline titles, and excludes private
   runtime fields. Shared JSON remains the full-fidelity format for list covers,

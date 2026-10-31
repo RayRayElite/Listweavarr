@@ -1,0 +1,4 @@
+# Requests catalogue review from the publisher. Repository branch/ruleset settings
+# must enforce required review separately; this file alone is not authorization.
+/catalogue/ @RayRayElite
+/scripts/prepare_catalogue_feed.py @RayRayElite

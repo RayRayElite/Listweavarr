@@ -1494,6 +1494,27 @@ vm.runInContext(
   );
   assert.match(parallelMarkup, /Parallel lane 1 \(starts first\)/);
   assert.match(parallelMarkup, /Make block sequential/);
+  vm.runInContext(`
+    state.lists.push({id:'composite-other',name:'Other source',items:[]});
+    batchListSelection.my.clear();
+    batchListSelection.my.add('list');
+    batchListSelection.my.add('composite-other');
+    batchListMode.my=true;
+    batchSelectionStatus('my');
+    api=async(path,body)=>{calls.push({path,body});return {fingerprint:'pinned',items:[{title:'Combined movie',type:'movie',tmdb:'1'}],unidentified:0};};
+  `, context);
+  assert.equal(element('my-batch-combine').disabled, false);
+  element('my-batch-combine').onclick();
+  element('composite-operation').value = 'intersection';
+  element('composite-exclude').value = '';
+  await element('composite-check').onclick({ target: element('composite-check') });
+  assert.match(element('composite-preview').innerHTML, /Combined movie/);
+  assert.equal(element('composite-save').disabled, false);
+  const compositeCall = vm.runInContext('calls[calls.length-1]', context);
+  assert.equal(compositeCall.path, 'lists/composite-preview');
+  assert.equal(compositeCall.body.operation, 'intersection');
+  element('composite-operation').onchange();
+  assert.equal(element('composite-save').disabled, true);
   console.log(
     'UI checks passed, including catalogue delivery, Workbench, paths, taste and maintenance.'
   );

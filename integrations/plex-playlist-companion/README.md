@@ -40,7 +40,8 @@ New version strings alone do not disable the integration: native module/player
 contracts determine compatibility. Desktop native Play, middle-entry starts, correct queue ordering,
 Stop/Pause and Home resume have passed live user tests. Episode rollover followed
 by closing Plex without Stop/Pause also preserved the next item. New portrait
-layout, artwork pairing and browser playback still need the current live review;
+layout and artwork pairing have since been exercised in the user's workflow;
+browser playback still needs a complete end-to-end live review;
 source contracts and shared metrics were checked against all three real bundles.
 Movie/final-item completion, modified queues and duplicate occurrences also have
 automated checks; broader client certification remains separate from those tests.
@@ -117,7 +118,8 @@ The extension runs original packaged scripts in Plex's page world so they can us
 its existing player. Hosted Plex access is limited to /desktop/. Local origins
 are opt-in, registered only for /web/, and removable from Options. It does not
 request browsing history or access to every website. Bookmarks are per origin and
-browser profile; desktop and browser bookmarks are not synchronized yet.
+browser profile when unpaired. Optional pairing synchronizes desktop/browser
+bookmarks and custom posters; see cross-device progress sync below.
 
 ## Optional automatic Listweavarr artwork
 

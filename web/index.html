@@ -100,6 +100,7 @@
               <button id="my-batch-check" class="secondary" hidden disabled>
                 Check availability
               </button>
+              <button id="my-batch-combine" class="secondary" hidden disabled>Combine lists</button>
             </div>
             <div id="saved-list-grid" class="saved-list-grid"></div>
           </section>
@@ -108,6 +109,7 @@
           <div class="list-detail-tools">
             <button id="list-back" class="secondary">Back to My Lists</button
             ><button id="list-manage" class="secondary">Edit list &amp; poster</button
+            ><button id="composite-rebuild" class="secondary" hidden>Rebuild from sources</button
             ><button id="list-add-entries" class="secondary">Add entries</button>
             <details class="list-tools-menu">
               <summary class="secondary">List tools</summary>
@@ -1804,6 +1806,34 @@ episode,Pilot,,,263365,1,1</pre
       <div id="list-updates-rows"></div>
       <div class="dialog-actions">
         <button class="secondary" data-close="list-updates-dialog">Close</button>
+      </div>
+    </dialog>
+    <dialog id="composite-dialog" aria-labelledby="composite-heading">
+      <h2 id="composite-heading">Combine saved lists</h2>
+      <p class="muted">
+        Create an independent snapshot. Your source lists, Plex playlists and downloads stay
+        unchanged. Exact provider IDs and episode scopes determine matches.
+      </p>
+      <label>Name<input id="composite-name" maxlength="200" value="Combined collection" /></label>
+      <label
+        >Operation<select id="composite-operation">
+          <option value="union">Combine all unique entries</option>
+          <option value="intersection">Only entries common to every source</option>
+          <option value="difference">First source minus the other sources</option>
+        </select></label
+      >
+      <p id="composite-sources" class="muted"></p>
+      <label
+        >Exclude entries from<select id="composite-exclude">
+          <option value="">No exclusion list</option>
+        </select></label
+      >
+      <p id="composite-status" role="status"></p>
+      <ol id="composite-preview"></ol>
+      <div class="dialog-actions">
+        <button id="composite-check" class="secondary">Preview result</button
+        ><button id="composite-save" class="primary" disabled>Create list</button
+        ><button class="secondary" data-close="composite-dialog">Cancel</button>
       </div>
     </dialog>
     <div id="toast" role="status" hidden></div>

@@ -1,0 +1,348 @@
+{
+  "format": "reelcheck-catalogue-manifest",
+  "version": 4,
+  "lists": [
+    {
+      "id": "curated-bcfb4782b44a27a6",
+      "name": "Sony Spider-Man Universe",
+      "version": 2,
+      "count": 22
+    },
+    {
+      "id": "curated-f40cdea472a1a1de",
+      "name": "Halloween",
+      "version": 2,
+      "count": 702
+    },
+    {
+      "id": "curated-81a9637398fcdfd1",
+      "name": "Marvel Universe Extended Timeline",
+      "version": 2,
+      "count": 655
+    },
+    {
+      "id": "curated-714095bdc05fc9bd",
+      "name": "DC Arrowverse",
+      "version": 2,
+      "count": 830
+    },
+    {
+      "id": "curated-592e9e879d87f4dd",
+      "name": "Pokemon",
+      "version": 2,
+      "count": 1476
+    },
+    {
+      "id": "curated-ca88202824cd65e8",
+      "name": "Doctor Who",
+      "version": 2,
+      "count": 108
+    },
+    {
+      "id": "curated-15f39e372c8e2a18",
+      "name": "Stargate",
+      "version": 2,
+      "count": 125
+    },
+    {
+      "id": "curated-87c2859ddc681b12",
+      "name": "DC Extended Universe",
+      "version": 2,
+      "count": 16
+    },
+    {
+      "id": "curated-5c62c6ca4ab9a44c",
+      "name": "DC Elseworlds",
+      "version": 2,
+      "count": 15
+    },
+    {
+      "id": "curated-a2dac7a7a3864959",
+      "name": "DC Animated Universe",
+      "version": 2,
+      "count": 17
+    },
+    {
+      "id": "curated-0978ab7620123055",
+      "name": "DC Animated MOVIE Universe",
+      "version": 2,
+      "count": 17
+    },
+    {
+      "id": "curated-ca021236a42e89a0",
+      "name": "DC Animated Tomorrowverse",
+      "version": 2,
+      "count": 10
+    },
+    {
+      "id": "curated-44d12065b1607fbe",
+      "name": "DC Teen Titans Multiverse",
+      "version": 2,
+      "count": 6
+    },
+    {
+      "id": "curated-f95c13c1da633b49",
+      "name": "Battlestar Galactica",
+      "version": 2,
+      "count": 47
+    },
+    {
+      "id": "curated-14422d2711fb4ec7",
+      "name": "Star Trek",
+      "version": 2,
+      "count": 131
+    },
+    {
+      "id": "curated-2d90bbe0dc87957a",
+      "name": "Buffyverse",
+      "version": 2,
+      "count": 182
+    },
+    {
+      "id": "curated-7ff72f30f78ed6d6",
+      "name": "One Chicago",
+      "version": 2,
+      "count": 846
+    },
+    {
+      "id": "curated-d4d061c629564bcc",
+      "name": "The Walking Dead",
+      "version": 2,
+      "count": 44
+    },
+    {
+      "id": "curated-1723d2ef947a0104",
+      "name": "Christmas Collection",
+      "version": 2,
+      "count": 312
+    },
+    {
+      "id": "curated-41adaca9303246ac",
+      "name": "DC Collection",
+      "version": 2,
+      "count": 224
+    },
+    {
+      "id": "curated-453fe238a5c13eb7",
+      "name": "Monsterverse",
+      "version": 2,
+      "count": 8
+    },
+    {
+      "id": "curated-cf2fb211a1cc6a28",
+      "name": "Sword Art Online",
+      "version": 2,
+      "count": 10
+    },
+    {
+      "id": "curated-fc214033f954fed1",
+      "name": "Alien Vs Predator Universe",
+      "version": 2,
+      "count": 34
+    },
+    {
+      "id": "curated-c32c51f196dcacc2",
+      "name": "Star Wars Universe",
+      "version": 2,
+      "count": 416
+    },
+    {
+      "id": "curated-5fb472fd7e9d6bc8",
+      "name": "One Piece Collection",
+      "version": 2,
+      "count": 1044
+    },
+    {
+      "id": "curated-9531dc45e07eaf5e",
+      "name": "Dragon Ball Universe",
+      "version": 2,
+      "count": 596
+    },
+    {
+      "id": "curated-163c0760d29784a2",
+      "name": "Stephen King Cinematic Universe",
+      "version": 1,
+      "count": 10
+    },
+    {
+      "id": "curated-d503cfd13ebe0b9f",
+      "name": "Middle Earth",
+      "version": 1,
+      "count": 9
+    },
+    {
+      "id": "curated-25c1aa2a309b2ca8",
+      "name": "South Park",
+      "version": 1,
+      "count": 37
+    },
+    {
+      "id": "curated-72efd29225b56c7e",
+      "name": "Transformers Generation 1",
+      "version": 1,
+      "count": 15
+    },
+    {
+      "id": "curated-7ce6800c3f4249a2",
+      "name": "Transformers Aligned",
+      "version": 1,
+      "count": 118
+    },
+    {
+      "id": "curated-8dc56872fd0032a0",
+      "name": "Transformers Unicron",
+      "version": 1,
+      "count": 3
+    },
+    {
+      "id": "curated-787daf010c5ddf86",
+      "name": "Transformers Stand-Alone",
+      "version": 1,
+      "count": 9
+    },
+    {
+      "id": "curated-670e993de58ea1c4",
+      "name": "The X-Files",
+      "version": 1,
+      "count": 14
+    },
+    {
+      "id": "curated-2965da420db5d486",
+      "name": "Breaking Bad",
+      "version": 1,
+      "count": 24
+    },
+    {
+      "id": "curated-c5b93d2b74940226",
+      "name": "Godzilla Collection",
+      "version": 1,
+      "count": 45
+    },
+    {
+      "id": "curated-1186744385c7742f",
+      "name": "NCIS Shared Universe",
+      "version": 1,
+      "count": 1885
+    },
+    {
+      "id": "curated-9aecb696b6b01240",
+      "name": "Law & Order",
+      "version": 1,
+      "count": 1830
+    },
+    {
+      "id": "curated-ed809c808ee1f5e2",
+      "name": "Resident Evil Collection",
+      "version": 1,
+      "count": 14
+    },
+    {
+      "id": "curated-6e02ddcd734c6ac4",
+      "name": "Criminal Minds",
+      "version": 1,
+      "count": 123
+    },
+    {
+      "id": "curated-c1a5cba62099ea2e",
+      "name": "Naruto",
+      "version": 1,
+      "count": 1024
+    },
+    {
+      "id": "curated-cda878db36b83c9b",
+      "name": "Avatar Universe",
+      "version": 1,
+      "count": 9
+    },
+    {
+      "id": "curated-e31e78acfe7123f5",
+      "name": "Twin Peaks",
+      "version": 1,
+      "count": 5
+    },
+    {
+      "id": "curated-86f1d4ea5be9dfad",
+      "name": "Yu-Gi-Oh!",
+      "version": 1,
+      "count": 428
+    },
+    {
+      "id": "curated-df0e26bb931273a9",
+      "name": "Neon Genesis Evangelion",
+      "version": 1,
+      "count": 31
+    },
+    {
+      "id": "curated-f8d653cb7471a9a7",
+      "name": "TMNT",
+      "version": 1,
+      "count": 37
+    },
+    {
+      "id": "curated-19dbf416e039ed35",
+      "name": "My Hero Academia",
+      "version": 1,
+      "count": 47
+    },
+    {
+      "id": "curated-3ca4580fbab2c270",
+      "name": "Dune Universe",
+      "version": 1,
+      "count": 4
+    },
+    {
+      "id": "curated-e05b87b4c109951a",
+      "name": "Big Bang Theory",
+      "version": 1,
+      "count": 7
+    },
+    {
+      "id": "curated-198b1befe2832977",
+      "name": "The Boys",
+      "version": 1,
+      "count": 61
+    },
+    {
+      "id": "curated-f7a5565a75804531",
+      "name": "Jurassic Park",
+      "version": 1,
+      "count": 16
+    },
+    {
+      "id": "curated-d63a09495b96721f",
+      "name": "Digimon Collection",
+      "version": 1,
+      "count": 124
+    },
+    {
+      "id": "curated-120f87362f831684",
+      "name": "Game Of Thrones Collection",
+      "version": 1,
+      "count": 3
+    },
+    {
+      "id": "curated-73c5de33bd3d096d",
+      "name": "Dexter Collection",
+      "version": 1,
+      "count": 4
+    },
+    {
+      "id": "curated-6f7e56c2a17d7aee",
+      "name": "Prison Break Collection",
+      "version": 1,
+      "count": 8
+    },
+    {
+      "id": "curated-b4e469897d478883",
+      "name": "FBI collection",
+      "version": 1,
+      "count": 223
+    },
+    {
+      "id": "curated-3eaf08276c1827dd",
+      "name": "Terminator Collection",
+      "version": 1,
+      "count": 9
+    }
+  ]
+}

@@ -20,8 +20,18 @@ import list_sharing
 import text_list_builder
 
 MAX_BYTES = 30_000_000
+DEFAULT_SOURCE = "https://raw.githubusercontent.com/RayRayElite/Listweavarr/main/catalogue/bundled/official-lists.json"
 PENDING = {}
 GUARD = threading.Lock()
+
+
+def configured_source(state):
+    """Use the public release feed unless the owner overrides or disables it.
+
+    An explicitly saved empty URL disables checks; absence opts into the bundled
+    publisher. Reading a manifest never installs changes or updates Plex.
+    """
+    return source_url(state.get("official_feed_url", DEFAULT_SOURCE))
 
 
 def digest(value):

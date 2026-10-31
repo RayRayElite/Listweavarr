@@ -12,6 +12,10 @@ function batchListCheckbox(kind, id, name) {
 }
 function batchSelectionStatus(kind) {
   const count = batchListSelection[kind].size;
+  if (kind === 'my') {
+    $('my-batch-combine').hidden = !batchListMode[kind];
+    $('my-batch-combine').disabled = count < 2;
+  }
   $(kind + '-batch-count').textContent = batchListMode[kind] ? `${count} selected` : '';
   $(kind + '-batch-create').hidden = !batchListMode[kind];
   $(kind + '-batch-create').disabled = !count;
@@ -409,6 +413,7 @@ function openSavedList(id) {
   if (!state.lists.some((r) => r.id === id)) return;
   if ($('list-detail').hidden) listReturnTab = listsTab === 'official' ? 'official' : 'mine';
   active = id;
+  $('composite-rebuild').hidden = !current().composite;
   localStorage.setItem('reelcheck-active-list', id);
   selected.clear();
   render();
@@ -1159,3 +1164,97 @@ $('list-generate-playlist-poster').onclick = () => {
   listEditor.playlist_poster = canvas.toDataURL('image/jpeg', 0.9);
   updateEditorPoster();
 };
+
+// Composite lists are explicit snapshots: preview pins source revisions before save.
+let compositeSources = [],
+  compositeProposal = null,
+  compositeSequence = 0;
+function invalidateComposite() {
+  ++compositeSequence;
+  compositeProposal = null;
+  $('composite-save').disabled = true;
+  $('composite-preview').innerHTML = '';
+}
+$('my-batch-combine').onclick = () => {
+  compositeSources = [...batchListSelection.my];
+  if (compositeSources.length < 2) return;
+  openComposite();
+};
+function openComposite(rule = null) {
+  invalidateComposite();
+  $('composite-sources').textContent =
+    'Source order: ' +
+    compositeSources
+      .map((id) => state.lists.find((r) => r.id === id)?.name || 'Unavailable')
+      .join(' ? ') +
+    '. The first source controls common/subtract order.';
+  $('composite-exclude').innerHTML =
+    '<option value="">No exclusion list</option>' +
+    state.lists
+      .filter((r) => !compositeSources.includes(r.id))
+      .map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`)
+      .join('');
+  $('composite-status').textContent = 'Choose an operation, then preview the exact result.';
+  if (rule) {
+    $('composite-operation').value = rule.operation;
+    $('composite-exclude').value = rule.exclude[0] || '';
+    $('composite-status').textContent =
+      'Rebuild creates a new snapshot. Your existing version and any manual edits are preserved.';
+  }
+  $('composite-dialog').showModal();
+}
+$('composite-rebuild').onclick = () => {
+  const entry = current();
+  if (!entry?.composite) return;
+  compositeSources = [...entry.composite.recipe.sources];
+  $('composite-name').value = entry.name + ' (refreshed)';
+  openComposite(entry.composite.recipe);
+};
+$('composite-operation').onchange = invalidateComposite;
+$('composite-exclude').onchange = invalidateComposite;
+function compositeBody() {
+  return {
+    sources: compositeSources,
+    operation: $('composite-operation').value,
+    exclude: $('composite-exclude').value ? [$('composite-exclude').value] : [],
+  };
+}
+$('composite-check').onclick = (e) =>
+  task(e.target, async () => {
+    invalidateComposite();
+    const sequence = compositeSequence;
+    try {
+      const proposal = await api('lists/composite-preview', compositeBody());
+      if (sequence !== compositeSequence) return;
+      compositeProposal = proposal;
+      $('composite-preview').innerHTML = proposal.items
+        .slice(0, 100)
+        .map(
+          (row) =>
+            `<li>${esc(row.title)}${row.season !== undefined ? ' � S' + esc(row.season) : ''}${row.episode !== undefined ? ' E' + esc(row.episode) : ''}</li>`
+        )
+        .join('');
+      $('composite-status').textContent =
+        `${proposal.items.length} entries. ${proposal.items.length > 100 ? 'First 100 shown. ' : ''}${proposal.unidentified} lack provider IDs and cannot be automatically matched or deduplicated.`;
+      $('composite-save').disabled = !proposal.items.length;
+    } catch (error) {
+      if (sequence === compositeSequence) $('composite-status').textContent = error.message;
+    }
+  });
+$('composite-save').onclick = (e) =>
+  task(e.target, async () => {
+    if (!compositeProposal) return;
+    try {
+      const result = await api('lists/composite-create', {
+        ...compositeBody(),
+        fingerprint: compositeProposal.fingerprint,
+        confirmed: true,
+        name: $('composite-name').value,
+      });
+      replaceList(result.entry);
+      $('composite-dialog').close();
+      toast('Combined collection created. Source lists are unchanged.');
+    } catch (error) {
+      $('composite-status').textContent = error.message;
+    }
+  });
