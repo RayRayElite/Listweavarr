@@ -99,11 +99,10 @@
         const options = {
           headers: { Authorization: 'Bearer ' + cfg.token },
           credentials: 'omit',
-          signal: AbortSignal.timeout(12000),
           cache: 'no-store',
         };
         const endpoint = cfg.url + '/api/playlist-companion/artwork';
-        const response = await fetcher(endpoint, options);
+        const response = await core.fetchWithTimeout(fetcher, endpoint, options, 12000);
         if (!response.ok) throw new Error('Artwork pairing is unavailable or revoked.');
         const data = await response.json();
         if (data.schema !== 1 || !Array.isArray(data.items) || data.items.length > 1000)
@@ -118,10 +117,12 @@
           const saved = await record(scope);
           if (saved?.source === 'local' || saved?.revision === row.revision) continue;
           const query = new URLSearchParams({ serverId: row.serverId, playlistId: row.playlistId });
-          const image = await fetcher(endpoint + '?' + query, {
-            ...options,
-            signal: AbortSignal.timeout(12000),
-          });
+          const image = await core.fetchWithTimeout(
+            fetcher,
+            endpoint + '?' + query,
+            options,
+            12000
+          );
           if (!image.ok) continue;
           await set(scope, await image.blob(), 'listweavarr', row.revision);
           updated++;

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 const assert = require('node:assert/strict');
 const core = require('../integrations/plex-playlist-companion/bookmarks.js');
+AbortSignal.timeout = undefined; // Plex desktop compatibility regression.
 const layout = require('../integrations/plex-playlist-companion/layout.js');
 const artwork = require('../integrations/plex-playlist-companion/artwork.js');
 function metricFactory(module, exports, require) {

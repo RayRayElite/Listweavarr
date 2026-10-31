@@ -2,6 +2,32 @@
 const assert = require('node:assert/strict');
 const core = require('../integrations/plex-playlist-companion/bookmarks.js');
 (async () => {
+  // Match the desktop client's older browser API rather than modern Node.
+  AbortSignal.timeout = undefined;
+  await assert.rejects(
+    core.fetchWithTimeout(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(new Error('deadline reached')));
+        }),
+      'http://localhost',
+      {},
+      5
+    ),
+    /deadline reached/
+  );
+  let successfulSignal;
+  await core.fetchWithTimeout(
+    async (_url, options) => {
+      successfulSignal = options.signal;
+      return { ok: true };
+    },
+    'http://localhost',
+    {},
+    5
+  );
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(successfulSignal.aborted, false, 'Successful request clears its timeout');
   const scope = { serverId: 's', userId: 'u', playlistId: 'p' };
   const base = {
     ...core.checkpoint(scope, [{ entryId: 'e', ratingKey: 'r' }], 'e', 100, 'session'),

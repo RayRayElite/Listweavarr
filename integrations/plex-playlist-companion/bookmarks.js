@@ -127,6 +127,17 @@
       return null;
     }
   }
+  // Older Plex desktop Chromium supports AbortController but not the newer
+  // AbortSignal.timeout API. Always clear our timer after success or failure.
+  async function fetchWithTimeout(fetcher, url, options, milliseconds) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), milliseconds);
+    try {
+      return await fetcher(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   // Both clients keep their original local bookmarks. A separate, revocable
   // capability permits syncing only bookmarks, never artwork-only credentials.
   function createSync(storage, player, fetcher = globalThis.fetch.bind(globalThis)) {
@@ -154,17 +165,21 @@
         const items = scopes
           .map((scope) => load(storage, scope))
           .filter((row) => row && Number.isSafeInteger(row.updatedAt));
-        const response = await fetcher(url.origin + '/api/playlist-companion/progress', {
-          method: 'POST',
-          credentials: 'omit',
-          cache: 'no-store',
-          headers: {
-            Authorization: 'Bearer ' + cfg.progressToken,
-            'Content-Type': 'application/json',
+        const response = await fetchWithTimeout(
+          fetcher,
+          url.origin + '/api/playlist-companion/progress',
+          {
+            method: 'POST',
+            credentials: 'omit',
+            cache: 'no-store',
+            headers: {
+              Authorization: 'Bearer ' + cfg.progressToken,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ scopes, items }),
           },
-          body: JSON.stringify({ scopes, items }),
-          signal: AbortSignal.timeout(10000),
-        });
+          10000
+        );
         if (!response.ok)
           throw new Error('Sync server unavailable or pairing revoked. Local progress is safe.');
         const data = await response.json();
@@ -191,7 +206,16 @@
     }
     return { sync };
   }
-  const api = Object.freeze({ checkpoint, reconcile, update, storageKey, save, load, createSync });
+  const api = Object.freeze({
+    checkpoint,
+    reconcile,
+    update,
+    storageKey,
+    save,
+    load,
+    createSync,
+    fetchWithTimeout,
+  });
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ListweavarrPlaylistCore = api;
 })(globalThis);

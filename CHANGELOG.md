@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Support artwork pairing and bookmark sync in Plex desktop's older Chromium
+  runtime without AbortSignal.timeout; clear request timers on completion.
+
 - Add optional cross-device playlist bookmark sync through Listweavarr, with
   migration of local checkpoints, offline fallback, timestamp conflict handling,
   separate revocable progress credentials and per-user/server/playlist keys.
