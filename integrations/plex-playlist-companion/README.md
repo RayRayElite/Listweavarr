@@ -121,6 +121,10 @@ Create a fresh pairing in Listweavarr Settings > Connections > Playlist companio
 Paste the same pairing into the companion settings in Windows Plex and Plex Web,
 then enable **Sync playlist progress between paired devices** on both clients.
 Existing local bookmarks upload automatically; no restart of a playlist is needed.
+Posters chosen with the companion pencil also migrate, including legacy desktop
+choices. Artwork sync runs at startup, on Connect / refresh artwork and every five
+minutes. Explicit local choices stay pinned on that client; imported shared images
+can refresh. Shared image files stay in the private data/companion-posters folder.
 Keep the Listweavarr service running and reachable from each device for syncing.
 Clients exchange bookmarks every ten seconds while Plex is open. Offline playback
 continues saving locally and syncs when connectivity returns. The latest playback
@@ -139,6 +143,7 @@ node tests/test_playlist_bookmarks.cjs
 node tests/test_playlist_adapter.cjs
 node tests/test_playlist_features.cjs
 node tests/test_playlist_sync.cjs
+node tests/test_playlist_poster_sync.cjs
 python -m unittest discover -s tests -q
 python scripts/build_playlist_companion.py
 ```

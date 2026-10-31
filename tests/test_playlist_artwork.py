@@ -15,6 +15,31 @@ import playlist_artwork
 
 
 class PlaylistArtworkTests(unittest.TestCase):
+    def test_shared_posters_use_write_capability_and_preflight(self):
+        state = app.read_state()
+        state["playlist_progress_token"] = "p" * 43
+        app.save_state(state)
+        endpoint = "/api/playlist-companion/posters"
+        body = {
+            "scope": dict(serverId="server", userId="alice", playlistId="7"),
+            "upload": {
+                "mime": "image/png",
+                "data": self.poster.split(",", 1)[1],
+                "updatedAt": 1000,
+            },
+        }
+        with self.assertRaises(urllib.error.HTTPError) as denied:
+            self.request(endpoint, method="POST", body=body)
+        self.assertEqual(denied.exception.code, 403)
+        with self.request(endpoint, method="OPTIONS") as response:
+            self.assertIn("POST", response.headers["Access-Control-Allow-Methods"])
+        with self.request(
+            endpoint, token="p" * 43, method="POST", body=body
+        ) as response:
+            self.assertEqual(
+                json.load(response)["poster"]["data"], body["upload"]["data"]
+            )
+
     def test_progress_endpoint_requires_separate_capability_and_preserves_profiles(
         self,
     ):

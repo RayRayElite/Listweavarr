@@ -2277,9 +2277,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Vary", "Origin")
         if self.headers.get("Origin"):
             self.send_header("Access-Control-Allow-Origin", self.headers["Origin"])
-        progress = self.path.split("?", 1)[0] == "/api/playlist-companion/progress"
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS" if progress else "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type" if progress else "Authorization")
+        progress = self.path.split("?", 1)[0] in (
+            "/api/playlist-companion/progress",
+            "/api/playlist-companion/posters",
+        )
+        self.send_header(
+            "Access-Control-Allow-Methods",
+            "POST, OPTIONS" if progress else "GET, OPTIONS",
+        )
+        self.send_header(
+            "Access-Control-Allow-Headers",
+            "Authorization, Content-Type" if progress else "Authorization",
+        )
         self.send_header("Access-Control-Allow-Private-Network", "true")
         self.end_headers()
         self.wfile.write(raw)
@@ -2290,6 +2299,7 @@ class Handler(BaseHTTPRequestHandler):
             not in (
                 "/api/playlist-companion/artwork",
                 "/api/playlist-companion/progress",
+                "/api/playlist-companion/posters",
             )
             or self.headers.get("Host")
             not in runtime_config.server_options()["allowed_hosts"]
@@ -2399,7 +2409,10 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def do_POST(self):
-        if self.path == "/api/playlist-companion/progress":
+        if self.path in (
+            "/api/playlist-companion/progress",
+            "/api/playlist-companion/posters",
+        ):
             state = read_state()
             if self.headers.get("Host") not in runtime_config.server_options()[
                 "allowed_hosts"
@@ -2413,7 +2426,11 @@ class Handler(BaseHTTPRequestHandler):
                 )
             try:
                 length = int(self.headers.get("Content-Length", 0))
-                if not 0 < length <= 1000000:
+                if (
+                    not 0
+                    < length
+                    <= (7100000 if self.path.endswith("/posters") else 1000000)
+                ):
                     raise ValueError("Request too large")
                 body = json.loads(self.rfile.read(length))
                 with LOCK:
@@ -2422,7 +2439,11 @@ class Handler(BaseHTTPRequestHandler):
                         state, self.headers.get("Authorization", "")
                     ):
                         return self.artwork_response({"error": "Pairing revoked"}, 403)
-                    result = playlist_progress.merge(state, body)
+                    result = (
+                        playlist_progress.poster_exchange(state, body, DATA)
+                        if self.path.endswith("/posters")
+                        else playlist_progress.merge(state, body)
+                    )
                     save_state(state)
                 return self.artwork_response(result)
             except (ValueError, TypeError, KeyError):

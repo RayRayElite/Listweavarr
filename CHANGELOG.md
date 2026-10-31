@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Sync companion pencil-selected posters between paired clients, including legacy
+  desktop artwork, with profile-scoped private storage and local-choice protection.
+
 - Support artwork pairing and bookmark sync in Plex desktop's older Chromium
   runtime without AbortSignal.timeout; clear request timers on completion.
 

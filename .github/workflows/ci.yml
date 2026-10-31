@@ -27,6 +27,7 @@ jobs:
       - run: node tests/test_playlist_adapter.cjs
       - run: node tests/test_playlist_features.cjs
       - run: node tests/test_playlist_sync.cjs
+      - run: node tests/test_playlist_poster_sync.cjs
       - run: python scripts/check_frontend.py
       - run: python scripts/check_release.py
       - run: python scripts/build_release.py

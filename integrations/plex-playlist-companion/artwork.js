@@ -79,7 +79,7 @@
         blob.size > 8_000_000
       )
         throw new Error('Choose a supported image under 8 MB.');
-      await cache.access(core.storageKey(scope), { blob, source, revision });
+      await cache.access(core.storageKey(scope), { blob, source, revision, updatedAt: Date.now() });
     }
     function connect(value) {
       const data = pairing(value);
@@ -90,12 +90,89 @@
       storage.removeItem(key);
       lastSync = 0;
     }
+    async function sharedPosters(api, cfg) {
+      if (!cfg.progressToken || storage.getItem('playlist-companion:sync-enabled') !== 'true')
+        return 0;
+      let updated = 0;
+      const selections = await api.playlists();
+      for (const scope of selections) {
+        if (cfg.serverId && scope.serverId !== cfg.serverId) continue;
+        let saved = await record(scope);
+        const body = {
+          scope: { serverId: scope.serverId, userId: scope.userId, playlistId: scope.playlistId },
+          revision: saved?.revision || '',
+        };
+        if (saved?.source === 'local' && !saved.uploaded) {
+          // Give legacy raw-Blob posters a stable migration timestamp, even if offline.
+          if (!saved.updatedAt) {
+            saved = { ...saved, updatedAt: Date.now() };
+            await cache.access(core.storageKey(scope), saved);
+          }
+          const bytes = new Uint8Array(await saved.blob.arrayBuffer());
+          let binary = '';
+          for (let index = 0; index < bytes.length; index += 8192)
+            binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+          body.upload = { mime: saved.blob.type, data: btoa(binary), updatedAt: saved.updatedAt };
+        }
+        const response = await core.fetchWithTimeout(
+          fetcher,
+          cfg.url + '/api/playlist-companion/posters',
+          {
+            method: 'POST',
+            credentials: 'omit',
+            cache: 'no-store',
+            headers: {
+              Authorization: 'Bearer ' + cfg.progressToken,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          },
+          12000
+        );
+        if (!response.ok)
+          throw new Error('Saved poster sync unavailable. Local posters were kept.');
+        const data = await response.json();
+        if (data.schema !== 1) throw new Error('Invalid saved poster response.');
+        // Account switch or a new pencil choice during the request must win.
+        const current = await record(scope);
+        if (
+          current?.updatedAt !== saved?.updatedAt ||
+          !(await api.playlists()).some(
+            (value) => core.storageKey(value) === core.storageKey(scope)
+          )
+        )
+          continue;
+        if (saved?.source === 'local') {
+          if (body.upload)
+            await cache.access(core.storageKey(scope), {
+              ...saved,
+              uploaded: true,
+              revision: data.poster?.revision || saved.revision,
+            });
+          continue;
+        }
+        if (data.poster) {
+          const raw = Uint8Array.from(atob(data.poster.data), (character) =>
+            character.charCodeAt(0)
+          );
+          await set(
+            scope,
+            new Blob([raw], { type: data.poster.mime }),
+            'shared',
+            data.poster.revision
+          );
+          updated++;
+        }
+      }
+      return updated;
+    }
     async function sync(api, force = false) {
       const raw = storage.getItem(key);
       if (!raw || busy || (!force && Date.now() - lastSync < 300000)) return { updated: 0 };
       busy = true;
       try {
         const cfg = pairing(raw);
+        const sharedUpdated = await sharedPosters(api, cfg);
         const options = {
           headers: { Authorization: 'Bearer ' + cfg.token },
           credentials: 'omit',
@@ -108,14 +185,19 @@
         if (data.schema !== 1 || !Array.isArray(data.items) || data.items.length > 1000)
           throw new Error('Unsupported artwork catalogue.');
         const selections = await api.playlists();
-        let updated = 0;
+        let updated = sharedUpdated;
         for (const row of data.items) {
           const scope = selections.find(
             (value) => value.serverId === row.serverId && value.playlistId === row.playlistId
           );
           if (!scope || typeof row.revision !== 'string') continue;
           const saved = await record(scope);
-          if (saved?.source === 'local' || saved?.revision === row.revision) continue;
+          if (
+            saved?.source === 'local' ||
+            saved?.source === 'shared' ||
+            saved?.revision === row.revision
+          )
+            continue;
           const query = new URLSearchParams({ serverId: row.serverId, playlistId: row.playlistId });
           const image = await core.fetchWithTimeout(
             fetcher,

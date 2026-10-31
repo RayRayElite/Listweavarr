@@ -2,6 +2,8 @@
 import copy
 import unittest
 import playlist_progress as progress
+import base64
+import tempfile
 
 
 class ProgressTests(unittest.TestCase):
@@ -57,6 +59,43 @@ class ProgressTests(unittest.TestCase):
         self.assertTrue(progress.authorize(self.state, "Bearer progress"))
         self.state.pop("playlist_progress_token")
         self.assertFalse(progress.authorize(self.state, "Bearer progress"))
+
+    def test_poster_exchange_profile_scope_revision_and_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw = b"\x89PNG\r\n\x1a\nfixture"
+            body = {
+                "scope": self.scope,
+                "upload": {
+                    "mime": "image/png",
+                    "data": base64.b64encode(raw).decode(),
+                    "updatedAt": 1000,
+                },
+            }
+            result = progress.poster_exchange(self.state, body, directory)
+            self.assertEqual(base64.b64decode(result["poster"]["data"]), raw)
+            revision = result["poster"]["revision"]
+            self.assertIsNone(
+                progress.poster_exchange(
+                    self.state, {"scope": self.scope, "revision": revision}, directory
+                )["poster"]
+            )
+            self.assertIsNone(
+                progress.poster_exchange(
+                    self.state, {"scope": dict(self.scope, userId="bob")}, directory
+                )["poster"]
+            )
+            with self.assertRaises(ValueError):
+                progress.poster_exchange(
+                    self.state,
+                    {
+                        "scope": self.scope,
+                        "upload": dict(
+                            body["upload"],
+                            data=base64.b64encode(b"not an image").decode(),
+                        ),
+                    },
+                    directory,
+                )
 
 
 if __name__ == "__main__":

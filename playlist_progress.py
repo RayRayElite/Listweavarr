@@ -3,6 +3,9 @@
 import hmac
 import json
 import time
+import base64
+import hashlib
+from pathlib import Path
 
 
 def authorize(state, authorization):
@@ -66,3 +69,52 @@ def merge(state, body):
             if tuple(row[k] for k in ("serverId", "userId", "playlistId")) in allowed
         ],
     }
+
+
+def poster_exchange(state, body, directory):
+    """Exchange one profile-scoped poster. Image bytes stay outside state.json."""
+    scope = body.get("scope")
+    # Reuse strict scope validation without creating bookmark records.
+    merge(state, {"scopes": [scope], "items": []})
+    key = json.dumps([scope[k] for k in ("serverId", "userId", "playlistId")])
+    upload = body.get("upload")
+    records = state.get("playlist_shared_posters", {})
+    previous = records.get(key)
+    root = Path(directory) / "companion-posters"
+    if upload is not None:
+        if not isinstance(upload, dict):
+            raise ValueError("Invalid poster")
+        stamp = upload.get("updatedAt")
+        if type(stamp) is not int or not 0 < stamp <= int(time.time() * 1000) + 300000:
+            raise ValueError("Invalid poster timestamp")
+        mime = upload.get("mime")
+        encoded = upload.get("data")
+        if not isinstance(encoded, str) or len(encoded) > 7000000:
+            raise ValueError("Poster too large")
+        raw = base64.b64decode(encoded, validate=True)
+        valid = {
+            "image/jpeg": raw.startswith(b"\xff\xd8\xff"),
+            "image/png": raw.startswith(b"\x89PNG\r\n\x1a\n"),
+            "image/webp": raw.startswith(b"RIFF") and raw[8:12] == b"WEBP",
+            "image/gif": raw[:6] in (b"GIF87a", b"GIF89a"),
+        }
+        if not valid.get(mime) or not 0 < len(raw) <= 5000000:
+            raise ValueError("Invalid poster image")
+        revision = hashlib.sha256(raw).hexdigest()
+        if previous is None or stamp > previous["updatedAt"]:
+            root.mkdir(parents=True, exist_ok=True)
+            target = root / revision
+            if target.is_symlink():
+                raise ValueError("Invalid poster path")
+            if not target.exists():
+                target.write_bytes(raw)
+            previous = dict(revision=revision, mime=mime, updatedAt=stamp)
+            state.setdefault("playlist_shared_posters", {})[key] = previous
+    result = {"schema": 1, "poster": None}
+    if previous and previous["revision"] != body.get("revision"):
+        target = root / previous["revision"]
+        if target.is_file() and not target.is_symlink():
+            result["poster"] = dict(
+                previous, data=base64.b64encode(target.read_bytes()).decode()
+            )
+    return result

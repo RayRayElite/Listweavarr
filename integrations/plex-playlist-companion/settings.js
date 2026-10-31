@@ -35,7 +35,10 @@
     const progress = document.createElement('input');
     progress.type = 'checkbox';
     progress.checked = localStorage.getItem('playlist-companion:sync-enabled') === 'true';
-    progressLabel.append(progress, 'Sync playlist progress between paired devices');
+    progressLabel.append(
+      progress,
+      'Sync playlist progress and chosen posters between paired devices'
+    );
     const progressNote = document.createElement('p');
     progressNote.textContent =
       'Pair each client with the same Listweavarr server. Sync includes existing local bookmarks and runs every 10 seconds while Plex is open. Keep Listweavarr running for cross-device sync; offline resume still works.';
