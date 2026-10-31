@@ -1590,10 +1590,50 @@ def expected_episodes(item, match, settings, cache):
 # ============================================================================
 def playlist_preview(entry):
     keys, omitted, rows = [], 0, []
+    seen, overlaps = {}, {}
+    explicit_episodes = {
+        key
+        for item in entry["items"]
+        if item.get("type") == "episode"
+        and item.get("status") in ("available", "partial")
+        for key in item.get("plex_keys", [])
+    }
+    covered_seasons = 0
     for position, item in enumerate(entry["items"], 1):
         count = 0
-        if item.get("status") in ("available", "partial") and item.get("plex_keys"):
-            keys.extend(item["plex_keys"])
+        covered = (
+            item.get("type") == "season"
+            and bool(item.get("plex_keys"))
+            and set(item["plex_keys"]) <= explicit_episodes
+        )
+        if covered:
+            covered_seasons += 1
+        elif item.get("status") in ("available", "partial") and item.get("plex_keys"):
+            for key in item["plex_keys"]:
+                if key in seen:
+                    first = seen[key]
+                    conflict = overlaps.setdefault(
+                        first,
+                        {
+                            "position": first,
+                            "title": (
+                                rows[first - 1]["title"]
+                                if first < position
+                                else item.get("title", "Untitled")
+                            ),
+                            "count": 0,
+                            "with_positions": [],
+                        },
+                    )
+                    conflict["count"] += 1
+                    if (
+                        position not in conflict["with_positions"]
+                        and len(conflict["with_positions"]) < 100
+                    ):
+                        conflict["with_positions"].append(position)
+                else:
+                    seen[key] = position
+                keys.append(key)
             count = len(item["plex_keys"])
         else:
             omitted += 1
@@ -1604,13 +1644,19 @@ def playlist_preview(entry):
                 "type": item.get("type", "movie"),
                 "status": item.get("status", "unchecked"),
                 "count": count,
-                "detail": item.get("detail", ""),
+                "detail": (
+                    "Season already covered by individual episode entries; skipped to preserve their order"
+                    if covered
+                    else item.get("detail", "")
+                ),
             }
         )
     return {
         "keys": keys,
         "count": len(keys),
         "duplicate_count": len(keys) - len(set(keys)),
+        "overlaps": list(overlaps.values())[:100],
+        "covered_seasons": covered_seasons,
         "omitted": omitted,
         "name": entry["name"],
         "entries": rows,
@@ -2664,6 +2710,8 @@ class Handler(BaseHTTPRequestHandler):
                                 "token": token,
                                 "title": target["title"],
                                 "omitted": desired["omitted"],
+                                "duplicate_count": desired["duplicate_count"],
+                                "overlaps": desired["overlaps"],
                                 "entries": desired["entries"],
                                 **plex_publications.changes(
                                     target["keys"], desired["keys"]

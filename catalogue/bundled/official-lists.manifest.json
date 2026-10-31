@@ -1,6 +1,6 @@
 {
   "format": "reelcheck-catalogue-manifest",
-  "version": 5,
+  "version": 6,
   "lists": [
     {
       "id": "curated-bcfb4782b44a27a6",
@@ -95,8 +95,8 @@
     {
       "id": "curated-2d90bbe0dc87957a",
       "name": "Buffyverse",
-      "version": 2,
-      "count": 182
+      "version": 3,
+      "count": 180
     },
     {
       "id": "curated-7ff72f30f78ed6d6",

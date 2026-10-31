@@ -5309,3 +5309,19 @@ header {
     gap: 18px;
   }
 }
+
+/* Keep publication blockers next to the disabled action, visible above details. */
+#playlist-blocker {
+  border: 1px solid #c68b45;
+  border-left: 4px solid #e6ad60;
+  background: rgba(198, 139, 69, 0.12);
+  padding: 1rem;
+  margin: 1rem 0;
+}
+#playlist-blocker strong {
+  color: #f0c58d;
+}
+#playlist-blocker ul {
+  max-height: 12rem;
+  overflow-y: auto;
+}

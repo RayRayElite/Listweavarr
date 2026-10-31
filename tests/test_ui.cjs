@@ -1494,7 +1494,8 @@ vm.runInContext(
   );
   assert.match(parallelMarkup, /Parallel lane 1 \(starts first\)/);
   assert.match(parallelMarkup, /Make block sequential/);
-  vm.runInContext(`
+  vm.runInContext(
+    `
     state.lists.push({id:'composite-other',name:'Other source',items:[]});
     batchListSelection.my.clear();
     batchListSelection.my.add('list');
@@ -1502,7 +1503,9 @@ vm.runInContext(
     batchListMode.my=true;
     batchSelectionStatus('my');
     api=async(path,body)=>{calls.push({path,body});return {fingerprint:'pinned',items:[{title:'Combined movie',type:'movie',tmdb:'1'}],unidentified:0};};
-  `, context);
+  `,
+    context
+  );
   assert.equal(element('my-batch-combine').disabled, false);
   element('my-batch-combine').onclick();
   element('composite-operation').value = 'intersection';
@@ -1515,6 +1518,19 @@ vm.runInContext(
   assert.equal(compositeCall.body.operation, 'intersection');
   element('composite-operation').onchange();
   assert.equal(element('composite-save').disabled, true);
+  vm.runInContext(
+    `playlistBlocker({duplicate_count:2,overlaps:[{position:1,title:'Season 5',count:2,with_positions:[2,3]}]},4)`,
+    context
+  );
+  assert.equal(element('playlist-blocker').hidden, false);
+  assert.match(element('playlist-blocker-heading').textContent, /2 repeated/);
+  assert.match(element('playlist-blocker-entries').innerHTML, /Season 5/);
+  assert.equal(element('submit').disabled, true);
+  vm.runInContext('playlistBlocker({duplicate_count:0},4)', context);
+  assert.equal(element('playlist-blocker').hidden, true);
+  assert.equal(element('submit').disabled, false);
+  vm.runInContext('playlistBlocker({},0)', context);
+  assert.match(element('playlist-blocker-heading').textContent, /no confirmed playable/);
   console.log(
     'UI checks passed, including catalogue delivery, Workbench, paths, taste and maintenance.'
   );

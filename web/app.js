@@ -2270,10 +2270,33 @@ $('edit-form').onsubmit = (e) => {
 let publicationToken = null;
 let publicationListId = null;
 let originalPlaylistPlan = '';
+let originalPlaylistPreview = null;
+function playlistBlocker(plan, count) {
+  const duplicates = plan.duplicate_count || 0;
+  $('playlist-blocker').hidden = !!count && !duplicates;
+  $('playlist-blocker-heading').textContent = duplicates
+    ? `Cannot save yet: ${duplicates} repeated Plex items`
+    : 'Cannot save yet: no confirmed playable items';
+  $('playlist-blocker-message').textContent = duplicates
+    ? 'Whole shows or seasons may overlap individual episodes. Plex collapses repeated items, so resolve these overlaps before publishing. Your list and Plex playlists have not been changed.'
+    : 'Compare with Plex and correct unresolved matches before creating this playlist.';
+  $('playlist-blocker-entries').innerHTML = (plan.overlaps || [])
+    .map(
+      (row) =>
+        `<li>Entry ${row.position}: ${esc(row.title)} overlaps ${row.count} item(s) with entries ${row.with_positions.join(', ')}.</li>`
+    )
+    .join('');
+  $('playlist-form').querySelector('[type=submit]').disabled = !count || !!duplicates;
+}
+$('playlist-blocker-review').onclick = () => {
+  $('playlist-dialog').close();
+  $('list-health-check').click();
+};
 async function reviewLinkedPlaylist(id) {
   publicationToken = null;
   publicationListId = id;
   const plan = await api('publications/preview', { list_id: id });
+  originalPlaylistPreview = plan;
   publicationToken = plan.token;
   originalPlaylistPlan = `${plan.after_count} available movies/episodes. ${plan.omitted} entries omitted. Creating a separate playlist keeps the existing one.`;
   $('playlist-title').value = plan.title;
@@ -2284,7 +2307,7 @@ async function reviewLinkedPlaylist(id) {
     `${plan.before_count} → ${plan.after_count} playable items: ${plan.added} added, ${plan.removed} removed${plan.reordered ? ', order changed' : ''}. ${plan.omitted} entries omitted. Review this update before applying it to your linked playlist.`;
   $('playlist-preview-items').innerHTML =
     `<details><summary>Review order and omitted entries</summary><ol>${plan.entries.map((row) => `<li>${esc(row.title)} / ${row.count} playable items${row.count ? '' : ' / omitted'}</li>`).join('')}</ol></details>`;
-  $('playlist-form').querySelector('[type=submit]').disabled = !plan.after_count;
+  playlistBlocker(plan, plan.after_count);
   $('playlist-dialog').showModal();
 }
 $('playlist-open').onclick = (e) =>
@@ -2293,11 +2316,11 @@ $('playlist-open').onclick = (e) =>
     publicationListId = active;
     $('playlist-title').disabled = false;
     const plan = await api('playlist/preview', { list_id: active });
+    originalPlaylistPreview = plan;
     $('playlist-preview-items').innerHTML =
       `<details><summary>Review selected watch order and omitted entries</summary><ol>${(plan.entries || []).map((r) => `<li><strong>${esc(r.title)}</strong> / ${esc(r.type)} / ${r.count ? r.count + ' playable item(s)' : 'Omitted: ' + esc(r.status)}${r.status === 'partial' ? ' / incomplete scope' : ''}<small>${esc(r.detail)}</small></li>`).join('')}</ol></details>`;
     $('playlist-title').value = plan.name;
-    $('playlist-form').querySelector('[type=submit]').disabled =
-      !plan.count || !!plan.duplicate_count;
+    playlistBlocker(plan, plan.count);
     $('playlist-replace-label').hidden = !current().playlist;
     $('playlist-replace').checked = false;
     $('playlist-plan').textContent =
@@ -2317,7 +2340,10 @@ $('playlist-replace').onchange = (e) =>
     $('playlist-title').disabled = e.target.checked;
     if (!e.target.checked) {
       $('playlist-plan').textContent = originalPlaylistPlan;
-      submit.disabled = false;
+      playlistBlocker(
+        originalPlaylistPreview || {},
+        originalPlaylistPreview?.count ?? originalPlaylistPreview?.after_count
+      );
       return;
     }
     submit.disabled = true;
@@ -2330,7 +2356,7 @@ $('playlist-replace').onchange = (e) =>
       `${plan.before_count} → ${plan.after_count} playable items: ${plan.added} added, ${plan.removed} removed${plan.reordered ? ', retained items reordered' : ''}. ${plan.omitted} list entries omitted. The playlist title is preserved. Review expires after 15 minutes; changes in Plex or this list require a fresh preview.`;
     $('playlist-preview-items').innerHTML =
       `<details><summary>Review proposed list order and omissions</summary><ol>${plan.entries.map((row) => `<li>${esc(row.title)} / ${row.count} playable item(s)${row.count ? '' : ' / omitted'}</li>`).join('')}</ol></details>`;
-    submit.disabled = !plan.after_count;
+    playlistBlocker(plan, plan.after_count);
   });
 $('playlist-form').onsubmit = (e) => {
   e.preventDefault();

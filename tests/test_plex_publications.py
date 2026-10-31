@@ -8,6 +8,97 @@ import plex_publications
 
 
 class PublicationTests(unittest.TestCase):
+    def test_fully_covered_season_yields_to_explicit_episode_order(self):
+        plan = app.playlist_preview(
+            {
+                "name": "Interleaved",
+                "items": [
+                    {
+                        "title": "Season",
+                        "type": "season",
+                        "status": "available",
+                        "plex_keys": ["1", "2"],
+                    },
+                    {
+                        "title": "Second first",
+                        "type": "episode",
+                        "status": "available",
+                        "plex_keys": ["2"],
+                    },
+                    {
+                        "title": "Other show",
+                        "type": "episode",
+                        "status": "available",
+                        "plex_keys": ["3"],
+                    },
+                    {
+                        "title": "First last",
+                        "type": "episode",
+                        "status": "available",
+                        "plex_keys": ["1"],
+                    },
+                ],
+            }
+        )
+        self.assertEqual(plan["keys"], ["2", "3", "1"])
+        self.assertEqual(plan["duplicate_count"], 0)
+        self.assertEqual(plan["covered_seasons"], 1)
+        self.assertEqual(plan["omitted"], 0)
+        self.assertIn("individual episode", plan["entries"][0]["detail"])
+
+    def test_partially_covered_season_is_not_silently_discarded(self):
+        plan = app.playlist_preview(
+            {
+                "name": "Incomplete",
+                "items": [
+                    {
+                        "title": "Season",
+                        "type": "season",
+                        "status": "available",
+                        "plex_keys": ["1", "2"],
+                    },
+                    {
+                        "title": "Only first",
+                        "type": "episode",
+                        "status": "available",
+                        "plex_keys": ["1"],
+                    },
+                ],
+            }
+        )
+        self.assertEqual(plan["keys"], ["1", "2", "1"])
+        self.assertEqual(plan["covered_seasons"], 0)
+        self.assertEqual(plan["duplicate_count"], 1)
+
+    def test_overlap_preview_identifies_whole_season_and_episode_rows(self):
+        plan = app.playlist_preview(
+            {
+                "name": "Mixed order",
+                "items": [
+                    {
+                        "title": "Season 5",
+                        "status": "available",
+                        "plex_keys": ["1", "2"],
+                    },
+                    {"title": "Episode one", "status": "available", "plex_keys": ["1"]},
+                    {"title": "Episode two", "status": "available", "plex_keys": ["2"]},
+                ],
+            }
+        )
+        self.assertEqual(plan["duplicate_count"], 2)
+        self.assertEqual(
+            plan["overlaps"],
+            [
+                {
+                    "position": 1,
+                    "title": "Season 5",
+                    "count": 2,
+                    "with_positions": [2, 3],
+                }
+            ],
+        )
+        self.assertEqual(plan["keys"], ["1", "2", "1", "2"])
+
     def test_duplicate_playable_scopes_fail_before_creating_a_playlist(self):
         rows = [
             {"status": "available", "plex_keys": ["1", "2"]},
