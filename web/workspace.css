@@ -446,6 +446,34 @@ dialog::backdrop {
   flex-wrap: wrap;
   margin: 14px 0;
 }
+.list-insert-position {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0;
+}
+.list-insert-position input {
+  width: 110px;
+}
+.entry-order-position {
+  width: 80px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.entry-order-position input {
+  width: 76px;
+  margin-top: 5px;
+}
+.list-edit-row {
+  flex-wrap: wrap;
+}
+.list-edit-row > span {
+  min-width: 180px;
+}
+.playlist-link-status {
+  font-size: 12px;
+  color: var(--accent);
+}
 .catalogue-select {
   position: absolute;
   z-index: 2;

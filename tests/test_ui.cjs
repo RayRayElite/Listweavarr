@@ -374,7 +374,7 @@ vm.runInContext(
   assert.match(element('list-updates').innerHTML, /1 added, 1 removed/);
   assert.match(element('list-updates').innerHTML, /order changed/);
   assert.match(element('list-updates').innerHTML, /missing.*available/);
-  assert.match(element('list-updates').innerHTML, /playlist may need updating/);
+  assert.match(element('list-updates').innerHTML, /linked Plex playlist has updates to review/);
   vm.runInContext(
     `api=async(path,body)=>{calls.push({path,body});if(path==='playlist/preview')return {name:'Mixed',count:1,omitted:1,entries:[{title:'Playable film',type:'movie',status:'available',count:1},{title:'Unresolved episode',type:'episode',status:'unmatched',count:0}]};if(path==='identify')return {results:[{id:42,title:'Exact film',year:'2020'}]};throw Error('Unexpected write');}`,
     context
@@ -779,6 +779,41 @@ vm.runInContext(
     false
   );
   element('batch-playlist-dialog').close();
+  vm.runInContext(
+    `
+    listEditor={original:null,items:[{id:'a',title:'A'},{id:'d',title:'D'}]};
+    $('list-insert-position').value='2';
+    insertEditorEntries([{id:'b',title:'B'},{id:'c',title:'C'}]);
+  `,
+    context
+  );
+  assert.equal(vm.runInContext(`listEditor.items.map(row=>row.id).join(',')`, context), 'a,b,c,d');
+  assert.equal(
+    element('list-insert-position').value,
+    '4',
+    'Insertion advances so consecutive additions stay in source order'
+  );
+  assert.equal(
+    vm.runInContext(`moveEditorEntry(3,1);listEditor.items.map(row=>row.id).join(',')`, context),
+    'd,a,b,c'
+  );
+  vm.runInContext(`$('list-insert-position').value='99'`, context);
+  assert.equal(vm.runInContext(`insertEditorEntries([{id:'bad'}])`, context), false);
+  assert.equal(vm.runInContext('listEditor.items.length', context), 4);
+  const linkedMarkup = vm.runInContext(
+    `playlistLinkMarkup({id:'linked',name:'Example',playlist:{key:'7',title:'Example'},playlist_needs_update:true})`,
+    context
+  );
+  assert.match(linkedMarkup, /data-review-publication="linked"/);
+  vm.runInContext(
+    `api=async()=>({token:'review',title:'Saved Plex title',before_count:2,after_count:3,added:1,removed:0,omitted:0,entries:[{title:'A',count:1}]});`,
+    context
+  );
+  await vm.runInContext(`reviewLinkedPlaylist('linked')`, context);
+  assert.equal(element('playlist-replace').checked, true);
+  assert.equal(vm.runInContext('publicationListId', context), 'linked');
+  assert.equal(element('playlist-title').value, 'Saved Plex title');
+  element('playlist-dialog').close();
   assert.equal(
     vm.runInContext(
       "catalogueSort([{name:'Z',count:3},{name:'A',count:1}],'title_asc').map(r=>r.name).join(',')",
@@ -983,7 +1018,7 @@ vm.runInContext(
   assert.match(element('list-add-results').innerHTML, /Exact show.*S0 E6/);
   context.crypto = require('node:crypto').webcrypto;
   vm.runInContext(
-    `listEditor={original:null,items:[],poster:''};$('list-edit-mode').value='local';$('list-add-results').onclick({target:{closest:()=>({dataset:{listAdd:'0'}})}})`,
+    `listEditor={original:null,items:[],poster:''};$('list-insert-position').value='1';$('list-edit-mode').value='local';$('list-add-results').onclick({target:{closest:()=>({dataset:{listAdd:'0'}})}})`,
     context
   );
   assert.equal(vm.runInContext('listEditor.items[0].show_tmdb', context), '9');
@@ -999,7 +1034,7 @@ vm.runInContext(
   vm.runInContext(`builderRows[0].season_end='0';builderCounts()`, context);
   assert.equal(element('builder-save').disabled, true);
   vm.runInContext(
-    `listEditor={original:null,items:[],poster:''};listEditorSearch=[{type:'show',tmdb:'9',title:'Show'}];$('list-add-scope').value='season';$('list-add-season').value='1';$('list-add-season-end').value='4';$('list-add-results').onclick({target:{closest:()=>({dataset:{listAdd:'0'}})}})`,
+    `listEditor={original:null,items:[],poster:''};$('list-insert-position').value='1';listEditorSearch=[{type:'show',tmdb:'9',title:'Show'}];$('list-add-scope').value='season';$('list-add-season').value='1';$('list-add-season-end').value='4';$('list-add-results').onclick({target:{closest:()=>({dataset:{listAdd:'0'}})}})`,
     context
   );
   assert.equal(vm.runInContext('listEditor.items.length', context), 4);

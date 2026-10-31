@@ -61,6 +61,7 @@
             Download progress
           </button>
         </div>
+        <div id="plex-publication-notice" class="collection-update" hidden role="status"></div>
         <section id="lists-mine" role="tabpanel">
           <section id="list-catalogue">
             <div class="workspace-heading">
@@ -1315,6 +1316,14 @@ episode,Pilot,,,263365,1,1</pre
           reordering entries stops source updates. The original source is kept for reference.</label
         >
         <h3>Entries <span id="list-editor-count"></span></h3>
+        <label class="list-insert-position"
+          >Add new entries at position
+          <input id="list-insert-position" type="number" min="1" step="1" />
+          <small class="muted"
+            >1 inserts at the beginning. Use Insert after on any entry, or enter a position. New
+            entries keep their order.</small
+          >
+        </label>
         <div class="list-add-tools">
           <label class="sr" for="list-add-query">Find a title</label
           ><input id="list-add-query" placeholder="Find a title, or enter a TMDB ID / URL" /><select
@@ -1362,7 +1371,7 @@ episode,Pilot,,,263365,1,1</pre
           <p class="muted">
             Import Trakt, Letterboxd, IMDb, MDBList or ChronoCanon entries directly, without
             guessing titles from page text. Review them before adding to this draft. Existing
-            entries stay first; incoming entries keep their source order.
+            Incoming entries keep their source order at the insertion position above.
           </p>
           <label
             >Supported list URL<input id="list-provider-url" type="url" placeholder="https://…"

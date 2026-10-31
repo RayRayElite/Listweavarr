@@ -173,6 +173,8 @@ def apply(entry, token, now, normalize):
     if pending.get("source_version"):
         entry["source_version"] = pending["source_version"]
     entry["updated_at"] = now
+    if entry.get("playlist") and fingerprint(entry) != fingerprint(before):
+        entry["playlist_needs_update"] = True
     entry.pop("update_pending", None)
     entry["update_review"] = {
         "changed": False,
@@ -221,6 +223,8 @@ def undo(entry, token, now):
         else:
             entry[field] = previous[field]
     entry["updated_at"] = now
+    if entry.get("playlist"):
+        entry["playlist_needs_update"] = True
     for field in (
         "source_update_undo",
         "update_pending",

@@ -24,6 +24,7 @@ def entry():
 class ListUpdateTests(unittest.TestCase):
     def test_apply_exact_snapshot_preserves_ids_paths_and_runtime_then_undo(self):
         row = entry()
+        row["playlist"] = {"key": "77", "server": "http://plex", "title": "Example"}
         first = row["items"][0]
         first["status"] = "available"
         row["items"].append(
@@ -39,12 +40,16 @@ class ListUpdateTests(unittest.TestCase):
         self.assertEqual(proposed["items"][1]["previous_position"], 1)
         incoming[0]["title"] = "Changed elsewhere"
         list_updates.apply(row, token, 2, app.normalize)
+        self.assertEqual(row["playlist"]["key"], "77")
+        self.assertTrue(row["playlist_needs_update"])
+        row["playlist_needs_update"] = False
         self.assertEqual(row["items"][0]["title"], "New")
         self.assertEqual(row["items"][1]["id"], "one")
         self.assertEqual(row["watch_paths"]["essential"], ["one"])
         row["description"] = "Keep my description"
         row["items"][1]["status"] = "fresh-runtime-status"
         list_updates.undo(row, row["source_update_undo"]["token"], 3)
+        self.assertTrue(row["playlist_needs_update"])
         self.assertEqual([x["id"] for x in row["items"]], ["one", "remove"])
         self.assertEqual(row["items"][0]["status"], "fresh-runtime-status")
         self.assertEqual(row["description"], "Keep my description")

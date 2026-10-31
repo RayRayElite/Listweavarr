@@ -120,7 +120,9 @@ def edit(entry, body, normalize):
     result["items"] = rows
     result["updated_at"] = time.time()
     if (
-        changed or result.get("playlist_poster") != (entry or {}).get("playlist_poster")
+        changed
+        or result.get("playlist_poster") != (entry or {}).get("playlist_poster")
+        or result.get("poster") != (entry or {}).get("poster")
     ) and result.get("playlist"):
         result["playlist_needs_update"] = True
     return result

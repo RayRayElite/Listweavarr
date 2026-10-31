@@ -989,7 +989,7 @@ function renderListUpdates() {
       ? `<details class="list-update-report"><summary>${list.warnings.length} import notes / matching guidance</summary><ul>${list.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul></details>`
       : '') +
     (list.playlist_needs_update
-      ? '<p class="metadata-error">Your saved Plex playlist may need updating. Review Create Plex playlist to replace it after checking availability.</p>'
+      ? `<p class="metadata-error">Your linked Plex playlist has updates to review. <button class="secondary" data-review-publication="${esc(list.id)}">Review Plex update</button></p>`
       : '');
 }
 function render() {
@@ -2256,6 +2256,23 @@ $('edit-form').onsubmit = (e) => {
 let publicationToken = null;
 let publicationListId = null;
 let originalPlaylistPlan = '';
+async function reviewLinkedPlaylist(id) {
+  publicationToken = null;
+  publicationListId = id;
+  const plan = await api('publications/preview', { list_id: id });
+  publicationToken = plan.token;
+  originalPlaylistPlan = `${plan.after_count} available movies/episodes. ${plan.omitted} entries omitted. Creating a separate playlist keeps the existing one.`;
+  $('playlist-title').value = plan.title;
+  $('playlist-title').disabled = true;
+  $('playlist-replace-label').hidden = false;
+  $('playlist-replace').checked = true;
+  $('playlist-plan').textContent =
+    `${plan.before_count} → ${plan.after_count} playable items: ${plan.added} added, ${plan.removed} removed${plan.reordered ? ', order changed' : ''}. ${plan.omitted} entries omitted. Review this update before applying it to your linked playlist.`;
+  $('playlist-preview-items').innerHTML =
+    `<details><summary>Review order and omitted entries</summary><ol>${plan.entries.map((row) => `<li>${esc(row.title)} / ${row.count} playable items${row.count ? '' : ' / omitted'}</li>`).join('')}</ol></details>`;
+  $('playlist-form').querySelector('[type=submit]').disabled = !plan.after_count;
+  $('playlist-dialog').showModal();
+}
 $('playlist-open').onclick = (e) =>
   task(e.target, async () => {
     publicationToken = null;
@@ -2308,11 +2325,13 @@ $('playlist-form').onsubmit = (e) => {
     });
     const saved = state.lists.find((row) => row.id === publicationListId);
     if (saved) {
-      saved.playlist = result;
+      saved.playlist = { ...result, server: state.settings.plex?.url };
       saved.playlist_needs_update = false;
     }
     publicationToken = null;
     renderListUpdates();
+    if (typeof drawListCatalogue === 'function') drawListCatalogue();
+    if (typeof drawOfficialCatalogue === 'function') drawOfficialCatalogue();
     $('playlist-dialog').close();
     toast(result.warning || `Saved “${result.title}” in Plex with ${result.count} items.`);
   });

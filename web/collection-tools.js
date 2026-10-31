@@ -79,7 +79,9 @@ $('official-update-items').onclick = (e) => {
         ? 'This official version was skipped.'
         : action === 'rollback'
           ? 'Previous list restored.'
-          : 'Official update applied.'
+          : result.entry?.playlist_needs_update
+            ? 'Official update applied. Your linked Plex playlist now has an update to review.'
+            : 'Official update applied.'
     );
   });
 };

@@ -171,6 +171,25 @@ function listCover(entry) {
     ? `<img src="${esc(entry.poster)}" alt="" loading="lazy">`
     : `<span class="list-cover-letter">${esc(entry.name.slice(0, 1))}</span><span class="list-cover-word">LISTWEAVARR / COLLECTION</span>`;
 }
+function playlistLinkMarkup(entry) {
+  if (!entry?.playlist) return '';
+  return entry.playlist_needs_update
+    ? `<p class="playlist-link-status">Plex update available <button class="text-action" data-review-publication="${esc(entry.id)}">Review Plex update</button></p>`
+    : `<p class="playlist-link-status muted">Plex playlist linked: ${esc(entry.playlist.title || entry.name)}</p>`;
+}
+function drawPlexPublicationNotice() {
+  const rows = state.lists.filter((entry) => entry.playlist && entry.playlist_needs_update);
+  $('plex-publication-notice').hidden = !rows.length;
+  $('plex-publication-notice').innerHTML = rows.length
+    ? `<strong>${rows.length} linked Plex playlist${rows.length === 1 ? ' has' : 's have'} updates to review</strong><p class="muted">Your lists changed. Plex stays unchanged until you review and apply each update.</p><div class="collection-update-actions">${rows.map((entry) => `<button class="secondary" data-review-publication="${esc(entry.id)}">${esc(entry.name)}</button>`).join('')}</div>`
+    : '';
+}
+for (const id of ['saved-list-grid', 'official-items', 'plex-publication-notice', 'list-updates']) {
+  $(id).addEventListener('click', (e) => {
+    const button = e.target.closest('[data-review-publication]');
+    if (button) task(button, () => reviewLinkedPlaylist(button.dataset.reviewPublication));
+  });
+}
 const listActionIcons = {
   edit: '<path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/>',
   share:
@@ -201,6 +220,7 @@ function catalogueSort(rows, order) {
   });
 }
 function drawOfficialCatalogue() {
+  drawPlexPublicationNotice();
   if (!$('official-items')) return;
   const order =
     $('official-list-sort').value ||
@@ -218,7 +238,7 @@ function drawOfficialCatalogue() {
       .map((row) => {
         const saved = state.lists.find((entry) => entry.official_id === row.id),
           entry = saved?.official_authoring ? saved : row;
-        return `<article class="saved-list-card">${batchListCheckbox('official', row.id, entry.name)}<button class="saved-list-cover" data-official-open="${esc(row.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">OFFICIAL COLLECTION / V${esc(row.version)}${saved ? ' · ' + (saved.official_authoring ? 'Authoring original' : 'Personal copy saved') : ''}</span><h2><button class="title-link" data-official-open="${esc(row.id)}">${esc(entry.name)}</button></h2><p class="muted">${row.count} entries${entry.description ? ' &middot; ' + esc(entry.description) : ''}</p><div class="saved-list-actions">${saved?.official_authoring ? listActionButton('edit', 'data-edit-list', saved.id, 'Edit list & poster') + listActionButton('share', 'data-share-list', saved.id, 'Share list') + listActionButton('add', 'data-add-entries', saved.id, 'Add entries') + listActionButton('delete', 'data-delete-list', saved.id, 'Delete working copy') : listActionButton('add', 'data-official-open', row.id, saved ? 'Open my copy' : 'Add to My Lists')}</div></div></article>`;
+        return `<article class="saved-list-card">${batchListCheckbox('official', row.id, entry.name)}<button class="saved-list-cover" data-official-open="${esc(row.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">OFFICIAL COLLECTION / V${esc(row.version)}${saved ? ' · ' + (saved.official_authoring ? 'Authoring original' : 'Personal copy saved') : ''}</span><h2><button class="title-link" data-official-open="${esc(row.id)}">${esc(entry.name)}</button></h2><p class="muted">${row.count} entries${entry.description ? ' &middot; ' + esc(entry.description) : ''}</p>${playlistLinkMarkup(saved)}<div class="saved-list-actions">${saved?.official_authoring ? listActionButton('edit', 'data-edit-list', saved.id, 'Edit list & poster') + listActionButton('share', 'data-share-list', saved.id, 'Share list') + listActionButton('add', 'data-add-entries', saved.id, 'Add entries') + listActionButton('delete', 'data-delete-list', saved.id, 'Delete working copy') : listActionButton('add', 'data-official-open', row.id, saved ? 'Open my copy' : 'Add to My Lists')}</div></div></article>`;
       })
       .join('') ||
     '<div class="empty"><h2>No official collections match.</h2><button class="secondary" data-clear-catalogue="official-list-search">Clear search</button></div>';
@@ -244,6 +264,7 @@ $('official-items').addEventListener('click', (e) => {
   if (remove) task(remove, () => openListDelete(remove.dataset.deleteList));
 });
 function drawListCatalogue() {
+  drawPlexPublicationNotice();
   if (!$('saved-list-grid')) return;
   $('saved-list-grid').innerHTML =
     catalogueSort(
@@ -259,7 +280,7 @@ function drawListCatalogue() {
     )
       .map(
         (entry) =>
-          `<article class="saved-list-card">${batchListCheckbox('my', entry.id, entry.name)}<button class="saved-list-cover" data-open-list="${esc(entry.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">${entry.source ? 'LINKED SOURCE' : 'LOCAL COLLECTION'}</span><h2><button class="title-link" data-open-list="${esc(entry.id)}">${esc(entry.name)}</button></h2><p class="muted">${entry.items.length} entries${entry.description ? ' · ' + esc(entry.description.slice(0, 140)) : ''}</p><div class="saved-list-actions" role="group" aria-label="List actions">${listActionButton('edit', 'data-edit-list', entry.id, 'Edit list & poster')}${listActionButton('share', 'data-share-list', entry.id, 'Share list')}${listActionButton('add', 'data-add-entries', entry.id, 'Add entries')}${listActionButton('delete', 'data-delete-list', entry.id, 'Delete list')}${entry.source ? listActionButton('refresh', 'data-refresh-saved', entry.id, 'Refresh source') : ''}</div></div></article>`
+          `<article class="saved-list-card">${batchListCheckbox('my', entry.id, entry.name)}<button class="saved-list-cover" data-open-list="${esc(entry.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">${entry.source ? 'LINKED SOURCE' : 'LOCAL COLLECTION'}</span><h2><button class="title-link" data-open-list="${esc(entry.id)}">${esc(entry.name)}</button></h2><p class="muted">${entry.items.length} entries${entry.description ? ' · ' + esc(entry.description.slice(0, 140)) : ''}</p>${playlistLinkMarkup(entry)}<div class="saved-list-actions" role="group" aria-label="List actions">${listActionButton('edit', 'data-edit-list', entry.id, 'Edit list & poster')}${listActionButton('share', 'data-share-list', entry.id, 'Share list')}${listActionButton('add', 'data-add-entries', entry.id, 'Add entries')}${listActionButton('delete', 'data-delete-list', entry.id, 'Delete list')}${entry.source ? listActionButton('refresh', 'data-refresh-saved', entry.id, 'Refresh source') : ''}</div></div></article>`
       )
       .join('') ||
     (state.lists.some((row) => !row.official_authoring)
@@ -399,13 +420,45 @@ function editorMembershipChanged() {
     JSON.stringify((listEditor.original?.items || []).map((r) => r.id))
   );
 }
+function insertEditorEntries(rows) {
+  const position = Number($('list-insert-position').value);
+  if (!Number.isInteger(position) || position < 1 || position > listEditor.items.length + 1) {
+    toast(`Choose an insertion position from 1 to ${listEditor.items.length + 1}.`);
+    return false;
+  }
+  if (listEditor.items.length + rows.length > 10000) {
+    toast('A saved list supports up to 10,000 entries.');
+    return false;
+  }
+  listEditor.items.splice(position - 1, 0, ...rows);
+  $('list-insert-position').value = String(position + rows.length);
+  return true;
+}
+function moveEditorEntry(from, position) {
+  if (Number.isInteger(position) && position >= 1 && position <= listEditor.items.length) {
+    const [row] = listEditor.items.splice(from, 1);
+    listEditor.items.splice(position - 1, 0, row);
+    return true;
+  }
+  toast(`Choose a position from 1 to ${listEditor.items.length}.`);
+  return false;
+}
+$('list-editor-items').addEventListener('change', (e) => {
+  const input = e.target.closest('[data-list-position]');
+  if (!input) return;
+  moveEditorEntry(Number(input.dataset.listPosition), Number(input.value));
+  drawEditorItems();
+});
 function drawEditorItems() {
   if (!listEditor) return;
+  if (Number($('list-insert-position').value) > listEditor.items.length + 1)
+    $('list-insert-position').value = String(listEditor.items.length + 1);
+  $('list-insert-position').max = String(listEditor.items.length + 1);
   $('list-editor-count').textContent = `(${listEditor.items.length})`;
   $('list-editor-items').innerHTML = listEditor.items
     .map(
       (row, index) =>
-        `<div class="list-edit-row"><span><b>${esc(row.title)}</b><small>${esc(row.type)}${row.year ? ' · ' + esc(row.year) : ''}${row.season != null ? ' · S' + esc(row.season) : ''}${row.episode != null ? ' E' + esc(row.episode) : ''}</small></span><button class="secondary" type="button" data-list-move="${index}" data-direction="-1" aria-label="Move ${esc(row.title)} up" ${index === 0 ? 'disabled' : ''}>↑</button><button class="secondary" type="button" data-list-move="${index}" data-direction="1" aria-label="Move ${esc(row.title)} down" ${index === listEditor.items.length - 1 ? 'disabled' : ''}>↓</button><button class="text-action" type="button" data-list-remove="${index}" aria-label="Remove ${esc(row.title)}">Remove</button></div>`
+        `<div class="list-edit-row"><label class="entry-order-position">Position<input type="number" min="1" max="${listEditor.items.length}" value="${index + 1}" data-list-position="${index}" aria-label="Position of ${esc(row.title)}"></label><span><b>${esc(row.title)}</b><small>${esc(row.type)}${row.year ? ' · ' + esc(row.year) : ''}${row.season != null ? ' · S' + esc(row.season) : ''}${row.episode != null ? ' E' + esc(row.episode) : ''}</small></span><button class="secondary" type="button" data-list-insert-after="${index}">Insert after</button><button class="secondary" type="button" data-list-move="${index}" data-direction="-1" aria-label="Move ${esc(row.title)} up" ${index === 0 ? 'disabled' : ''}>↑</button><button class="secondary" type="button" data-list-move="${index}" data-direction="1" aria-label="Move ${esc(row.title)} down" ${index === listEditor.items.length - 1 ? 'disabled' : ''}>↓</button><button class="text-action" type="button" data-list-remove="${index}" aria-label="Remove ${esc(row.title)}">Remove</button></div>`
     )
     .join('');
   updateEditorLink();
@@ -439,6 +492,7 @@ async function editSavedList(id) {
     playlist_poster: original?.playlist_poster || '',
     poster: original?.poster || '',
   };
+  $('list-insert-position').value = String(listEditor.items.length + 1);
   $('list-edit-name').value = original?.name || '';
   $('list-edit-description').value = original?.description || '';
   $('list-edit-mode').value = original?.source ? 'linked' : 'local';
@@ -546,7 +600,7 @@ $('list-provider-add').onclick = () => {
   );
   if (listEditor.items.length + added.length > 10000)
     return toast('A saved list supports up to 10,000 entries.');
-  listEditor.items.push(...added);
+  if (!insertEditorEntries(added)) return;
   if (!$('list-edit-name').value.trim()) $('list-edit-name').value = listProviderPreview.name;
   $('list-provider-status').textContent =
     `${added.length} entries added to draft; ${listProviderPreview.items.length - added.length} duplicates skipped. Choose Save list to keep these changes.`;
@@ -564,8 +618,16 @@ $('builder-provider-open').onclick = (event) =>
   });
 $('list-edit-mode').onchange = updateEditorLink;
 $('list-editor-items').onclick = (e) => {
+  const insert = e.target.closest('[data-list-insert-after]');
+  if (insert) {
+    $('list-insert-position').value = String(Number(insert.dataset.listInsertAfter) + 2);
+    $('list-add-query').scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    $('list-add-query').focus?.();
+    return;
+  }
   const remove = e.target.closest('[data-list-remove]'),
     move = e.target.closest('[data-list-move]');
+  if (!remove && !move) return;
   if (remove) listEditor.items.splice(Number(remove.dataset.listRemove), 1);
   if (move) {
     const from = Number(move.dataset.listMove),
@@ -627,13 +689,15 @@ $('list-add-results').onclick = (e) => {
         toast('Choose a valid first and last season, up to 100 seasons.');
         return;
       }
+      const rows = [];
       for (let number = Number(season); number <= Number(last); number++)
-        listEditor.items.push({ ...row, season: String(number), _new: crypto.randomUUID() });
+        rows.push({ ...row, season: String(number), _new: crypto.randomUUID() });
+      if (!insertEditorEntries(rows)) return;
       drawEditorItems();
       return;
     }
   }
-  listEditor.items.push(row);
+  if (!insertEditorEntries([row])) return;
   drawEditorItems();
 };
 $('list-clear-poster').onclick = () => {

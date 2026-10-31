@@ -14,6 +14,32 @@ import release_watch
 
 
 class CollectionTests(unittest.TestCase):
+    def test_portrait_poster_edit_marks_linked_playlist_for_review(self):
+        import base64
+
+        entry = {
+            "id": "list",
+            "name": "List",
+            "items": [],
+            "playlist": {"key": "7", "server": "http://plex"},
+        }
+        image = (
+            "data:image/png;base64,"
+            + base64.b64encode(b"\x89PNG\r\n\x1a\nfixture").decode()
+        )
+        result = saved_lists.edit(
+            entry,
+            {
+                "revision": saved_lists.revision(entry),
+                "name": "List",
+                "items": [],
+                "poster": image,
+            },
+            app.normalize,
+        )
+        self.assertEqual(result["playlist"], entry["playlist"])
+        self.assertTrue(result["playlist_needs_update"])
+
     def test_link_presentation_preserves_source_membership_requires_confirmation(self):
         entry = {
             "id": "list",

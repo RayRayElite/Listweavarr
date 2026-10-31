@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Insert editor entries after any item or at a numbered position, and move
+  existing entries directly by position. Provider imports and season ranges keep
+  their sequence at the chosen insertion point.
+- Surface linked Plex playlist status and review actions on list catalogues.
+  Source updates, undo and poster edits retain the exact publication link and
+  mark it for an explicit reviewed Plex update.
+
 - Select multiple My Lists or Official Lists and preview/create a Plex playlist
   for each, with editable names, availability counts, saved artwork and individual
   results. Existing playlists stay intact; failed rows do not stop the batch.
