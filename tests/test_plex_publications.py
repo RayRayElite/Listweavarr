@@ -8,6 +8,20 @@ import plex_publications
 
 
 class PublicationTests(unittest.TestCase):
+    def test_duplicate_playable_scopes_fail_before_creating_a_playlist(self):
+        rows = [
+            {"status": "available", "plex_keys": ["1", "2"]},
+            {"status": "available", "plex_keys": ["1"]},
+        ]
+        with patch("app.compare", return_value=rows), patch("app.remote") as remote:
+            with self.assertRaisesRegex(ValueError, "1 repeated Plex items"):
+                app.create_playlist(
+                    {"name": "Overlapping list", "items": rows},
+                    {"plex": {"url": "http://nas", "key": "private"}},
+                    "Overlapping list",
+                )
+        remote.assert_not_called()
+
     def test_remote_drift_preserves_old_target_before_deletion(self):
         entry = {
             "name": "List",

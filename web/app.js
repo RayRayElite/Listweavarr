@@ -2296,12 +2296,18 @@ $('playlist-open').onclick = (e) =>
     $('playlist-preview-items').innerHTML =
       `<details><summary>Review selected watch order and omitted entries</summary><ol>${(plan.entries || []).map((r) => `<li><strong>${esc(r.title)}</strong> / ${esc(r.type)} / ${r.count ? r.count + ' playable item(s)' : 'Omitted: ' + esc(r.status)}${r.status === 'partial' ? ' / incomplete scope' : ''}<small>${esc(r.detail)}</small></li>`).join('')}</ol></details>`;
     $('playlist-title').value = plan.name;
-    $('playlist-form').querySelector('[type=submit]').disabled = !plan.count;
+    $('playlist-form').querySelector('[type=submit]').disabled =
+      !plan.count || !!plan.duplicate_count;
     $('playlist-replace-label').hidden = !current().playlist;
     $('playlist-replace').checked = false;
     $('playlist-plan').textContent =
       `${plan.count} available movies/episodes in ${plan.watch_order ? plan.watch_order + ' watch order' : 'original list order'}. ${plan.omitted} entries currently have no confirmed available items and will be omitted. Availability is checked again before creation.`;
     originalPlaylistPlan = $('playlist-plan').textContent;
+    if (plan.duplicate_count) {
+      $('playlist-plan').textContent +=
+        ` ${plan.duplicate_count} repeated Plex items need review in List health before publishing. Plex may collapse those occurrences.`;
+      originalPlaylistPlan = $('playlist-plan').textContent;
+    }
     $('playlist-dialog').showModal();
   });
 $('playlist-replace').onchange = (e) =>

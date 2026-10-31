@@ -1610,6 +1610,7 @@ def playlist_preview(entry):
     return {
         "keys": keys,
         "count": len(keys),
+        "duplicate_count": len(keys) - len(set(keys)),
         "omitted": omitted,
         "name": entry["name"],
         "entries": rows,
@@ -1993,6 +1994,13 @@ def create_playlist(entry, settings, title, replace=False, expected=None, guard=
     # Recheck the catalog immediately before writing to Plex.
     entry["items"] = compare(entry["items"], settings)
     plan = playlist_preview(entry)
+    if plan["duplicate_count"]:
+        raise ValueError(
+            f'This list expands to {plan["duplicate_count"]} repeated Plex items. '
+            "Plex may collapse those entries during playlist creation. "
+            "Check List health for overlapping entries or incorrect season matches before publishing. "
+            "No new playlist was created."
+        )
     if expected and plan["fingerprint"] != expected["desired_fingerprint"]:
         raise ValueError(
             "Plex availability or artwork changed after preview. Review the publication again."

@@ -188,8 +188,10 @@ async function previewBatchPlaylists(kind) {
         row.name = entry.name;
         row.title = entry.name;
         const plan = await api('playlist/preview', { list_id: entry.id, watch_order: null });
-        row.ready = plan.count > 0;
+        row.ready = plan.count > 0 && !plan.duplicate_count;
         row.status = `${plan.count} available movies/episodes; ${plan.omitted} entries omitted.${entry.playlist ? ' A prior playlist exists; this creates a separate one.' : ''}`;
+        if (plan.duplicate_count)
+          row.status += ` ${plan.duplicate_count} repeated Plex items need review in List health before publishing.`;
       } catch (error) {
         row.status = error.message || 'Could not preview this list.';
       }

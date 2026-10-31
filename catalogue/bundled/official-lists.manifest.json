@@ -1,6 +1,6 @@
 {
   "format": "reelcheck-catalogue-manifest",
-  "version": 4,
+  "version": 5,
   "lists": [
     {
       "id": "curated-bcfb4782b44a27a6",
@@ -311,8 +311,8 @@
     {
       "id": "curated-d63a09495b96721f",
       "name": "Digimon Collection",
-      "version": 1,
-      "count": 124
+      "version": 2,
+      "count": 126
     },
     {
       "id": "curated-120f87362f831684",
