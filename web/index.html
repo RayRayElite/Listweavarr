@@ -1305,11 +1305,17 @@ episode,Pilot,,,263365,1,1</pre
             ><button id="list-clear-poster" type="button" class="text-action">Remove poster</button>
           </div>
         </div>
+        <label
+          >Artwork sent to Plex<select id="list-plex-poster-shape">
+            <option value="portrait">Collection poster (portrait, default)</option>
+            <option value="square">Separate square playlist cover</option>
+          </select></label
+        >
         <details class="playlist-art-editor">
           <summary>Square Plex playlist cover</summary>
           <p class="muted">
             Separate from the portrait collection poster. Uploaded images are centre-cropped to a
-            square. Used when you create or update its Plex playlist.
+            square. Used for publication only when you select the square option above.
           </p>
           <img id="list-playlist-poster-preview" alt="Square playlist cover" hidden /><label
             >Playlist cover image<input

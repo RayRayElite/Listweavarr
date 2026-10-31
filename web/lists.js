@@ -585,6 +585,7 @@ function updateEditorLink() {
 }
 async function editSavedList(id) {
   let original = id ? state.lists.find((r) => r.id === id) : null;
+  $('list-plex-poster-shape').value = original?.plex_poster_shape || 'portrait';
   let revision = '';
   if (original) {
     const fresh = await api('lists/revision', { list_id: id });
@@ -891,6 +892,7 @@ $('list-editor-form').onsubmit = (e) => {
         description: $('list-edit-description').value,
         poster: listEditor.poster,
         playlist_poster: listEditor.playlist_poster || '',
+        plex_poster_shape: $('list-plex-poster-shape').value,
         items: imported.items.map((r) => ({ id: r.id })),
       });
       replaceList(saved.entry);
@@ -903,6 +905,7 @@ $('list-editor-form').onsubmit = (e) => {
       description: $('list-edit-description').value,
       poster: listEditor.poster,
       playlist_poster: listEditor.playlist_poster || '',
+      plex_poster_shape: $('list-plex-poster-shape').value,
       items: listEditor.items,
       detach: !linked,
       confirm_detach: $('list-confirm-detach').checked,

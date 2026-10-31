@@ -5,9 +5,47 @@ import xml.etree.ElementTree as ET
 from unittest.mock import patch
 import app
 import plex_publications
+import saved_lists
 
 
 class PublicationTests(unittest.TestCase):
+    def test_uploaded_portrait_wins_over_legacy_square_unless_selected(self):
+        entry = {
+            "name": "Images",
+            "items": [],
+            "poster": "uploaded portrait",
+            "playlist_poster": "old generated square",
+        }
+        self.assertEqual(saved_lists.publication_poster(entry), "uploaded portrait")
+        before = app.playlist_preview(entry)["fingerprint"]
+        entry["plex_poster_shape"] = "square"
+        self.assertEqual(saved_lists.publication_poster(entry), "old generated square")
+        self.assertNotEqual(before, app.playlist_preview(entry)["fingerprint"])
+        del entry["playlist_poster"]
+        self.assertEqual(saved_lists.publication_poster(entry), "uploaded portrait")
+
+    def test_creation_uploads_selected_portrait_without_reordering_items(self):
+        rows = [{"title": "Film", "status": "available", "plex_keys": ["1"]}]
+        entry = {
+            "name": "Art",
+            "items": rows,
+            "poster": "portrait",
+            "playlist_poster": "square",
+        }
+        responses = [
+            ET.fromstring('<MediaContainer machineIdentifier="server"/>'),
+            ET.fromstring('<MediaContainer><Playlist ratingKey="5"/></MediaContainer>'),
+            ET.fromstring('<MediaContainer><Video ratingKey="1"/></MediaContainer>'),
+        ]
+        with patch("app.compare", return_value=rows), patch(
+            "app.remote", side_effect=responses
+        ), patch("app.upload_playlist_poster") as upload:
+            result = app.create_playlist(
+                entry, {"plex": {"url": "http://plex", "key": "private"}}, "Art"
+            )
+        self.assertEqual(upload.call_args.args[1], "portrait")
+        self.assertEqual(result["warning"], "")
+
     def test_fully_covered_season_yields_to_explicit_episode_order(self):
         plan = app.playlist_preview(
             {

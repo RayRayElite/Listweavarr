@@ -347,3 +347,10 @@ List tools > Episode order & editions reads TMDB episode groups (DVD, absolute, 
 Preferences > Spoiler protection enables conservative hiding until explicit reveal, including watched titles when watch completeness is uncertain. Posters may contain spoilers. Workbench > Feedback insights enables local recommendation logging (off by default), reports correlations and supports confirmed resets. Creator checks and inbox aggregation happen while the app is used; no closed-app scheduler or automatic creator downloads are implied. Storage estimates use your per-item size range and manager-reported free space, not a promised quality-profile file size. All additions are included in workspace backups. See ROADMAP.md for implementation scope and remaining refinements.
 
 Official catalogue delivery: publish list changes, then use Official Lists > Updates > Get catalogue updates > Export catalogue to download official-lists.json. Host that file at a public HTTPS raw JSON URL of your choosing. Recipients save/check that URL or select the file, inspect the proposed new lists and versions, and install explicitly. Installation updates the catalogue only; personal copies use the separate preserve/exact update flow. Sources must be public, credential-free JSON links (not web viewing pages), up to 30 MB. Catalogue versions are stable per list: changed content must be republished at a higher version. Missing local catalogue entries are kept and older remote versions are skipped. This does not automatically upload your catalogue or overwrite personal working lists.
+
+Plex playlist artwork: Edit list & poster > Artwork sent to Plex defaults to the
+portrait collection poster. Choose Separate square playlist cover explicitly to
+publish that image instead. The other image is used only if the selected shape
+has no image. An old generated square cover no longer overrides an uploaded
+portrait automatically. The Companion's own portrait/square display setting is
+independent of this per-list publication choice.

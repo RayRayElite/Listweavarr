@@ -1665,9 +1665,7 @@ def playlist_preview(entry):
                 {
                     "keys": keys,
                     "artwork": hashlib.sha256(
-                        (
-                            entry.get("playlist_poster") or entry.get("poster") or ""
-                        ).encode()
+                        (saved_lists.publication_poster(entry)).encode()
                     ).hexdigest(),
                 }
             ).encode()
@@ -2120,9 +2118,7 @@ def create_playlist(entry, settings, title, replace=False, expected=None, guard=
     warning = ""
     if entry.get("playlist_poster") or entry.get("poster"):
         try:
-            upload_playlist_poster(
-                key, entry.get("playlist_poster") or entry["poster"], cfg
-            )
+            upload_playlist_poster(key, saved_lists.publication_poster(entry), cfg)
         except (ValueError, ET.ParseError):
             warning = "Playlist saved, but Plex did not confirm its poster. Your list image is retained; recreate the playlist to retry."
     if previous:

@@ -18,6 +18,19 @@ def revision(entry):
     return hashlib.sha256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
 
 
+def publication_poster(entry):
+    """Portrait is the publication default; a stored square cover is not consent
+    to override a newer portrait. Owners can explicitly select square per list.
+    Keep the other image as fallback when the chosen shape has no artwork.
+    """
+    first, fallback = (
+        ("playlist_poster", "poster")
+        if entry.get("plex_poster_shape") == "square"
+        else ("poster", "playlist_poster")
+    )
+    return entry.get(first) or entry.get(fallback) or ""
+
+
 def poster(value):
     if not value:
         return ""
@@ -66,6 +79,10 @@ def edit(entry, body, normalize):
             body.get("playlist_poster", result.get("playlist_poster", ""))
         ),
     )
+    shape = body.get("plex_poster_shape", result.get("plex_poster_shape", "portrait"))
+    if shape not in ("portrait", "square"):
+        raise ValueError("Choose portrait or square Plex artwork.")
+    result["plex_poster_shape"] = shape
     values = body.get("items")
     if not isinstance(values, list) or len(values) > 10000:
         raise ValueError("A list supports up to 10,000 entries.")
@@ -123,6 +140,8 @@ def edit(entry, body, normalize):
         changed
         or result.get("playlist_poster") != (entry or {}).get("playlist_poster")
         or result.get("poster") != (entry or {}).get("poster")
+        or result.get("plex_poster_shape", "portrait")
+        != (entry or {}).get("plex_poster_shape", "portrait")
     ) and result.get("playlist"):
         result["playlist_needs_update"] = True
     return result

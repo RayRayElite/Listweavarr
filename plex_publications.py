@@ -9,6 +9,7 @@ import json
 from collections import Counter
 
 import list_updates
+import saved_lists
 
 
 def digest(value):
@@ -21,7 +22,7 @@ def baseline(entry, settings):
         [
             list_updates.fingerprint(entry),
             entry.get("playlist"),
-            entry.get("playlist_poster") or entry.get("poster"),
+            saved_lists.publication_poster(entry),
             cfg,
         ]
     )
