@@ -765,13 +765,13 @@ class PlexDirectHTTPSConnection(http.client.HTTPSConnection):
             raise
 
 
-def plex_direct_request(parsed, path, headers, timeout, method="GET"):
+def plex_direct_request(parsed, path, headers, timeout, method="GET", payload=None):
     connection = PlexDirectHTTPSConnection(
         parsed.hostname, parsed.port or 443, timeout=timeout
     )
     try:
         target = (parsed.path.rstrip("/") + path) or "/"
-        connection.request(method, target, headers=headers)
+        connection.request(method, target, body=payload, headers=headers)
         response = connection.getresponse()
         if response.status not in (200, 201, 204):
             raise ValueError(f"Plex server returned HTTP {response.status}.")
@@ -831,7 +831,7 @@ def remote(base, path, key="", payload=None, method=None, plex=False, timeout=45
         ):
             try:
                 return plex_direct_request(
-                    parsed, path, headers, timeout, method or "GET"
+                    parsed, path, headers, timeout, method or "GET", payload=req.data
                 )
             except (OSError, http.client.HTTPException):
                 raise ValueError(

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Preserve poster upload bytes through the Plex Direct HTTPS DNS fallback so
+  newly created playlists receive their selected Listweavarr artwork.
+
 - Expand bundled Official Lists to 57 curated collections and 14,069 entries.
   Favorites and So Bad Its Good remain personal; bundled lists exclude artwork.
 

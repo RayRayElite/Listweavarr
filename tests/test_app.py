@@ -306,6 +306,36 @@ class PlexLogin(unittest.TestCase):
         )
         self.assertEqual(fallback.call_args.args[1], "/library/sections")
 
+    def test_dns_fallback_preserves_poster_upload_bytes(self):
+        raw = b"\x89PNG\r\n\x1a\nposter"
+        with (
+            patch(
+                "app.urllib.request.urlopen",
+                side_effect=urllib.error.URLError(socket.gaierror("DNS failure")),
+            ),
+            patch("app.PlexDirectHTTPSConnection") as connection,
+        ):
+            response = connection.return_value.getresponse.return_value
+            response.status = 200
+            response.read.return_value = b""
+            app.remote(
+                "https://192-168-1-20.example.plex.direct:32400",
+                "/library/metadata/12/posters",
+                "secret",
+                payload=raw,
+                method="POST",
+                plex=True,
+            )
+        request = connection.return_value.request
+        self.assertEqual(
+            request.call_args.args, ("POST", "/library/metadata/12/posters")
+        )
+        self.assertEqual(request.call_args.kwargs["body"], raw)
+        self.assertEqual(
+            request.call_args.kwargs["headers"]["Content-Type"],
+            "application/octet-stream",
+        )
+
     def test_other_network_errors_do_not_use_fallback(self):
         with (
             patch(
