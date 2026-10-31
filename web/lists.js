@@ -15,6 +15,7 @@ function batchSelectionStatus(kind) {
   $(kind + '-batch-create').hidden = !batchListMode[kind];
   $(kind + '-batch-create').disabled = !count;
   $(kind + '-batch-clear').hidden = !batchListMode[kind];
+  $(kind + '-batch-all').hidden = !batchListMode[kind];
   $(kind + '-batch-toggle').textContent = batchListMode[kind] ? 'Done selecting' : 'Select lists';
 }
 for (const [kind, grid] of [
@@ -28,6 +29,20 @@ for (const [kind, grid] of [
   };
   $(kind + '-batch-clear').onclick = () => {
     batchListSelection[kind].clear();
+    batchSelectionStatus(kind);
+    kind === 'my' ? drawListCatalogue() : drawOfficialCatalogue();
+  };
+  $(kind + '-batch-all').onclick = () => {
+    const search =
+      $(kind === 'my' ? 'my-list-search' : 'official-list-search')?.value?.toLowerCase() || '';
+    const rows =
+      kind === 'my' ? state.lists.filter((row) => !row.official_authoring) : officialCatalogue;
+    for (const row of rows)
+      if (
+        !search ||
+        ((row.name || '') + ' ' + (row.description || '')).toLowerCase().includes(search)
+      )
+        batchListSelection[kind].add(row.id);
     batchSelectionStatus(kind);
     kind === 'my' ? drawListCatalogue() : drawOfficialCatalogue();
   };

@@ -2,6 +2,8 @@
 /* Portrait resume row. Uses only our DOM; never stretches a virtualized Plex grid. */
 (function (root) {
   'use strict';
+  const ROW_SELECTOR =
+    '[class*="VirtualHubScroller-hub-"], [class*="HubCell-hubCell-"], [class*="Hub-hub-"]';
   function isHome(hash) {
     return /^(?:#!?\/(?:home)?(?:\?.*)?)?$/.test(hash || '');
   }
@@ -76,8 +78,11 @@
     const page = document.querySelector('[class*="PageContent-pageContentScroller-"]');
     // Plex can apply both page and scroller classes to the same element.
     // querySelector searches descendants only, so retain the page itself.
-    if (page) return page.querySelector('[class*="Scroller-scroller-"]') || page;
-    const hub = document.querySelector('[class*="HubCell-hubCell-"], [class*="Hub-hub-"]');
+    if (page)
+      return page.matches?.('[class*="Scroller-scroller-"]')
+        ? page
+        : page.querySelector('[class*="Scroller-scroller-"]') || page;
+    const hub = document.querySelector(ROW_SELECTOR);
     return hub?.closest('[class*="PageContent-innerPageContent-"]') || hub?.parentElement;
   }
   function rowPreference(storage) {
@@ -96,7 +101,7 @@
   }
   function findHomePlacement(document, preference = { mode: 'after-continue' }) {
     if (preference.mode !== 'after-continue') {
-      const selector = '[class*="HubCell-hubCell-"], [class*="Hub-hub-"]';
+      const selector = ROW_SELECTOR;
       const hubs = Array.from(document.querySelectorAll(selector)).filter(
         (hub) => !hub.closest?.('.lw-playlist-home') && !hub.parentElement?.closest?.(selector)
       );
@@ -128,7 +133,7 @@
       document.querySelectorAll('h1,h2,h3,[role="heading"],[class*="Hub"],[class*="hub"]')
     ).find((element) => element.textContent.trim() === 'Continue Watching');
     if (heading) {
-      let hub = heading.closest('[class*="HubCell-hubCell-"], [class*="Hub-hub-"]');
+      let hub = heading.closest(ROW_SELECTOR);
       if (!hub) {
         for (
           let parent = heading.parentElement;

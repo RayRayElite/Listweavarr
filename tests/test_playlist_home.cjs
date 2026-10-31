@@ -107,9 +107,27 @@ class Element {
   }
   querySelectorAll(selector) {
     return this.children.flatMap((child) => [
-      ...(selector.split(',').includes(child.tagName.toLowerCase()) ? [child] : []),
+      ...(child.matches(selector) ? [child] : []),
       ...child.querySelectorAll(selector),
     ]);
+  }
+  matches(selector) {
+    return selector.split(',').some((part) => {
+      part = part.trim();
+      const match = part.match(/^\[class\*="([^"]+)"\]$/);
+      return match
+        ? String(this.className || '').includes(match[1])
+        : part.startsWith('.')
+          ? String(this.className || '')
+              .split(' ')
+              .includes(part.slice(1))
+          : part === this.tagName.toLowerCase();
+    });
+  }
+  closest(selector) {
+    for (let current = this; current; current = current.parentElement)
+      if (current.matches(selector)) return current;
+    return null;
   }
   querySelector(selector) {
     return this.querySelectorAll(selector)[0] || null;
@@ -131,6 +149,40 @@ class Element {
   }
 }
 (async () => {
+  // Structure observed in Plex Windows: the full row is VirtualHubScroller,
+  // while PageContent itself is the vertical Scroller. A descendant Scroller
+  // belongs to the horizontal cards and must never be a row insertion target.
+  const fixture = new Element('body'),
+    page = new Element('div');
+  page.className = 'PageContent-pageContentScroller-dvaH3C Scroller-scroller-S6_dko';
+  fixture.append(page);
+  const nativeRows = Array.from({ length: 3 }, (_, index) => {
+    const row = new Element('div');
+    row.className = 'VirtualHubScroller-hub-EpgwMo';
+    const header = new Element('h2');
+    header.textContent = index ? 'Native row ' + index : 'Continue Watching';
+    const horizontal = new Element('div');
+    horizontal.className = 'VirtualHubScroller-hubScroller-gv2_Qy Scroller-scroller-S6_dko';
+    const card = new Element('div');
+    card.className = 'HubCell-hubCell-fixture';
+    horizontal.append(card);
+    row.append(header, horizontal);
+    page.append(row);
+    return row;
+  });
+  const nativeDocument = {
+    body: fixture,
+    querySelector: (selector) => fixture.querySelector(selector),
+    querySelectorAll: (selector) => fixture.querySelectorAll(selector),
+  };
+  assert.equal(home.findHomeContainer(nativeDocument), page);
+  assert.equal(home.findHomePlacement(nativeDocument, { mode: 'top' }).before, nativeRows[0]);
+  assert.equal(home.findHomePlacement(nativeDocument, { mode: 'bottom' }).hub, nativeRows[2]);
+  assert.equal(
+    home.findHomePlacement(nativeDocument, { mode: 'after-row', index: 2 }).hub,
+    nativeRows[1]
+  );
+  assert.equal(home.findHomePlacement(nativeDocument).hub, nativeRows[0]);
   const body = new Element('body'),
     head = new Element('head'),
     container = new Element('main');
@@ -227,6 +279,17 @@ class Element {
   );
   const dashboard = { verifiedBuild: true, progressSync: { sync: async () => {} } };
   const disposeSettings = context.ListweavarrPlaylistSettings.mount(api, dashboard);
+  const settingsFixture = new Element('body'),
+    settingsContent = new Element('div'),
+    settingsSidebar = new Element('div');
+  settingsContent.className = 'SettingsPage-content-qemqww PageContent-pageContent-rk0p0C';
+  settingsSidebar.className = 'SettingsSidebar-sidebarContent-c4JDd9';
+  settingsFixture.append(settingsContent, settingsSidebar);
+  const found = context.ListweavarrPlaylistSettings.targets({
+    querySelector: (selector) => settingsFixture.querySelector(selector),
+  });
+  assert.equal(found.content, settingsContent);
+  assert.equal(found.sidebar, settingsSidebar);
   dashboard.openSettings();
   const position = elements.find((element) => element.tagName === 'SELECT');
   position.value = 'after-row';

@@ -1,6 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 (function (root) {
   'use strict';
+  function targets(document) {
+    return {
+      content: document.querySelector(
+        '[class*="SettingsPage-content-"], [class*="PageContent-pageContentScroller-"]'
+      ),
+      sidebar: document.querySelector('[class*="SettingsSidebar-sidebarContent-"]'),
+    };
+  }
   function mount(api, state) {
     const dialog = document.createElement('dialog');
     dialog.setAttribute('aria-label', 'Playlist companion settings');
@@ -218,7 +226,7 @@
     // native routes or changing their controls. Home's gear remains a shortcut.
     const entry = document.createElement('section');
     entry.style.cssText =
-      'padding:18px;margin:16px 24px;border:1px solid #555;border-radius:8px;background:#252525;color:#eee';
+      'padding:18px;margin:16px 0;border:1px solid #555;border-radius:8px;background:#252525;color:#eee';
     const entryTitle = document.createElement('h3');
     entryTitle.textContent = 'Playlist companion';
     const entryNote = document.createElement('p');
@@ -228,16 +236,42 @@
     open.type = 'button';
     open.onclick = () => state.openSettings();
     entry.append(entryTitle, entryNote, open);
+    const navigation = document.createElement('div');
+    navigation.className = 'lw-companion-settings-nav';
+    const navigationHeading = document.createElement('div');
+    navigationHeading.textContent = 'Listweavarr';
+    navigationHeading.style.cssText =
+      'padding:18px 24px 8px;font-weight:600;font-size:13px;color:#999';
+    const navigationButton = document.createElement('button');
+    navigationButton.type = 'button';
+    navigationButton.textContent = 'Playlist companion';
+    navigationButton.style.cssText =
+      'display:block;width:100%;text-align:left;padding:9px 42px;background:transparent;border:0;color:#ddd;cursor:pointer;font:inherit';
+    navigationButton.onclick = () => state.openSettings();
+    navigationButton.onmouseenter = () => {
+      navigationButton.style.color = '#e5a00d';
+    };
+    navigationButton.onmouseleave = () => {
+      navigationButton.style.color = '#ddd';
+    };
+    navigation.append(navigationHeading, navigationButton);
     let timer;
     function attach() {
       if (!/\/settings(?:[/?]|$)/.test(location.hash)) {
         entry.remove();
+        navigation.remove();
         return;
       }
-      const page = document.querySelector('[class*="PageContent-pageContentScroller-"]');
-      const container = page?.querySelector('[class*="Scroller-scroller-"]') || page;
-      if (container && entry.parentElement !== container)
-        container.insertBefore(entry, container.firstChild);
+      const { content: container, sidebar } = targets(document);
+      if (sidebar && navigation.parentElement !== sidebar)
+        sidebar.insertBefore(
+          navigation,
+          sidebar.querySelector('[class*="ServerSettingsServerMenuButton-button-"]')
+        );
+      if (container && entry.parentElement !== container) {
+        const header = container.querySelector('[class*="SettingsPageHeader-header-"]');
+        container.insertBefore(entry, header?.nextSibling || container.firstChild);
+      }
     }
     const schedule = () => {
       if (!timer)
@@ -258,8 +292,9 @@
       observer.disconnect();
       root.removeEventListener('hashchange', schedule);
       entry.remove();
+      navigation.remove();
       dialog.remove();
     };
   }
-  root.ListweavarrPlaylistSettings = { mount };
+  root.ListweavarrPlaylistSettings = { mount, targets };
 })(globalThis);

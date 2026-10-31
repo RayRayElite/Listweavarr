@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add Select all for multi-list Plex playlist creation in both list catalogues.
+  Selection respects the current search filter.
+- Use the observed full VirtualHubScroller rows for Home placement, preserving
+  native headings and supporting top, bottom and numbered positions. Add the
+  companion entry to Plex's actual Settings sidebar and content container.
+
 - Add an early Ctrl+Alt+Shift+L companion pause/re-enable shortcut and a standalone
   Windows recovery launcher that preserves newer Plex files and saved progress.
   New version strings alone no longer block otherwise-compatible runtime hooks.

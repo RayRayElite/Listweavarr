@@ -731,6 +731,24 @@ vm.runInContext(
   assert.equal(vm.runInContext(`matchesMovieYear({type:'movie'})`, context), true);
   vm.runInContext(fs.readFileSync('web/lists.js', 'utf8'), context);
   vm.runInContext(
+    `state.lists=[{id:'select-a',name:'Alpha',items:[]},{id:'select-b',name:'Beta',items:[]},{id:'author',name:'Author',official_authoring:true,items:[]}];$('my-list-search').value='';batchListMode.my=true;`,
+    context
+  );
+  element('my-batch-all').onclick();
+  assert.equal(vm.runInContext(`batchListSelection.my.size`, context), 2);
+  element('my-batch-clear').onclick();
+  element('my-list-search').value = 'Alpha';
+  element('my-batch-all').onclick();
+  assert.equal(vm.runInContext(`[...batchListSelection.my].join(',')`, context), 'select-a');
+  element('my-list-search').value = '';
+  vm.runInContext(
+    `officialCatalogue=[{id:'one',name:'One'},{id:'two',name:'Two'}];$('official-list-search').value='';batchListMode.official=true;`,
+    context
+  );
+  element('official-batch-all').onclick();
+  assert.equal(vm.runInContext(`batchListSelection.official.size`, context), 2);
+  element('official-batch-clear').onclick();
+  vm.runInContext(
     `
     state.lists=[{id:'batch-a',name:'Batch A',items:[]},{id:'batch-b',name:'Batch B',items:[]},{id:'batch-empty',name:'Empty',items:[]}];
     calls=[]; batchListSelection.my=new Set(['batch-a','batch-b','batch-empty']);
