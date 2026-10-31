@@ -3,14 +3,18 @@
 Investigated October 30, 2026. This is a feasibility report and proposed design,
 not an installed patch or a demonstrated playback integration.
 
-Implementation update: the source-checkout prototype now lives in
-`integrations/plex-playlist-companion/`. A backed-up loader probe was installed
-and its execution/storage availability verified inside Plex for Windows. The
-initial investigation below remains the pre-implementation evidence; queue
-resume and real playback tracking have since passed an initial desktop episode
-test with a 641-entry playlist. The user confirmed a saved 0:52 position survived
-restarting Plex and Up Next was correct. Portrait layout and the home row are
-still unimplemented; broader client/edge-case testing remains necessary.
+Implementation update (October 31): the companion lives in
+`integrations/plex-playlist-companion/`. Windows portrait/square playlist layout,
+Continue Playlists, native playlist-start detection, pause/stop checkpoints and
+cross-client bookmark/artwork synchronization have since been implemented. User
+tests confirmed resume from both playlist Play and a middle entry, refreshed Home
+timestamps, and episode rollover followed by closing Plex. Other device behavior
+is not established by those tests.
+
+The body below records the initial investigation and its original acceptance
+gates, not the current implementation status. For TV/console alternatives and the
+next recommended architecture, see
+[Playlist Companion beyond Windows and Web](PLEX_PLAYLIST_CROSS_PLATFORM.md).
 
 ## Recommended direction
 
@@ -142,8 +146,10 @@ will work through browser restrictions.
 
 For a native desktop adapter, distribute our own integration code, not a modified
 copy of Plex. Before any patch, verify a supported client version and file hashes,
-make a backup, require the app to be closed and provide rollback. Unknown versions
-should disable the adapter. Test upgrades, CSP, security software behavior and
+make a backup, require the app to be closed and provide rollback. Runtime
+capability checks should preserve native behavior when contracts do not match;
+a version change alone should not disable the adapter. Keep a user-operated
+disable/recovery path. Test upgrades, CSP, security software behavior and
 repair/uninstall. A Qt client cannot simply load a Chrome extension.
 
 ## Implementation order and acceptance gates
