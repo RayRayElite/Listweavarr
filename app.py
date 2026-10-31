@@ -1246,13 +1246,18 @@ def compare(items, settings):
                                 if expected and not missing
                                 else "partial" if available else "missing"
                             ),
-                            detail=f"{len(expected & available)}/{len(expected)} aired episodes in Plex · {source}",
+                            detail=f"{len(expected & available)}/{len(expected)} known aired episodes in Plex · {source}",
                             missing_episodes=len(missing),
                         )
                         if not expected:
                             result.update(
-                                status="upcoming",
-                                detail="No aired episodes in this scope yet",
+                                status="available" if available else "upcoming",
+                                detail=(
+                                    f"{len(available)} episodes in Plex; no confirmed aired dates in this scope"
+                                    if available
+                                    else "No confirmed aired episodes in this scope yet"
+                                )
+                                + f"; {source}",
                             )
                     else:
                         result.update(
@@ -1612,14 +1617,22 @@ def expected_episodes(item, match, settings, cache):
                             and e["seasonNumber"] == int(item["season"])
                         )
                     ]
-                    if scoped and all(
-                        e.get("airDate") or e.get("airDateUtc") for e in scoped
-                    ):
+                    if scoped:
+                        undated = sum(
+                            not (e.get("airDate") or e.get("airDateUtc"))
+                            for e in scoped
+                        )
+                        source = "Sonarr aired metadata" + (
+                            f"; {undated} undated episodes not counted yet"
+                            if undated
+                            else ""
+                        )
                         return {
                             (str(e["seasonNumber"]), str(e["episodeNumber"]))
                             for e in scoped
-                            if (e.get("airDate") or e["airDateUtc"])[:10] <= today
-                        }, "Sonarr aired metadata"
+                            if (e.get("airDate") or e.get("airDateUtc"))
+                            and (e.get("airDate") or e["airDateUtc"])[:10] <= today
+                        }, source
     except ValueError:
         pass
     if order in ("aired", "tvdbAiring"):
@@ -1650,12 +1663,16 @@ def expected_episodes(item, match, settings, cache):
                         f"tv/{tmdb_id}/season/{season}", settings
                     )["episodes"]
                 rows.extend(cache[key])
-            if rows and all(e.get("air_date") for e in rows):
+            if rows:
+                undated = sum(not e.get("air_date") for e in rows)
+                source = "TMDB aired metadata" + (
+                    f"; {undated} undated episodes not counted yet" if undated else ""
+                )
                 return {
                     (str(e["season_number"]), str(e["episode_number"]))
                     for e in rows
-                    if e["air_date"] <= today
-                }, "TMDB aired metadata"
+                    if e.get("air_date") and e["air_date"] <= today
+                }, source
         except (ValueError, KeyError):
             pass
     if order == "tmdbAiring":

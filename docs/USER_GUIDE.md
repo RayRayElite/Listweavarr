@@ -382,3 +382,9 @@ copies in Plex retain their available status. Recheck after release to update it
 
 Native Plex collections: see docs/PLEX_COLLECTIONS.md for the reviewed movie-only
 or whole-show-only collection workflow. Mixed/episode watch orders remain playlists.
+
+TV completeness counts episodes with confirmed past air dates. Undated episodes
+are reported separately and do not invalidate coverage of already aired seasons.
+For example, owning all six dated episodes remains 6/6 available even when a
+later season has undated placeholders. The detail says known aired and names the
+undated count; it does not claim those episodes are downloaded or already aired.
