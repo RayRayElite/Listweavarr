@@ -64,6 +64,99 @@ class ImportsAndMatching(unittest.TestCase):
 
 
 class ScopedRequests(unittest.TestCase):
+    def test_new_series_waits_for_metadata_then_searches_only_selected_episode(self):
+        reads = 0
+
+        def delayed(settings, service, path, payload=None, method=None):
+            nonlocal reads
+            if path == "series":
+                self.calls.append((path, payload, method))
+                return [] if payload is None else {**payload, "id": 7}
+            if path.startswith("series/lookup"):
+                self.calls.append((path, payload, method))
+                return [
+                    {
+                        "title": "Example",
+                        "tvdbId": 263365,
+                        "seasons": [{"seasonNumber": 1}, {"seasonNumber": 2}],
+                    }
+                ]
+            if path == "episode?seriesId=7":
+                reads += 1
+                if reads < 3:
+                    self.calls.append((path, payload, method))
+                    return []
+            return self.fake_call(settings, service, path, payload, method)
+
+        with (
+            patch("app.arr_call", side_effect=delayed),
+            patch("app.time.sleep") as sleep,
+        ):
+            result = app.request_item(
+                {
+                    "type": "episode",
+                    "title": "Example",
+                    "show_tvdb": "263365",
+                    "season": "1",
+                    "episode": "2",
+                },
+                {},
+                1,
+                "/tv",
+            )
+        self.assertEqual(reads, 3)
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(
+            sum(
+                path == "series" and payload is not None
+                for path, payload, _ in self.calls
+            ),
+            1,
+        )
+        searches = [payload for path, payload, _ in self.calls if path == "command"]
+        self.assertEqual(searches, [{"name": "EpisodeSearch", "episodeIds": [11]}])
+        self.assertIn("1 missing episodes", result)
+
+    def test_metadata_wait_is_bounded_and_never_searches_unknown_scope(self):
+        clock = [0.0]
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        def empty(settings, service, path, payload=None, method=None):
+            if path == "episode?seriesId=7":
+                self.calls.append((path, payload, method))
+                return []
+            return self.fake_call(settings, service, path, payload, method)
+
+        with (
+            patch("app.arr_call", side_effect=empty),
+            patch("app.time.monotonic", side_effect=lambda: clock[0]),
+            patch("app.time.sleep", side_effect=sleep),
+            self.assertRaisesRegex(ValueError, "No episode search was submitted"),
+        ):
+            app.request_item(
+                {
+                    "type": "episode",
+                    "title": "Example",
+                    "show_tvdb": "263365",
+                    "season": "1",
+                    "episode": "2",
+                },
+                {},
+                1,
+                "/tv",
+            )
+        self.assertEqual(clock[0], 20)
+        self.assertFalse(
+            any(path in ("command", "episode/monitor") for path, _, _ in self.calls)
+        )
+
+    def test_ready_metadata_does_not_wait(self):
+        with patch("app.time.sleep") as sleep:
+            self.run_scope("episode", [11])
+        sleep.assert_not_called()
+
     def fake_call(self, settings, service, path, payload=None, method=None):
         self.calls.append((path, payload, method))
         return {

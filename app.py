@@ -2137,6 +2137,30 @@ def test_connection(settings, body):
 # ============================================================================
 # Reviewed manager acquisition
 # ============================================================================
+def sonarr_episode_metadata(call, series_id, timeout=20):
+    """Wait briefly for Sonarr's asynchronous initial series refresh.
+
+    Adding a series does not synchronously populate /episode. Poll read-only
+    metadata with backoff; never re-add the series, expand monitoring, or launch
+    searches while readiness is unknown. Slow/upstream failures remain explicit.
+    """
+    deadline = time.monotonic() + timeout
+    delay = 0.25
+    while True:
+        episodes = call(f"episode?seriesId={series_id}")
+        if not isinstance(episodes, list):
+            raise ValueError(
+                "Sonarr returned invalid episode metadata. No episode search was submitted."
+            )
+        if episodes:
+            return episodes
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return []
+        time.sleep(min(delay, remaining))
+        delay = min(delay * 2, 3)
+
+
 def request_item(item, settings, profile, root, allowed_episodes=None):
     """Submit one explicitly reviewed manager scope after validating destination and existing ownership."""
     if item["type"] != "movie" and not (
@@ -2213,7 +2237,7 @@ def request_item(item, settings, profile, root, allowed_episodes=None):
             addOptions={"monitor": "none", "searchForMissingEpisodes": False},
         )
         series = call("series", series)
-    episodes = call(f'episode?seriesId={series["id"]}')
+    episodes = sonarr_episode_metadata(call, series["id"])
     today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     targets = [
         e
@@ -2230,7 +2254,7 @@ def request_item(item, settings, profile, root, allowed_episodes=None):
     ]
     if not episodes:
         raise ValueError(
-            "Series added, but Sonarr has not populated episodes yet. Retry this item shortly."
+            "The series is in Sonarr, but episode metadata is still unavailable after waiting. No episode search was submitted. Check Sonarr's series refresh or logs, then retry; the existing series will be reused."
         )
     if not targets:
         return "No missing episodes in the selected scope"

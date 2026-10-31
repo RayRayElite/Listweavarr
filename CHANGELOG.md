@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Wait with bounded backoff for Sonarr's episode metadata after adding a series,
+  then continue the exact reviewed episode scope without duplicate series adds
+  or broad series searches. Persistent metadata failures remain explicit.
+
 - Restore the visible top batch request action inside lists. Select all missing
   includes every matching requestable entry, with clear Radarr/Sonarr labels,
   current-filter guidance, duplicate protection and the existing request review.
