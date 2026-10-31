@@ -97,6 +97,9 @@
               </button>
               <button id="my-batch-clear" class="text-action" hidden>Clear selection</button>
               <button id="my-batch-all" class="secondary" hidden>Select all</button>
+              <button id="my-batch-check" class="secondary" hidden disabled>
+                Check availability
+              </button>
             </div>
             <div id="saved-list-grid" class="saved-list-grid"></div>
           </section>
@@ -352,6 +355,9 @@
             </button>
             <button id="official-batch-clear" class="text-action" hidden>Clear selection</button>
             <button id="official-batch-all" class="secondary" hidden>Select all</button>
+            <button id="official-batch-check" class="secondary" hidden disabled>
+              Check availability
+            </button>
           </div>
           <div id="official-items" class="saved-list-grid"></div>
           <div id="official-sources" hidden></div>
@@ -1766,6 +1772,20 @@ episode,Pilot,,,263365,1,1</pre
       <div class="dialog-actions">
         <button id="batch-playlist-close" class="secondary">Close</button>
         <button id="batch-playlist-confirm" class="primary" disabled>Create playlists</button>
+      </div>
+    </dialog>
+    <dialog id="batch-availability-dialog" aria-labelledby="batch-availability-heading">
+      <h2 id="batch-availability-heading">Check list availability</h2>
+      <p class="muted">
+        Compare each selected list with Plex and save its availability results. No playlists or
+        downloads are created. Official selections use your saved copy, or create one to store these
+        results.
+      </p>
+      <div id="batch-availability-items"></div>
+      <p id="batch-availability-status" class="muted" role="status"></p>
+      <div class="dialog-actions">
+        <button id="batch-availability-stop" class="secondary">Stop after current list</button>
+        <button id="batch-availability-close" class="secondary" disabled>Close</button>
       </div>
     </dialog>
     <dialog id="list-updates-dialog" aria-labelledby="list-updates-heading">

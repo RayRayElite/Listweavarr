@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Check Plex availability for multiple selected My Lists or Official Lists,
+  with saved per-list results, independent failure handling and stop-after-current.
+  Availability checks do not create playlists or request downloads.
+
 - Reattach Continue Playlists after Plex-logo Home navigation, including unchanged
   Home hashes and replacement React roots. Observe the stable page body.
 - Offer explicit Portrait (2:3, default) and Square (1:1) playlist shapes, including

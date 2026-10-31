@@ -799,6 +799,67 @@ vm.runInContext(
   element('batch-playlist-dialog').close();
   vm.runInContext(
     `
+    globalThis.renderBeforeBatchAvailability=render;render=()=>{};
+    batchListSelection.my=new Set(['batch-a','batch-b']);calls=[];
+    api=async(path,body)=>{calls.push({path,body});if(path!=='compare')throw Error('Unexpected write');if(body.list_id==='batch-a')throw Error('Plex unavailable for first list');return {id:'batch-b',name:'Batch B',items:[{id:'owned',status:'available'},{id:'partial',status:'partial'}]};};
+  `,
+    context
+  );
+  await vm.runInContext(`checkBatchAvailability('my')`, context);
+  assert.equal(context.calls.length, 2, 'Continue checking after one list fails');
+  assert.equal(
+    context.calls.every((call) => call.path === 'compare'),
+    true,
+    'Availability must not create playlists or downloads'
+  );
+  assert.match(element('batch-availability-status').textContent, /1 checked, 1 failed/);
+  assert.match(
+    element('batch-availability-items').innerHTML,
+    /1 available \/ 0 missing \/ 1 partial/
+  );
+  assert.equal(
+    vm.runInContext(`state.lists.find(row=>row.id==='batch-b').items[0].status`, context),
+    'available'
+  );
+  assert.equal(
+    vm.runInContext('batchListSelection.my.size', context),
+    2,
+    'Keep list selection after checking'
+  );
+  element('batch-availability-dialog').close();
+  vm.runInContext(
+    `
+    calls=[];officialCatalogue=[{id:'availability-official',name:'Official check'}];batchListSelection.official=new Set(['availability-official']);
+    api=async(path,body)=>{calls.push({path,body});if(path==='explore/official/open')return {entry:{id:'availability-copy',official_id:'availability-official',name:'Official check',items:[]}};if(path==='compare')return {id:'availability-copy',name:'Official check',items:[{status:'missing'}]};throw Error('Unexpected action');};
+  `,
+    context
+  );
+  await vm.runInContext(`checkBatchAvailability('official')`, context);
+  assert.equal(context.calls[0].path, 'explore/official/open');
+  assert.equal(context.calls[1].path, 'compare');
+  assert.equal(context.calls[1].body.list_id, 'availability-copy');
+  element('batch-availability-dialog').close();
+  vm.runInContext(
+    `
+    calls=[];batchListSelection.my=new Set(['batch-a','batch-b']);
+    api=async(path,body)=>{calls.push({path,body});$('batch-availability-stop').onclick();return {id:body.list_id,name:'Checked',items:[]};};
+  `,
+    context
+  );
+  await vm.runInContext(`checkBatchAvailability('my')`, context);
+  assert.equal(
+    context.calls.length,
+    1,
+    'Stopping allows current list to finish but skips remaining lists'
+  );
+  assert.match(
+    element('batch-availability-status').textContent,
+    /1 checked, 0 failed, 1 not checked/
+  );
+  element('batch-availability-dialog').close();
+  vm.runInContext(`render=renderBeforeBatchAvailability`, context);
+  vm.runInContext(
+    `
     listEditor={original:null,items:[{id:'a',title:'A'},{id:'d',title:'D'}]};
     $('list-insert-position').value='2';
     insertEditorEntries([{id:'b',title:'B'},{id:'c',title:'C'}]);

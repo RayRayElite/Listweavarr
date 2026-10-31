@@ -511,6 +511,18 @@ dialog::backdrop {
   width: 760px;
   max-width: 92vw;
 }
+#batch-availability-dialog {
+  width: 760px;
+  max-width: 92vw;
+}
+#batch-availability-items {
+  max-height: 55vh;
+  overflow: auto;
+}
+.batch-availability-row {
+  border-top: 1px solid #3b4b60;
+  padding: 14px 0;
+}
 #batch-playlist-items {
   max-height: 55vh;
   overflow: auto;

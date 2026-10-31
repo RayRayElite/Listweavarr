@@ -4,6 +4,7 @@ const batchListSelection = { my: new Set(), official: new Set() };
 const batchListMode = { my: false, official: false };
 let batchPlaylistRows = [],
   batchPlaylistBusy = false;
+let batchAvailabilityStop = false;
 function batchListCheckbox(kind, id, name) {
   return batchListMode[kind]
     ? `<label class="catalogue-select"><input type="checkbox" data-batch-list="${kind}" value="${esc(id)}" ${batchListSelection[kind].has(id) ? 'checked' : ''}><span>Select ${esc(name)}</span></label>`
@@ -14,6 +15,8 @@ function batchSelectionStatus(kind) {
   $(kind + '-batch-count').textContent = batchListMode[kind] ? `${count} selected` : '';
   $(kind + '-batch-create').hidden = !batchListMode[kind];
   $(kind + '-batch-create').disabled = !count;
+  $(kind + '-batch-check').hidden = !batchListMode[kind];
+  $(kind + '-batch-check').disabled = !count;
   $(kind + '-batch-clear').hidden = !batchListMode[kind];
   $(kind + '-batch-all').hidden = !batchListMode[kind];
   $(kind + '-batch-toggle').textContent = batchListMode[kind] ? 'Done selecting' : 'Select lists';
@@ -55,7 +58,95 @@ for (const [kind, grid] of [
     batchSelectionStatus(kind);
   });
   $(kind + '-batch-create').onclick = (e) => task(e.target, () => previewBatchPlaylists(kind));
+  $(kind + '-batch-check').onclick = (e) => task(e.target, () => checkBatchAvailability(kind));
 }
+async function batchSavedList(kind, id) {
+  let entry = state.lists.find((row) => (kind === 'my' ? row.id === id : row.official_id === id));
+  if (!entry && kind === 'official') {
+    entry = (await api('explore/official/open', { official_id: id })).entry;
+    if (!state.lists.some((row) => row.id === entry.id)) state.lists.push(entry);
+  }
+  if (!entry) throw Error('List no longer available.');
+  return entry;
+}
+async function checkBatchAvailability(kind) {
+  if (batchPlaylistBusy) return;
+  const rows = [...batchListSelection[kind]].map((id) => ({
+    id,
+    name:
+      (kind === 'my'
+        ? state.lists.find((row) => row.id === id)
+        : officialCatalogue.find((row) => row.id === id)
+      )?.name || 'Unavailable list',
+    status: 'Waiting',
+  }));
+  if (!rows.length) return;
+  batchPlaylistBusy = true;
+  batchAvailabilityStop = false;
+  showPageCache.clear();
+  $('batch-availability-close').disabled = true;
+  $('batch-availability-stop').hidden = false;
+  $('batch-availability-stop').disabled = false;
+  const draw = () => {
+    $('batch-availability-items').innerHTML = rows
+      .map(
+        (row) =>
+          `<article class="batch-availability-row"><strong>${esc(row.name)}</strong><p class="muted">${esc(row.status)}</p></article>`
+      )
+      .join('');
+  };
+  draw();
+  $('batch-availability-dialog').showModal();
+  let checked = 0,
+    failed = 0;
+  try {
+    for (const row of rows) {
+      if (batchAvailabilityStop) break;
+      row.status = 'Checking Plex...';
+      draw();
+      $('batch-availability-status').textContent =
+        `Checking ${checked + failed + 1} of ${rows.length} lists...`;
+      try {
+        const entry = await batchSavedList(kind, row.id);
+        const result = await api('compare', { list_id: entry.id });
+        const index = state.lists.findIndex((value) => value.id === entry.id);
+        if (index >= 0) state.lists[index] = result;
+        const count = (status) =>
+          result.items.filter((item) => status.includes(item.status || 'unchecked')).length;
+        row.status = `${count(['available'])} available / ${count(['missing'])} missing / ${count(['partial'])} partial / ${count(['review', 'unmatched'])} need review / ${count(['upcoming'])} not aired / ${count(['unchecked'])} unchecked`;
+        checked++;
+      } catch (error) {
+        failed++;
+        row.status = 'Could not check: ' + (error.message || 'Unknown error');
+      }
+      draw();
+    }
+    for (const row of rows)
+      if (row.status === 'Waiting') row.status = 'Not checked — batch stopped';
+    draw();
+  } finally {
+    batchPlaylistBusy = false;
+    $('batch-availability-stop').hidden = true;
+    $('batch-availability-close').disabled = false;
+    $('batch-availability-status').textContent =
+      `${checked} checked, ${failed} failed, ${rows.length - checked - failed} not checked. Results are saved; list selection is kept.`;
+    selected.clear();
+    render();
+  }
+}
+$('batch-availability-stop').onclick = () => {
+  batchAvailabilityStop = true;
+  $('batch-availability-stop').disabled = true;
+};
+$('batch-availability-close').onclick = () => {
+  if (!batchPlaylistBusy) $('batch-availability-dialog').close();
+};
+$('batch-availability-dialog').addEventListener('cancel', (event) => {
+  if (batchPlaylistBusy) {
+    event.preventDefault();
+    batchAvailabilityStop = true;
+  }
+});
 function drawBatchPlaylists() {
   $('batch-playlist-items').innerHTML = batchPlaylistRows
     .map(
@@ -88,14 +179,7 @@ async function previewBatchPlaylists(kind) {
   try {
     for (const row of batchPlaylistRows) {
       try {
-        let entry = state.lists.find((e) =>
-          kind === 'my' ? e.id === row.id : e.official_id === row.id
-        );
-        if (!entry && kind === 'official') {
-          entry = (await api('explore/official/open', { official_id: row.id })).entry;
-          if (!state.lists.some((e) => e.id === entry.id)) state.lists.push(entry);
-        }
-        if (!entry) throw Error('List no longer available.');
+        const entry = await batchSavedList(kind, row.id);
         row.listId = entry.id;
         row.name = entry.name;
         row.title = entry.name;
