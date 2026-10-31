@@ -73,6 +73,49 @@ vm.runInContext(
   assert.match(markup, /Add to Radarr/);
   assert.match(markup, /data-details="movie"/);
   assert.match(vm.runInContext('row(current().items[1])', context), /Add to Sonarr/);
+  vm.runInContext(
+    `
+    globalThis.originalBatchRequestItems=current().items.slice();
+    current().items.push(...Array.from({length:25},(_,index)=>({id:'extra-'+index,title:'Extra '+index,type:'movie',tmdb:String(100+index),status:'missing'})),{id:'owned',title:'Owned',type:'movie',status:'available'},{id:'requested',title:'Requested',type:'movie',status:'missing'});
+    activityCache.set('list:requested',{prevent_duplicate:true});
+    filter='missing';$('search').value='';$('select-all').onchange({target:{checked:true}});
+  `,
+    context
+  );
+  assert.equal(
+    vm.runInContext('selected.size', context),
+    27,
+    'Select every matching missing entry, including beyond the first screen'
+  );
+  assert.equal(
+    vm.runInContext(`selected.has('owned')||selected.has('requested')`, context),
+    false,
+    'Skip owned and already-requested titles'
+  );
+  assert.match(element('review-top').textContent, /27 to Radarr \/ Sonarr/);
+  assert.equal(element('review-top').disabled, false);
+  assert.equal(element('select-all').checked, true);
+  vm.runInContext(
+    `selected.clear();$('search').value='Extra 2';$('select-all').onchange({target:{checked:true}});`,
+    context
+  );
+  assert.equal(
+    vm.runInContext('selected.size', context),
+    6,
+    'Selection respects current title filters'
+  );
+  element('selection-clear').onclick();
+  assert.equal(vm.runInContext('selected.size', context), 0);
+  vm.runInContext(
+    `current().items=originalBatchRequestItems;activityCache.delete('list:requested');$('search').value='';filter='all';calls=[];`,
+    context
+  );
+  const workspaceCss = fs.readFileSync('web/workspace.css', 'utf8');
+  assert.match(
+    workspaceCss,
+    /#review-top\s*\{\s*display:\s*inline-flex/,
+    'Top batch action must remain visible'
+  );
   vm.runInContext("selected.add('episode'); addOne('movie')", context);
   await new Promise(setImmediate);
   assert.equal(element('review-dialog').open, true);

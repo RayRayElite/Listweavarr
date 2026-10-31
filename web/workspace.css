@@ -721,7 +721,25 @@ dialog::backdrop {
   border-radius: 9px;
 }
 #review-top {
-  display: none;
+  display: inline-flex;
+}
+.list-selection-help {
+  font-size: 12px;
+  margin: 4px 0 12px;
+  line-height: 1.5;
+}
+#list-detail > .actions {
+  flex-wrap: wrap;
+}
+#list-detail > .actions > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #4c637e;
+  border-radius: 7px;
+  background: #203349;
+  cursor: pointer;
 }
 .empty {
   background: #182334;
@@ -2322,7 +2340,7 @@ button[aria-busy='true']::after {
   #list-detail > .actions {
     gap: 6px;
     font-size: 11px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
   #list-detail > .actions > label {
     display: flex;

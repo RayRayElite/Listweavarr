@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Restore the visible top batch request action inside lists. Select all missing
+  includes every matching requestable entry, with clear Radarr/Sonarr labels,
+  current-filter guidance, duplicate protection and the existing request review.
+
 - Check Plex availability for multiple selected My Lists or Official Lists,
   with saved per-list results, independent failure handling and stop-after-current.
   Availability checks do not create playlists or request downloads.

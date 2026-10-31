@@ -874,9 +874,16 @@ function updateSelection() {
   $('selection-count').textContent = selected.size + ' selected';
   $('review').disabled = busy || !selected.size;
   $('review-top').disabled = busy || !selected.size;
-  $('review-top').textContent = selected.size
-    ? `Add selected (${selected.size}) →`
-    : 'Add selected →';
+  const chosen = (current()?.items || []).filter((item) => selected.has(item.id));
+  const services = [
+    ...new Set(chosen.map((item) => (item.type === 'movie' ? 'Radarr' : 'Sonarr'))),
+  ];
+  const addLabel = selected.size
+    ? `Add ${selected.size} to ${services.join(' / ')}`
+    : 'Add selected to Radarr / Sonarr';
+  $('review-top').textContent = addLabel;
+  $('review').textContent = addLabel;
+  $('selection-clear').disabled = busy || !selected.size;
   $('compare').disabled = busy || !current();
   $('refresh-list').disabled = busy || !current()?.source;
   $('resolve-metadata').disabled = busy || !current() || !state.settings.tmdb?.configured;
@@ -892,7 +899,14 @@ function updateSelection() {
     : 'Use Add beside a missing title, or select titles to add together.';
   const eligible = visible().filter(requestable);
   const selectLabel = $('select-all').closest?.('label');
-  if (selectLabel) selectLabel.hidden = !eligible.length;
+  if (selectLabel) selectLabel.hidden = !current();
+  $('select-all').disabled = busy || !eligible.length;
+  $('select-all-label').textContent = `Select all missing (${eligible.length})`;
+  $('selection-help').textContent = eligible.length
+    ? 'Select all includes every matching missing or partial entry, including those below the screen. Search and year filters apply. Already requested items are skipped.'
+    : visible().some((item) => ['missing', 'partial'].includes(item.status))
+      ? 'These missing entries are already requested or managed. Check download progress for their current status.'
+      : 'No requestable missing entries match this view. Compare with Plex to refresh availability.';
   $('selection-count').hidden = !eligible.length && !selected.size;
   $('select-all').checked = eligible.length > 0 && eligible.every((i) => selected.has(i.id));
   $('select-all').indeterminate =
@@ -2573,6 +2587,10 @@ $('select-all').onchange = (e) => {
   visible()
     .filter(requestable)
     .forEach((i) => (e.target.checked ? selected.add(i.id) : selected.delete(i.id)));
+  render();
+};
+$('selection-clear').onclick = () => {
+  selected.clear();
   render();
 };
 $('compare').onclick = (e) =>

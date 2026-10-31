@@ -262,11 +262,16 @@
             Sorting changes this view only. Playlists keep the original source order.
           </p>
           <div class="actions">
-            <label><input id="select-all" type="checkbox" /> Select visible missing</label
+            <label
+              ><input id="select-all" type="checkbox" /><span id="select-all-label"
+                >Select all missing</span
+              ></label
             ><span id="selection-count">0 selected</span
             ><button id="review-top" class="primary" disabled>Add selected →</button
+            ><button id="selection-clear" class="text-action" disabled>Clear selection</button
             ><button id="compare" class="secondary">↻ Compare with Plex</button>
           </div>
+          <p id="selection-help" class="muted list-selection-help"></p>
           <div id="entries" class="entries"></div>
           <div class="request-bar">
             <span id="request-summary"
