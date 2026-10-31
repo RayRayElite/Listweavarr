@@ -1,13 +1,27 @@
 {
   "manifest_version": 3,
-  "name": "Listweavarr Playlist Companion — Development Probe",
-  "version": "0.1.0",
-  "description": "Development bootstrap for playlist enhancements. No automatic tracking or playback yet.",
+  "name": "Listweavarr Playlist Companion",
+  "version": "0.4.0",
+  "minimum_chrome_version": "111",
+  "description": "Portrait playlist cards, local playlist resume and optional Listweavarr artwork.",
+  "permissions": ["scripting", "storage"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "options_page": "options.html",
+  "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
-      "matches": ["https://app.plex.tv/*"],
-      "js": ["bookmarks.js", "runtime.js"],
-      "run_at": "document_idle"
+      "matches": ["https://app.plex.tv/desktop/*"],
+      "js": [
+        "layout.js",
+        "bookmarks.js",
+        "plex-adapter.js",
+        "artwork.js",
+        "settings.js",
+        "home.js",
+        "runtime.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
     }
   ]
 }

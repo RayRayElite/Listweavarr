@@ -1,123 +1,155 @@
-# Playlist companion — development prototype
+# Listweavarr Playlist Companion 0.4
 
-Desktop and web are both goals. This folder is deliberately independent of the
-Listweavarr server: it currently needs no running Docker container or backend.
-It is an experimental source-checkout component, not part of the runtime ZIP or
-an installer intended for general distribution yet.
+Optional enhancements for Plex for Windows and Plex Web. Playback bookmarks and
+cached artwork stay on the Plex device. Listweavarr does **not** need to run for
+playlist tracking or resume; it runs only when you want new artwork imported.
+This is a beta, version-specific integration. Plex app updates can require a
+compatibility update. No Plex source, executable or artwork is included here.
 
-## Implemented
+## What it does
 
-Current development update: the adapter observes explicit, unshuffled video
-playlist queue creation from Plex's normal Play controls. It does not substitute
-Plex's Play action or assign unrelated title playback to a playlist. The new home
-row uses portrait resume cards and optional device-local posters in IndexedDB;
-it falls back to existing Plex playlist artwork. Local artwork is never uploaded.
-The user confirmed home-row placement, hover poster editing and resume. The original
-virtualized Plex playlist grid still uses its native dimensions; changing that
-grid remains a separate compatibility task.
+- Continue Playlists appears after Plex's complete Continue Watching row.
+- Normal playlist Play and starting at a middle entry create a resume card.
+- Saves during playback, on Stop/Pause and orderly window close. Completion
+  advances the bookmark to the next item; finished playlists leave the row.
+- Native playlist cards use a portrait metric shared by cards and virtualized
+  rows, rather than stretching images inside square rows.
+- A pencil appears on poster hover/focus for an explicit device-local poster.
+- Optional Listweavarr artwork pairing imports portrait list posters, updates
+  changed images and caches them locally. Local pencil choices take priority.
+- A small settings gear replaces development controls. Diagnostics are available
+  inside settings, with no floating development button during normal use.
 
-The active queue's explicit playlist source URI provides a second binding path
-when request observation misses a native start, including an entry in the middle.
-When native queues omit that URI, an observed playlist request can supply the
-identity only after its returned queue ID, user, server and playback intent match
-the active player. This avoids relying on connection URL aliases being identical.
-If the observed response callback never fires, a recent explicit playlist request
-can identify a candidate only when its user/server match and a new queue appears.
-The companion then reads that queue without modifying it and verifies its order
-against the full playlist. When Plex returns a partial window, its explicit
-`playQueuePlaylistID`, selected queue entry ID and absolute selection anchor the
-window. Every returned entry must match that position in the playlist. Unanchored,
-shuffled or differently ordered queues are rejected. This passed both synthetic
-tests and a real server response for Being John Malkovich at position 165 in a
-200-item list, where Plex returns only 199 entries. Desktop UI verification of
-that middle-entry path is pending; the user confirmed whole-playlist native Play
-now creates an Aliens Vs Predator resume card.
-Both paths verify a video playlist and its full queue size; the selected metadata
-must match the exact playlist occurrence before a checkpoint is written. A movie
-or episode playing by itself is never assigned to a list by title or membership.
+Bookmarks use server, Plex user, playlist and exact playlist-entry identity.
+Duplicate title occurrences remain separate. Ordinary playback outside a verified
+playlist never creates a playlist bookmark. The companion does not manually mark
+anything watched, alter playlist order or request downloads. Plex records its
+normal playback history when you play media.
 
-Earlier development milestone: Plex Web 4.160.0's registered player services have a
-desktop adapter, with a small Playlist companion panel for Start, Resume and
-Pause & save. Automatic checkpoints apply to explicitly bound playlist queues,
-including observed normal Play requests, not arbitrary playback elsewhere in Plex. The adapter validates
-selected occurrence/offset against the full playlist before dispatching playback,
-and preserves source ordering for mixed movies and episodes. It does not manually
-mark items watched or edit playlists; Plex still records normal playback history.
-On October 30, 2026, a live test with a 641-entry mixed playlist verified desktop
-playback, pause/save and resume after restarting Plex near the saved 0:52 position.
-The user confirmed the resumed point and playlist Up Next. This is one desktop
-episode test, not complete cross-client or movie-playback certification. Poster
-layout in the native playlist grid remains a separate task.
+## Supported client builds
 
-- Shared offline bookmark rules: server/user/playlist separation, exact entry IDs,
-  offsets, explicit completion, session revisions and reconciliation after edits.
-  Global watched flags are not consulted. Duplicates whose entry IDs were lost
-  need review rather than an assumed match.
-- A version-checked Windows loader with exact original-file backup and rollback.
-  It refuses running Plex, unknown entry-point hashes and changed installed files.
-- A minimal Chrome/Edge extension development manifest for hosted Plex Web.
-- The original bootstrap proved local-storage availability; the current desktop
-  adapter persists its bound player's progress on model changes, including the
-  latest valid state when Stop resets the player. Two-second polling detects
-  silent Stop transitions too, and orderly window-close
-  handlers provide fallbacks. A known duration's final reported second records
-  completion; resume then selects the next exact playlist occurrence at zero.
-  A finished playlist leaves Continue Playlists. Unknown durations and errors
-  never imply completion. Power loss can still lose updates the operating system
-  has not flushed; no server or Listweavarr connection is required for bookmarks.
-  Live Stop and completion verification is pending.
+| Client | Build inspected |
+| --- | --- |
+| Plex for Windows | 1.115.0.426-4e960a1d / embedded Web 4.160.0-75ddd7b |
+| Local NAS Plex Web | 4.147.1-4ca0656 |
+| Hosted Plex Web | 4.163.0-8246fd2 |
 
-## Desktop probe
+These are exact main-bundle allowlist entries in layout.js. Unknown builds are
+left unchanged. Desktop native Play, middle-entry starts, correct queue ordering,
+Stop/Pause and Home resume have passed live user tests. Episode rollover followed
+by closing Plex without Stop/Pause also preserved the next item. New portrait
+layout, artwork pairing and browser playback still need the current live review;
+source contracts and shared metrics were checked against all three real bundles.
+Movie/final-item completion, modified queues and duplicate occurrences also have
+automated checks; broader client certification remains separate from those tests.
 
-The tested entry-point hash is from Plex for Windows 1.115.0.426-4e960a1d,
-bundled web client 4.160.0. Other versions are intentionally not admitted yet.
-Plex's own startup log confirmed the local HTML entry point; the installed probe
-then emitted a bootstrap marker with `platform: desktop` and available storage.
-That verifies script loading, not a working playlist UI or resume adapter.
+## Windows installation
 
-From this folder:
+1. Extract the standalone companion ZIP, or open this source folder.
+2. Install Python 3.11 or newer if it is not already installed. Close Plex.
+3. Run **Setup Playlist Companion.cmd** and choose **Install / update**. Windows
+   requests administrator access because Plex lives in Program Files.
+4. Start Plex. Use its ordinary playlist Play controls; the diagnostics panel is
+   not required. Existing bookmarks and local posters survive companion updates.
+
+Command-line alternatives:
 
 ```powershell
 python desktop.py status
-# Close Plex first; Program Files writes usually require an elevated terminal.
-python desktop.py install
+python desktop.py update
 python desktop.py uninstall
 ```
 
-Use `--web-client` for a different installation path. Uninstall restores the
-byte-identical saved index and removes only the verified companion-owned files.
-If Plex has updated or another tool changed those files, stop and inspect instead
-of overwriting. The development installer does not close Plex or elevate itself.
-No native executable, media file, Plex database or watched state is modified.
+Use `--web-client` for a different installed web-client directory. The installer
+verifies the original index and every owned asset, retains an exact original-file
+backup and rolls back a failed update. It refuses running Plex, symlinks, unknown
+client versions and externally changed companion files.
 
-## Browser probe
+If Plex itself updates, run Status first. If the new index is clean but verified
+old companion assets remain, **Recover after Plex update** removes only those old
+assets and preserves Plex's new index. It never restores an older index over a new
+Plex release. Unknown releases need an updated companion before reinstalling.
+Uninstall on a supported intact install restores the byte-identical original.
+Setup results are also available in the Windows temporary directory as
+`Listweavarr-Playlist-Companion-setup.log`.
 
-In Chrome/Edge's extension development screen, load this folder unpacked, then
-reload hosted Plex Web. The extension has no backend connection and requests no
-general browsing/history permissions. Its JavaScript runs in the extension's
-isolated world; a future page/player bridge must be explicit and narrowly scoped.
-Local server Plex Web origins are not enabled in this first manifest.
+## Chrome / Edge installation
 
-The current console marker `[Listweavarr Playlist Companion] desktop player adapter
-ready` reports that the version-specific services were found. It is not evidence
-that playback succeeded. Hosted Web still has no verified player adapter and
-disables its controls; the desktop adapter must not be assumed to support it.
+1. Extract the **Chrome** companion ZIP, or run `python scripts/build_playlist_companion.py`
+   from the repository root and use `releases/Playlist-Companion-Chrome`.
+   Open the browser's Extensions page, enable Developer mode, then **Load unpacked**
+   and select that browser-only folder. Do not select the Python source folder:
+   Python can create a `__pycache__` directory there, which Chrome rejects.
+2. Reload hosted Plex Web at `https://app.plex.tv/desktop/`.
+3. For your NAS's Plex Web, open this extension's Options page and enter the
+   server origin, for example `https://your-plex-server:32400/web/`. Approve access
+   to that server, then reload its Plex Web tab.
 
-## Next acceptance gates
+The extension runs original packaged scripts in Plex's page world so they can use
+its existing player. Hosted Plex access is limited to /desktop/. Local origins
+are opt-in, registered only for /web/, and removable from Options. It does not
+request browsing history or access to every website. Bookmarks are per origin and
+browser profile; desktop and browser bookmarks are not synchronized yet.
 
-1. Extend the passed desktop episode resume test to movies, actual queue advances,
-   duplicate occurrences, rewatches and final-item completion. The adapter has no
-   Listweavarr HTTP dependency; its bookmarks are local to the client.
-2. Verify normal Play observation and the home-row placement in the installed
-   client; test portrait artwork and native playlist-grid metrics separately.
-3. Verify the hosted/local Plex Web adapters rather than assuming compatibility
-   with this particular desktop bundle.
-4. Add portrait video-playlist layout and Continue row in desktop and web adapters.
-5. Add optional paired Listweavarr synchronization and artwork/update integration.
-   Import the matching list poster automatically and cache it on the Plex device,
-   so artwork remains available when Listweavarr is closed. Local poster changes
-   use the pencil overlay shown on hover or keyboard focus.
+## Optional automatic Listweavarr artwork
 
-Tests: `node tests/test_playlist_bookmarks.cjs` from the repository root, plus the
-desktop tests included in `python -m unittest discover -s tests -q`. Windows
-installation checks use synthetic HTML in tests, not redistributed Plex code.
+1. In Listweavarr, go to Settings > Connections > Plex playlist companion.
+2. Create an artwork pairing. Existing playlists can be recognized by their exact
+   ordered Plex IDs; ambiguous matches are skipped. Names alone never count.
+3. Copy the pairing into Plex Home > Continue Playlists gear > artwork pairing,
+   and choose Connect / refresh artwork. Repeat on another device using the same
+   pairing if desired. Creating another pairing revokes the previous one.
+4. The companion checks for changed artwork at startup and every five minutes.
+   Closing Listweavarr leaves existing cached posters and bookmarks usable.
+
+The pairing is revocable and read-only, scoped to mapped artwork. It never exposes
+Plex tokens, list entries, account information or watched history. Artwork-only
+associations do not grant Listweavarr authority to replace or delete a playlist.
+The normal portrait poster is preferred; a square playlist poster is a fallback.
+Other Plex clients keep their existing selected posters. An explicit pencil choice
+is never automatically overwritten. Disconnecting or revoking a pairing keeps
+cached images. For hosted HTTPS Plex Web, use a Listweavarr address the browser
+permits (HTTPS or an allowed localhost address); do not bypass browser security
+warnings. The app supports the paired Plex origin, hosted Plex, native file origin
+and the configured Plex Direct LAN address for artwork CORS, not arbitrary sites.
+
+## Development and verification
+
+### Optional cross-device progress sync
+
+Create a fresh pairing in Listweavarr Settings > Connections > Playlist companion.
+Paste the same pairing into the companion settings in Windows Plex and Plex Web,
+then enable **Sync playlist progress between paired devices** on both clients.
+Existing local bookmarks upload automatically; no restart of a playlist is needed.
+Keep the Listweavarr service running and reachable from each device for syncing.
+Clients exchange bookmarks every ten seconds while Plex is open. Offline playback
+continues saving locally and syncs when connectivity returns. The latest playback
+timestamp wins; devices should have correct system clocks. A sudden close can
+lose up to one sync interval remotely, but the local checkpoint remains available.
+
+Progress uses a separate write capability from the read-only artwork token.
+Treat the pairing as private: it grants access to companion bookmarks on this
+Listweavarr instance. Revoking/rotating it disables both capabilities without
+deleting local bookmarks. User/server/playlist keys separate stored progress;
+this single-user service does not implement independent household authentication.
+Plex watched flags and watch history are never modified by syncing.
+
+```powershell
+node tests/test_playlist_bookmarks.cjs
+node tests/test_playlist_adapter.cjs
+node tests/test_playlist_features.cjs
+node tests/test_playlist_sync.cjs
+python -m unittest discover -s tests -q
+python scripts/build_playlist_companion.py
+```
+
+The builder includes only an explicit list of original companion files and the
+AGPLv3 license. It excludes installed Plex bundles, private data, logs and images.
+The main Listweavarr Docker container does not patch Plex on another machine;
+install this client-side companion separately on the device/browser using Plex.
+
+Power loss can still lose writes the operating system has not flushed. Checkpoint
+writes happen during playback, so orderly Stop is not required. Completion uses
+the final reported second of a known duration; errors or unknown durations never
+imply completion. Changed or ambiguous playlist identities require review rather
+than guessing by title or using global watched flags.

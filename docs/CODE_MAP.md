@@ -97,6 +97,14 @@ scripts/ contains optional live diagnostics, the explicit publisher CLI, release
 
 ## Important invariants
 
+The optional Plex companion lives in integrations/plex-playlist-companion/.
+bookmarks.js owns offline checkpoints and opt-in cross-device exchange;
+playlist_progress.py validates and merges shared bookmarks. app.py enforces the
+separate progress capability and origin/host boundary. Artwork credentials cannot
+write progress. Clients resolve offline conflicts by playback timestamp and
+re-check the active profile after network waits. tests/test_playlist_sync.cjs and
+tests/test_playlist_progress.py cover these contracts.
+
 - Similar text is not proof of matching identity, ownership or franchise membership.
 - Movie, show, season and episode scopes stay distinct throughout imports and requests.
 - An existing manager file is not proof that Plex has imported it.

@@ -64,28 +64,10 @@
     let retries = 0;
     let lastLayout = '',
       diagnosticCount = 0;
-    let database;
-    function db() {
-      if (!database)
-        database = new Promise((resolve, reject) => {
-          const request = indexedDB.open('listweavarr-playlist-posters', 1);
-          request.onupgradeneeded = () => request.result.createObjectStore('posters');
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(new Error('Local artwork storage is unavailable'));
-        });
-      return database;
-    }
     async function artwork(selection, blob) {
-      const database = await db();
-      return new Promise((resolve, reject) => {
-        const transaction = database.transaction('posters', blob ? 'readwrite' : 'readonly');
-        const store = transaction.objectStore('posters');
-        const key = core.storageKey(selection);
-        const request = blob ? store.put(blob, key) : store.get(key);
-        transaction.oncomplete = () => resolve(blob || request.result);
-        transaction.onerror = () => reject(new Error('Could not save local artwork'));
-        transaction.onabort = transaction.onerror;
-      });
+      return blob
+        ? root.ListweavarrPlaylistArtwork.set(selection, blob)
+        : root.ListweavarrPlaylistArtwork.get(selection);
     }
     function releaseImages() {
       urls.forEach((url) => URL.revokeObjectURL(url));
@@ -101,9 +83,11 @@
       section.replaceChildren();
       const header = document.createElement('header');
       header.append(text('h2', 'Continue Playlists'));
-      const diagnostics = text('button', 'Diagnostics');
+      const diagnostics = text('button', '⚙');
       diagnostics.className = 'lw-text';
-      diagnostics.onclick = () => root.__listweavarrPlaylistCompanion?.showDiagnostics?.();
+      diagnostics.title = 'Playlist companion settings';
+      diagnostics.setAttribute('aria-label', 'Playlist companion settings');
+      diagnostics.onclick = () => root.__listweavarrPlaylistCompanion?.openSettings?.();
       header.append(diagnostics);
       const cards = document.createElement('div');
       cards.className = 'lw-playlist-cards';
@@ -320,7 +304,6 @@
       releaseImages();
       section.remove();
       style.remove();
-      if (database) database.then((value) => value.close()).catch(() => {});
     };
   }
   if (typeof module !== 'undefined' && module.exports)

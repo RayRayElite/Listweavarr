@@ -37,6 +37,8 @@ import request_ledger
 import list_sharing
 import list_updates
 import plex_publications
+import playlist_artwork
+import playlist_progress
 import text_list_builder
 import saved_lists
 import release_watch
@@ -2261,6 +2263,41 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
+    def artwork_headers(self, state):
+        origin = self.headers.get("Origin")
+        if origin and origin not in playlist_artwork.origins(state):
+            return False
+        return True
+
+    def artwork_response(self, value, status=200, mime="application/json"):
+        raw = json.dumps(value).encode() if mime == "application/json" else value
+        self.send_response(status)
+        self.send_header("Content-Type", mime)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Vary", "Origin")
+        if self.headers.get("Origin"):
+            self.send_header("Access-Control-Allow-Origin", self.headers["Origin"])
+        progress = self.path.split("?", 1)[0] == "/api/playlist-companion/progress"
+        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS" if progress else "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type" if progress else "Authorization")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def do_OPTIONS(self):
+        if (
+            self.path.split("?", 1)[0]
+            not in (
+                "/api/playlist-companion/artwork",
+                "/api/playlist-companion/progress",
+            )
+            or self.headers.get("Host")
+            not in runtime_config.server_options()["allowed_hosts"]
+            or not self.artwork_headers(read_state())
+        ):
+            return self.respond({"error": "Not allowed"}, 403)
+        return self.artwork_response({}, 200)
+
     def do_GET(self):
         if (
             self.headers.get("Host")
@@ -2269,6 +2306,26 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond({"error": "Invalid host"}, 403)
         if self.path == "/healthz":
             return self.respond({"status": "ok", "application": "Listweavarr"})
+        if self.path.split("?", 1)[0] == "/api/playlist-companion/artwork":
+            state = read_state()
+            if not self.artwork_headers(state):
+                return self.respond({"error": "Origin not allowed"}, 403)
+            if not playlist_artwork.authorize(
+                state, self.headers.get("Authorization", "")
+            ):
+                return self.artwork_response(
+                    {"error": "Artwork pairing expired or revoked"}, 403
+                )
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            try:
+                if "playlistId" not in query:
+                    return self.artwork_response(playlist_artwork.catalogue(state))
+                mime, raw = playlist_artwork.image(
+                    state, query.get("serverId", [""])[0], query["playlistId"][0]
+                )
+                return self.artwork_response(raw, mime=mime)
+            except ValueError:
+                return self.artwork_response({"error": "Artwork not available"}, 404)
         if self.path == "/api/state":
             state = read_state()
             return self.respond(public_state(state))
@@ -2342,6 +2399,34 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def do_POST(self):
+        if self.path == "/api/playlist-companion/progress":
+            state = read_state()
+            if self.headers.get("Host") not in runtime_config.server_options()[
+                "allowed_hosts"
+            ] or not self.artwork_headers(state):
+                return self.respond({"error": "Not allowed"}, 403)
+            if not playlist_progress.authorize(
+                state, self.headers.get("Authorization", "")
+            ):
+                return self.artwork_response(
+                    {"error": "Progress pairing expired or revoked"}, 403
+                )
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                if not 0 < length <= 1000000:
+                    raise ValueError("Request too large")
+                body = json.loads(self.rfile.read(length))
+                with LOCK:
+                    state = read_state()
+                    if not playlist_progress.authorize(
+                        state, self.headers.get("Authorization", "")
+                    ):
+                        return self.artwork_response({"error": "Pairing revoked"}, 403)
+                    result = playlist_progress.merge(state, body)
+                    save_state(state)
+                return self.artwork_response(result)
+            except (ValueError, TypeError, KeyError):
+                return self.artwork_response({"error": "Invalid progress request"}, 400)
         if (
             self.headers.get("Host")
             not in runtime_config.server_options()["allowed_hosts"]
@@ -2361,6 +2446,46 @@ class Handler(BaseHTTPRequestHandler):
             ):
                 raise ValueError("Request too large.")
             body = json.loads(self.rfile.read(length))
+            if self.path == "/api/playlist-companion/pair":
+                if body.get("revoke"):
+                    with LOCK:
+                        state = read_state()
+                        state.pop("playlist_artwork_pairing", None)
+                        state.pop("playlist_progress_token", None)
+                        save_state(state)
+                    return self.respond({"revoked": True})
+                cfg = copy.deepcopy(read_state()["settings"].get("plex", {}))
+                identity = remote(
+                    cfg.get("url", ""), "/", cfg.get("key", ""), plex=True
+                ).get("machineIdentifier")
+                if not identity:
+                    raise ValueError("Connect Plex before pairing artwork.")
+                snapshot = read_state()
+                mappings = playlist_artwork.discover(
+                    snapshot, identity, remote, playlist_preview
+                )
+                token = secrets.token_urlsafe(32)
+                with LOCK:
+                    state = read_state()
+                    if state["settings"].get("plex", {}) != cfg:
+                        raise ValueError("Plex connection changed. Retry pairing.")
+                    state["playlist_artwork_pairing"] = {
+                        "machine": identity,
+                        "server": cfg["url"],
+                        "token": token,
+                    }
+                    state["playlist_artwork_mappings"] = mappings
+                    progress_token = secrets.token_urlsafe(32)
+                    state["playlist_progress_token"] = progress_token
+                    save_state(state)
+                return self.respond(
+                    {
+                        "token": token,
+                        "progressToken": progress_token,
+                        "serverId": identity,
+                        "mapped": len(mappings),
+                    }
+                )
             if self.path in ("/api/publications/preview", "/api/publications/apply"):
                 if not PUBLICATION_LOCK.acquire(blocking=False):
                     raise ValueError(

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add optional cross-device playlist bookmark sync through Listweavarr, with
+  migration of local checkpoints, offline fallback, timestamp conflict handling,
+  separate revocable progress credentials and per-user/server/playlist keys.
+- Package a clean Chrome extension folder and reversible Windows companion
+  updater, native portrait layout metrics and optional cached Listweavarr artwork.
+
 - Accept Plex's partial queue windows for middle-entry playlist starts when the
   server confirms the playlist ID and absolute selection, and every returned
   entry matches its anchored position. Verified against the real 200-item

@@ -6,7 +6,7 @@
   const core = globalThis.ListweavarrPlaylistCore;
   if (!core) return;
   const state = {
-    version: '0.3.0-development',
+    version: '0.4.0-development',
     platform: location.protocol === 'file:' ? 'desktop' : 'web',
     automaticTracking: false,
     resumeAdapter: false,
@@ -14,17 +14,10 @@
     api: null,
   };
   globalThis.__listweavarrPlaylistCompanion = state;
-  const supported =
-    state.platform === 'desktop' &&
+  const supported = () =>
     Array.from(document.scripts).some((script) =>
-      script.src.includes('main-8792-e90a21a5fe7ae941e8eb-plex-4.160.0-75ddd7b.js')
+      (globalThis.ListweavarrPlaylistBuilds || []).some((build) => script.src.endsWith('/' + build))
     );
-  if (!supported) {
-    console.info(
-      '[Listweavarr Playlist Companion] No verified player adapter for this client version'
-    );
-    return;
-  }
   let require;
   const chunks = globalThis.webpackChunkplex_web_client;
   if (!chunks || !globalThis.ListweavarrPlexAdapter) return;
@@ -38,19 +31,46 @@
   let attempts = 0;
   const initialize = setInterval(() => {
     try {
-      if (!require || !require(3467).XU('appStore')) throw new Error('Waiting for Plex');
+      if (!supported()) throw new Error('Waiting for a supported Plex build');
+      if (!require?.m?.[3467] || !require(3467).XU('appStore')) throw new Error('Waiting for Plex');
       const api = globalThis.ListweavarrPlexAdapter.create(require, localStorage, core);
       clearInterval(initialize);
       state.api = api;
+      state.progressSync = core.createSync(localStorage, api);
+      const syncProgress = () =>
+        state.progressSync.sync().catch((error) => {
+          state.syncError = error.message;
+        });
+      syncProgress();
+      const progressTimer = setInterval(syncProgress, 10000);
+      addEventListener('online', syncProgress);
+      addEventListener(
+        'pagehide',
+        () => {
+          clearInterval(progressTimer);
+          removeEventListener('online', syncProgress);
+        },
+        { once: true }
+      );
       state.automaticTracking = api.nativeTracking;
       state.resumeAdapter = true;
-      console.info('[Listweavarr Playlist Companion] desktop player adapter ready');
+      state.posterLayout = !!globalThis.__listweavarrPlaylistLayout?.installed;
+      console.info('[Listweavarr Playlist Companion] ' + state.platform + ' player adapter ready');
       mount(api);
+      const artwork = globalThis.ListweavarrPlaylistArtwork;
+      const stopArtwork = artwork?.mount(api);
+      const stopSettings = globalThis.ListweavarrPlaylistSettings?.mount(api, state);
+      artwork?.sync(api).catch(() => {});
+      const artworkTimer = setInterval(() => artwork?.sync(api).catch(() => {}), 300000);
       const stopHome = globalThis.ListweavarrPlaylistHome?.mount(api, core, localStorage);
       addEventListener(
         'pagehide',
         () => {
           stopHome?.();
+          stopSettings?.();
+          stopArtwork?.();
+          artwork?.close();
+          clearInterval(artworkTimer);
           api.dispose();
         },
         { once: true }
@@ -70,8 +90,9 @@
       'position:fixed;right:20px;bottom:100px;z-index:100000;font:14px system-ui;color:#eee';
     const toggle = document.createElement('button');
     toggle.textContent = 'Playlist diagnostics';
+    toggle.hidden = true;
     toggle.style.cssText =
-      'background:#282828;color:#eee;border:1px solid #777;border-radius:6px;padding:10px 14px;cursor:pointer';
+      'display:none;background:#282828;color:#eee;border:1px solid #777;border-radius:6px;padding:10px 14px;cursor:pointer';
     toggle.setAttribute('aria-expanded', 'false');
     const panel = document.createElement('section');
     panel.hidden = true;
@@ -176,6 +197,8 @@
       status.textContent = message;
     });
     state.showDiagnostics = () => {
+      toggle.hidden = false;
+      toggle.style.display = '';
       panel.hidden = false;
       toggle.setAttribute('aria-expanded', 'true');
       action(refresh);
@@ -184,6 +207,10 @@
       panel.hidden = !panel.hidden;
       toggle.setAttribute('aria-expanded', String(!panel.hidden));
       if (!panel.hidden) action(refresh);
+      else {
+        toggle.hidden = true;
+        toggle.style.display = 'none';
+      }
     };
     panel.append(heading, note, select, info, controls, status);
     host.append(panel, toggle);

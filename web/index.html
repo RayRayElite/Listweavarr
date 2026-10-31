@@ -549,6 +549,31 @@
             </p>
             <button class="primary" type="submit">Save connections</button>
           </form>
+          <div class="connection">
+            <h2>Plex playlist companion</h2>
+            <p class="muted">
+              Pair the optional Plex companion to import list posters and optionally sync playlist
+              positions between devices. Enable progress sync in each client's companion settings.
+              Keep Listweavarr running for sync; posters and local resume work offline. Keep the
+              pairing private. It does not expose your Plex credentials or change watched history.
+            </p>
+            <button id="playlist-artwork-pair" class="secondary" type="button">
+              Create companion pairing
+            </button>
+            <button id="playlist-artwork-revoke" class="text-action" type="button">
+              Revoke companion pairing
+            </button>
+            <label id="playlist-artwork-label" hidden
+              >Copy into Plex → Playlist companion settings
+              <textarea
+                id="playlist-artwork-code"
+                readonly
+                rows="3"
+                aria-label="Companion pairing code"
+              ></textarea>
+            </label>
+            <p id="playlist-artwork-status" class="muted" role="status"></p>
+          </div>
         </section>
         <section
           id="settings-requests"

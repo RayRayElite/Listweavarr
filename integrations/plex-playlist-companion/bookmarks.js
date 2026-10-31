@@ -127,7 +127,71 @@
       return null;
     }
   }
-  const api = Object.freeze({ checkpoint, reconcile, update, storageKey, save, load });
+  // Both clients keep their original local bookmarks. A separate, revocable
+  // capability permits syncing only bookmarks, never artwork-only credentials.
+  function createSync(storage, player, fetcher = globalThis.fetch.bind(globalThis)) {
+    let busy = false;
+    async function sync() {
+      if (busy || storage.getItem('playlist-companion:sync-enabled') !== 'true') return;
+      const cfg = JSON.parse(storage.getItem('playlist-companion:artwork-pairing') || 'null');
+      if (!cfg?.progressToken)
+        throw new Error('Create a new pairing in Listweavarr to enable progress sync.');
+      const url = new URL(cfg.url);
+      if (
+        !['http:', 'https:'].includes(url.protocol) ||
+        url.username ||
+        url.password ||
+        url.pathname !== '/' ||
+        url.search ||
+        url.hash
+      )
+        throw new Error('Invalid sync server.');
+      busy = true;
+      try {
+        const scopes = (await player.playlists())
+          .filter((scope) => !cfg.serverId || scope.serverId === cfg.serverId)
+          .map(({ serverId, userId, playlistId }) => ({ serverId, userId, playlistId }));
+        const items = scopes
+          .map((scope) => load(storage, scope))
+          .filter((row) => row && Number.isSafeInteger(row.updatedAt));
+        const response = await fetcher(url.origin + '/api/playlist-companion/progress', {
+          method: 'POST',
+          credentials: 'omit',
+          cache: 'no-store',
+          headers: {
+            Authorization: 'Bearer ' + cfg.progressToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ scopes, items }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok)
+          throw new Error('Sync server unavailable or pairing revoked. Local progress is safe.');
+        const data = await response.json();
+        if (data.schema !== 1 || !Array.isArray(data.items) || data.items.length > 1000)
+          throw new Error('Invalid sync response.');
+        // Re-read current account and local progress after the network wait.
+        const current = await player.playlists();
+        let changed = false;
+        for (const row of data.items) {
+          if (!current.some((scope) => storageKey(scope) === storageKey(row))) continue;
+          const local = load(storage, row);
+          if (!Number.isSafeInteger(row.updatedAt) || (local?.updatedAt || 0) >= row.updatedAt)
+            continue;
+          const scratch = { getItem: () => JSON.stringify(row) };
+          if (!load(scratch, row)) continue;
+          save(storage, row);
+          changed = true;
+        }
+        if (changed) globalThis.dispatchEvent?.(new Event('listweavarr-playlist-progress'));
+        return { updated: changed };
+      } finally {
+        busy = false;
+      }
+    }
+    return { sync };
+  }
+  const api = Object.freeze({ checkpoint, reconcile, update, storageKey, save, load, createSync });
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ListweavarrPlaylistCore = api;
 })(globalThis);

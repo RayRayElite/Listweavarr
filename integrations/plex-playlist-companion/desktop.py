@@ -16,14 +16,17 @@ import subprocess
 SOURCE = Path(__file__).resolve().parent
 KNOWN_INDEX = "d81687f1b5710890c3be9681236e8f92c39e9d48399f82a80dd67963297b92b7"
 ASSETS = {
+    "layout.js": "listweavarr-playlist-layout.js",
     "bookmarks.js": "listweavarr-playlist-bookmarks.js",
     "plex-adapter.js": "listweavarr-playlist-adapter.js",
+    "artwork.js": "listweavarr-playlist-artwork.js",
+    "settings.js": "listweavarr-playlist-settings.js",
     "home.js": "listweavarr-playlist-home.js",
     "runtime.js": "listweavarr-playlist-runtime.js",
 }
 BACKUP = "index.html.listweavarr-original"
 STATE = "listweavarr-playlist-install.json"
-MARKUP = b'\n<!-- Listweavarr playlist companion v1 -->\n<script src="listweavarr-playlist-bookmarks.js"></script>\n<script src="listweavarr-playlist-adapter.js"></script>\n<script src="listweavarr-playlist-home.js"></script>\n<script src="listweavarr-playlist-runtime.js"></script>\n'
+MARKUP = b'\n<!-- Listweavarr playlist companion v1 -->\n<script src="listweavarr-playlist-bookmarks.js"></script>\n<script src="listweavarr-playlist-adapter.js"></script>\n<script src="listweavarr-playlist-artwork.js"></script>\n<script src="listweavarr-playlist-settings.js"></script>\n<script src="listweavarr-playlist-home.js"></script>\n<script src="listweavarr-playlist-runtime.js"></script>\n'
 
 
 def digest(data):
@@ -89,15 +92,88 @@ def inspect(root):
     return root, data, state
 
 
-def operate(root, action):
-    root, data, state = inspect(root)
-    if action == "status":
+def patched_index(data):
+    position = data.find(b'<script src="js/main-')
+    if position < 0:
+        position = data.find(b"</body>")
+    value = (
+        data[:position]
+        + b'<script src="listweavarr-playlist-layout.js"></script>\n'
+        + data[position:]
+    )
+    return value.replace(b"</body>", MARKUP + b"</body>")
+
+
+def diagnose(root):
+    """Read-only status remains useful after Plex replaces its entry point."""
+    root = Path(root)
+    try:
+        path, data, state = inspect(root)
         return {
-            "installed": state is not None,
-            "supported": state is not None or digest(data) == KNOWN_INDEX,
+            "installed": bool(state),
+            "supported": bool(state) or digest(data) == KNOWN_INDEX,
+            "status": (
+                "installed"
+                if state
+                else "ready" if digest(data) == KNOWN_INDEX else "unsupported"
+            ),
             "index_sha256": digest(data),
         }
-    if action not in ("install", "uninstall"):
+    except (ValueError, OSError, json.JSONDecodeError) as error:
+        return {
+            "installed": False,
+            "supported": False,
+            "status": "needs-review",
+            "message": str(error),
+        }
+
+
+def recover(root):
+    """Remove verified stale assets after Plex updates; NEVER restore an old index
+    over a new Plex version. Unknown new versions stay clean and unsupported.
+    """
+    root = Path(root)
+    if root.is_symlink() or not root.is_dir() or plex_running():
+        raise ValueError("Close Plex and select its real web-client directory.")
+    root = root.resolve(strict=True)
+    names = ["index.html", BACKUP, STATE, *ASSETS.values()]
+    if any((root / name).is_symlink() for name in names):
+        raise ValueError("Refusing a symlink in the installation target.")
+    state = json.loads((root / STATE).read_text(encoding="utf-8"))
+    data = (root / "index.html").read_bytes()
+    if (
+        state.get("original_sha256") != KNOWN_INDEX
+        or digest((root / BACKUP).read_bytes()) != KNOWN_INDEX
+    ):
+        raise ValueError("Original backup failed verification.")
+    assets = state.get("assets", {})
+    if not assets or set(assets) - set(ASSETS.values()):
+        raise ValueError("Unknown companion asset manifest.")
+    if b"listweavarr-" in data.lower() or digest(data) == state.get("patched_sha256"):
+        raise ValueError(
+            "The entry point still contains companion changes. Use uninstall or inspect it manually."
+        )
+    for name, expected in assets.items():
+        if (root / name).exists() and digest((root / name).read_bytes()) != expected:
+            raise ValueError("Companion asset changed; refusing cleanup.")
+    for name in assets:
+        (root / name).unlink(missing_ok=True)
+    (root / STATE).unlink()
+    (root / BACKUP).unlink()
+    return {
+        "installed": False,
+        "new_plex_index_preserved": True,
+        "supported": digest(data) == KNOWN_INDEX,
+    }
+
+
+def operate(root, action):
+    if action == "status":
+        return diagnose(root)
+    if action == "recover":
+        return recover(root)
+    root, data, state = inspect(root)
+    if action not in ("install", "uninstall", "update"):
         raise ValueError("Unsupported action")
     if plex_running():
         raise ValueError(
@@ -113,7 +189,39 @@ def operate(root, action):
         (root / BACKUP).unlink()
         return {"installed": False, "restored_original": True}
     if state:
-        return {"installed": True, "changed": False}
+        if action != "update":
+            return {"installed": True, "changed": False}
+        assets = {
+            target: (SOURCE / source).read_bytes() for source, target in ASSETS.items()
+        }
+        patched = patched_index((root / BACKUP).read_bytes())
+        updated = {
+            **state,
+            "patched_sha256": digest(patched),
+            "assets": {name: digest(raw) for name, raw in assets.items()},
+        }
+        writes = {
+            **assets,
+            "index.html": patched,
+            STATE: json.dumps(updated, indent=2).encode(),
+        }
+        previous = {
+            name: (root / name).read_bytes() if (root / name).exists() else None
+            for name in writes
+        }
+        written = []
+        try:
+            for name, raw in writes.items():
+                atomic_write(root / name, raw)
+                written.append(name)
+        except Exception:
+            for name in reversed(written):
+                if previous[name] is None:
+                    (root / name).unlink()
+                else:
+                    atomic_write(root / name, previous[name])
+            raise
+        return {"installed": True, "updated": True, "backup_verified": True}
     if digest(data) != KNOWN_INDEX or data.count(b"</body>") != 1:
         raise ValueError("Unsupported Plex client version. No changes made.")
     for name in [BACKUP, *ASSETS.values()]:
@@ -124,7 +232,9 @@ def operate(root, action):
     assets = {
         target: (SOURCE / source).read_bytes() for source, target in ASSETS.items()
     }
-    patched = data.replace(b"</body>", MARKUP + b"</body>")
+    # Load the metric adapter before Plex imports its layout functions. Appending
+    # CSS after startup would leave virtualized rows at their old square height.
+    patched = patched_index(data)
     state = {
         "schema": 1,
         "original_sha256": KNOWN_INDEX,
@@ -156,7 +266,9 @@ def operate(root, action):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["status", "install", "uninstall"])
+    parser.add_argument(
+        "action", choices=["status", "install", "update", "uninstall", "recover"]
+    )
     parser.add_argument(
         "--web-client", default=r"C:\Program Files\Plex\Plex\web-client"
     )

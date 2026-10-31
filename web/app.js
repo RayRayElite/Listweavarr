@@ -577,6 +577,33 @@ async function api(path, body) {
   if (!response.ok) throw Error(result.error || 'Request failed');
   return result;
 }
+for (const [id, revoke] of [
+  ['playlist-artwork-pair', false],
+  ['playlist-artwork-revoke', true],
+]) {
+  $(id).onclick = async () => {
+    $(id).disabled = true;
+    try {
+      const result = await api('playlist-companion/pair', { revoke });
+      $('playlist-artwork-code').value = revoke
+        ? ''
+        : JSON.stringify({
+            url: location.origin,
+            token: result.token,
+            progressToken: result.progressToken,
+            serverId: result.serverId,
+          });
+      $('playlist-artwork-label').hidden = revoke;
+      $('playlist-artwork-status').textContent = revoke
+        ? 'Artwork pairing revoked. Cached images remain on paired devices.'
+        : `Copy this pairing into Plex’s companion settings. ${result.mapped} existing playlists matched by exact item order. Creating another pairing revokes the previous one.`;
+    } catch (error) {
+      $('playlist-artwork-status').textContent = error.message;
+    } finally {
+      $(id).disabled = false;
+    }
+  };
+}
 async function task(button, fn) {
   if (busy) return;
   busy = true;

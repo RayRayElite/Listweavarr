@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Playlist companion — Plex servers</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Playlist companion</h1>
+      <p>
+        Hosted Plex Web is enabled automatically. Add a local Plex Web address to enable it for that
+        server only. Unsupported client builds are left unchanged.
+      </p>
+      <form id="server-form">
+        <label for="origin">Plex server address</label
+        ><input
+          id="origin"
+          type="url"
+          required
+          placeholder="http://192.168.1.20:32400/web/"
+        /><button>Enable this server</button>
+      </form>
+      <p id="status" role="status"></p>
+      <ul id="servers"></ul>
+      <p>
+        Playback bookmarks and images stay in Plex’s browser storage. Uninstalling this extension
+        stops enhancements; it does not alter Plex playlists or watched history.
+      </p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
