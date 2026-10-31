@@ -5,7 +5,15 @@
   const ROW_SELECTOR =
     '[class*="VirtualHubScroller-hub-"], [class*="HubCell-hubCell-"], [class*="Hub-hub-"]';
   function isHome(hash) {
-    return /^(?:#!?\/(?:home)?(?:\?.*)?)?$/.test(hash || '');
+    const route = (hash || '')
+      .replace(/^#/, '')
+      .replace(/^!/, '')
+      .split('?')[0]
+      .replace(/^\/+|\/+$/g, '');
+    return route === '' || route === 'home';
+  }
+  function posterMultiplier(storage) {
+    return storage.getItem('playlist-companion:portrait') === 'false' ? 1 : 1.5;
   }
   function playlistHref(selection) {
     return (
@@ -25,7 +33,7 @@
   }
   // Native hubs reserve extra height for their longest metadata. Measure the
   // visible content rather than stacking another full hub margin below it.
-  function nativeRowMetrics(hub, section, view = root) {
+  function nativeRowMetrics(hub, section, view = root, multiplier = 1.5) {
     if (!hub || !view.getComputedStyle) return;
     const images = Array.from(hub.querySelectorAll('img'))
       .map((image) => image.getBoundingClientRect())
@@ -39,7 +47,7 @@
     const poster = images[0];
     if (poster) {
       section.style.setProperty('--lw-poster-width', poster.width + 'px');
-      section.style.setProperty('--lw-poster-height', poster.width * 1.5 + 'px');
+      section.style.setProperty('--lw-poster-height', poster.width * multiplier + 'px');
       const inset = Math.max(0, Math.min(80, poster.left - section.getBoundingClientRect().left));
       section.style.setProperty('--lw-row-inset', inset + 'px');
       const next = images.find(
@@ -439,6 +447,8 @@
     }
     function attach() {
       if (disposed) return;
+      const width = parseFloat(section.style.getPropertyValue?.('--lw-poster-width')) || 168;
+      section.style.setProperty('--lw-poster-height', width * posterMultiplier(storage) + 'px');
       if (diagnosticCount < 3) layoutDiagnostic();
       if (!isHome(location.hash)) {
         section.remove();
@@ -462,7 +472,12 @@
       }
       if (section.isConnected && dirty) refresh();
       if (section.isConnected && (placement?.reference || placement?.hub))
-        nativeRowMetrics(placement.reference || placement.hub, section);
+        nativeRowMetrics(
+          placement.reference || placement.hub,
+          section,
+          root,
+          posterMultiplier(storage)
+        );
     }
     function layoutDiagnostic() {
       if (disposed) return;
@@ -493,7 +508,9 @@
       }, 100);
     }
     const observer = new MutationObserver(schedule);
-    observer.observe(document.getElementById('plex') || document.body, {
+    // Plex's logo can replace its React root without changing the Home hash.
+    // Observe the stable body so replacement roots cannot strand our observer.
+    observer.observe(document.body, {
       childList: true,
       subtree: true,
     });
@@ -502,6 +519,11 @@
       schedule();
     };
     root.addEventListener('hashchange', changed);
+    root.addEventListener('popstate', changed);
+    const logoClicked = (event) => {
+      if (event.target.closest?.('[class*="NavBar-logoContainer-"]')) changed();
+    };
+    document.addEventListener('click', logoClicked, true);
     root.addEventListener('listweavarr-playlist-progress', changed);
     root.addEventListener('resize', schedule);
     root.addEventListener('listweavarr-playlist-settings', changed);
@@ -512,6 +534,8 @@
       clearTimeout(retryTimer);
       observer.disconnect();
       root.removeEventListener('hashchange', changed);
+      root.removeEventListener('popstate', changed);
+      document.removeEventListener('click', logoClicked, true);
       root.removeEventListener('listweavarr-playlist-progress', changed);
       root.removeEventListener('resize', schedule);
       root.removeEventListener('listweavarr-playlist-settings', changed);
@@ -531,6 +555,7 @@
       nativeRowMetrics,
       mount,
       rowPreference,
+      posterMultiplier,
     };
   else root.ListweavarrPlaylistHome = { mount, rowPreference };
 })(globalThis);

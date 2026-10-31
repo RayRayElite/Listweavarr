@@ -75,7 +75,7 @@ async function main() {
   const fetcher = async (url, options) => {
     requests.push({ url, options });
     if (offline) throw Error('Offline');
-    return url.includes('?')
+    return new URL(url).searchParams.has('playlistId')
       ? { ok: true, blob: async () => blob }
       : {
           ok: true,
@@ -95,6 +95,17 @@ async function main() {
   assert.equal(requests[0].options.credentials, 'omit');
   assert.equal(await service.get(scope), blob);
   assert.equal((await service.sync(api, true)).updated, 0, 'Skip unchanged revisions');
+  storage.setItem('playlist-companion:portrait', 'false');
+  revision = 'square';
+  assert.equal((await service.sync(api, true)).updated, 1);
+  assert.ok(requests.some((request) => request.url.endsWith('/artwork?shape=square')));
+  assert.ok(
+    requests.some(
+      (request) =>
+        new URL(request.url).searchParams.get('playlistId') === '7' &&
+        new URL(request.url).searchParams.get('shape') === 'square'
+    )
+  );
   offline = true;
   await assert.rejects(service.sync(api, true), /Offline/);
   assert.equal(await service.get(scope), blob, 'Offline sync must retain the cached poster');

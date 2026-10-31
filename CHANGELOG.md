@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Reattach Continue Playlists after Plex-logo Home navigation, including unchanged
+  Home hashes and replacement React roots. Observe the stable page body.
+- Offer explicit Portrait (2:3, default) and Square (1:1) playlist shapes, including
+  Continue Playlists and preferred square artwork when supplied by a list.
+
 - Add Select all for multi-list Plex playlist creation in both list catalogues.
   Selection respects the current search filter.
 - Use the observed full VirtualHubScroller rows for Home placement, preserving

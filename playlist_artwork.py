@@ -52,7 +52,9 @@ def authorize(state, authorization):
     )
 
 
-def entries(state):
+def entries(state, shape="portrait"):
+    if shape not in ("portrait", "square"):
+        raise ValueError("Invalid artwork shape")
     pairing = state.get("playlist_artwork_pairing", {})
     cfg = state.get("settings", {}).get("plex", {})
     if not pairing.get("machine") or pairing.get("server") != cfg.get("url"):
@@ -66,7 +68,11 @@ def entries(state):
             if row.get("listId") == entry.get("id")
             and row.get("serverId") == pairing["machine"]
         ]
-        image = entry.get("poster") or entry.get("playlist_poster")
+        image = (
+            (entry.get("playlist_poster") or entry.get("poster"))
+            if shape == "square"
+            else (entry.get("poster") or entry.get("playlist_poster"))
+        )
         if not image:
             continue
         image = saved_lists.poster(image)
@@ -137,20 +143,21 @@ def discover(state, machine, remote, preview):
     return result
 
 
-def catalogue(state):
+def catalogue(state, shape="portrait"):
     return {
         "schema": 1,
         "items": [
-            {k: v for k, v in row.items() if k != "image"} for row in entries(state)
+            {k: v for k, v in row.items() if k != "image"}
+            for row in entries(state, shape)
         ],
     }
 
 
-def image(state, machine, playlist):
+def image(state, machine, playlist, shape="portrait"):
     row = next(
         (
             row
-            for row in entries(state)
+            for row in entries(state, shape)
             if row["serverId"] == machine and row["playlistId"] == playlist
         ),
         None,

@@ -2328,10 +2328,13 @@ class Handler(BaseHTTPRequestHandler):
                 )
             query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             try:
+                shape = query.get("shape", ["portrait"])[0]
                 if "playlistId" not in query:
-                    return self.artwork_response(playlist_artwork.catalogue(state))
+                    return self.artwork_response(
+                        playlist_artwork.catalogue(state, shape)
+                    )
                 mime, raw = playlist_artwork.image(
-                    state, query.get("serverId", [""])[0], query["playlistId"][0]
+                    state, query.get("serverId", [""])[0], query["playlistId"][0], shape
                 )
                 return self.artwork_response(raw, mime=mime)
             except ValueError:

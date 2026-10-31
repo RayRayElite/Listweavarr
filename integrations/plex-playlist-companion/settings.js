@@ -17,13 +17,30 @@
     const heading = document.createElement('h2');
     heading.textContent = 'Playlist companion';
     const label = document.createElement('label');
-    const portrait = document.createElement('input');
-    portrait.type = 'checkbox';
-    portrait.checked = localStorage.getItem('playlist-companion:portrait') !== 'false';
-    label.append(
-      portrait,
-      ' Portrait playlist cards (restart Plex or reload the tab after changing)'
-    );
+    label.textContent = 'Playlist poster shape';
+    const portrait = document.createElement('select');
+    portrait.setAttribute('aria-label', 'Playlist poster shape');
+    for (const [value, title] of [
+      ['portrait', 'Portrait (2:3) — default'],
+      ['square', 'Square (1:1)'],
+    ]) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = title;
+      portrait.append(option);
+    }
+    portrait.value =
+      localStorage.getItem('playlist-companion:portrait') === 'false' ? 'square' : 'portrait';
+    portrait.style.cssText =
+      'display:block;background:#333;color:#eee;padding:9px;width:100%;margin:8px 0';
+    label.append(portrait);
+    const shapeNote = document.createElement('p');
+    shapeNote.textContent =
+      'Continue Playlists changes immediately. Reload Plex to update native playlist grids too. Square artwork is preferred when your list has a separate playlist poster.';
+    const shapeReload = document.createElement('button');
+    shapeReload.textContent = 'Reload Plex to apply shape everywhere';
+    shapeReload.type = 'button';
+    shapeReload.onclick = () => location.reload();
     const note = document.createElement('p');
     note.textContent =
       'Optional artwork pairing: in Listweavarr, open Settings → Connections → Playlist companion. Paste its artwork pairing below. Cached posters and resume work when Listweavarr is closed.';
@@ -98,8 +115,13 @@
       dialog.close();
       state.showDiagnostics?.();
     });
-    portrait.onchange = () =>
-      localStorage.setItem('playlist-companion:portrait', String(portrait.checked));
+    portrait.onchange = () => {
+      localStorage.setItem('playlist-companion:portrait', String(portrait.value === 'portrait'));
+      root.dispatchEvent(new Event('listweavarr-playlist-settings'));
+      root.ListweavarrPlaylistArtwork.sync(api, true).catch((error) => {
+        status.textContent = error.message;
+      });
+    };
     const placementLabel = document.createElement('label');
     placementLabel.textContent = 'Continue Playlists position';
     const placement = document.createElement('select');
@@ -153,7 +175,15 @@
     positionNote.textContent =
       'Placement is saved separately on each client. Plex can load more Home rows as you scroll; the companion follows the chosen position.';
     const appearance = document.createElement('section');
-    appearance.append(label, placementLabel, rowLabel, positionNote, positionStatus);
+    appearance.append(
+      label,
+      shapeNote,
+      shapeReload,
+      placementLabel,
+      rowLabel,
+      positionNote,
+      positionStatus
+    );
     const connection = document.createElement('section');
     connection.append(note, input, progressLabel, progressNote, status, actions);
     const recovery = document.createElement('section');
@@ -281,7 +311,7 @@
         }, 100);
     };
     const observer = new MutationObserver(schedule);
-    observer.observe(document.getElementById('plex') || document.body, {
+    observer.observe(document.body, {
       childList: true,
       subtree: true,
     });

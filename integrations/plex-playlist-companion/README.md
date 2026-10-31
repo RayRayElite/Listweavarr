@@ -83,6 +83,9 @@ settings. Appearance, Connection & sync, and Recovery tabs keep controls separat
 Home row placement is per client and applies immediately. Bottom placement follows
 new native rows as Plex loads them; a row number beyond the available rows uses
 the last loaded row.
+Appearance also offers Portrait (2:3, default) and Square (1:1) cards. Home cards
+change immediately; use the reload button to apply the shape to native playlist
+grids. Square mode prefers a list's separate playlist poster when available.
 
 **Ctrl + Alt + Shift + L** pauses or re-enables the integration and reloads Plex.
 The shortcut registers before the Webpack/player hooks and is still available

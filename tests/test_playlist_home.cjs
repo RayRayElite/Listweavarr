@@ -4,6 +4,11 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const core = require('../integrations/plex-playlist-companion/bookmarks.js');
 const home = require('../integrations/plex-playlist-companion/home.js');
+for (const route of ['', '#', '#!', '#!/', '#/home/', '#!/home/?source=logo'])
+  assert.equal(home.isHome(route), true);
+assert.equal(home.isHome('#!/settings/web/general'), false);
+assert.equal(home.posterMultiplier({ getItem: () => null }), 1.5);
+assert.equal(home.posterMultiplier({ getItem: () => 'false' }), 1);
 const first = { serverId: 'server', userId: 'user', playlistId: '7', title: 'Long playlist' };
 assert.equal(home.playlistHref(first), '#!/server/server/playlist?key=%2Fplaylists%2F7');
 assert.equal(
@@ -64,7 +69,11 @@ class Element {
     this.tagName = tag.toUpperCase();
     this.children = [];
     this.attributes = {};
-    this.style = { setProperty() {} };
+    const styles = new Map();
+    this.style = {
+      setProperty: (key, value) => styles.set(key, value),
+      getPropertyValue: (key) => styles.get(key) || '',
+    };
     this._text = '';
   }
   set textContent(value) {
@@ -189,6 +198,10 @@ class Element {
   body.connected = head.connected = true;
   body.append(container);
   const elements = [];
+  const documentEvents = new Map(),
+    events = new Map(),
+    timers = [],
+    observers = [];
   const document = {
     body,
     head,
@@ -202,6 +215,8 @@ class Element {
     querySelector: (selector) =>
       selector.includes('PageContent-pageContentScroller') ? container : null,
     getElementById: () => null,
+    addEventListener: (name, callback) => documentEvents.set(name, callback),
+    removeEventListener: (name) => documentEvents.delete(name),
   };
   const values = new Map();
   const storage = { getItem: (k) => values.get(k), setItem: (k, v) => values.set(k, v) };
@@ -232,16 +247,30 @@ class Element {
     console,
     URL,
     MutationObserver: class {
-      observe() {}
+      constructor(callback) {
+        this.callback = callback;
+        observers.push(this);
+      }
+      observe(target) {
+        this.target = target;
+      }
       disconnect() {}
     },
-    setTimeout: () => 1,
+    setTimeout: (callback) => {
+      timers.push(callback);
+      return timers.length;
+    },
     clearTimeout() {},
-    addEventListener() {},
-    removeEventListener() {},
-    ListweavarrPlaylistArtwork: { get: async () => null, set: async () => {}, paired: () => false },
+    addEventListener: (name, callback) => events.set(name, callback),
+    removeEventListener: (name) => events.delete(name),
+    ListweavarrPlaylistArtwork: {
+      get: async () => null,
+      set: async () => {},
+      paired: () => false,
+      sync: async () => ({ updated: 0 }),
+    },
     Event,
-    dispatchEvent() {},
+    dispatchEvent: (event) => events.get(event.type)?.(event),
     ListweavarrPlaylistCore: core,
   });
   vm.runInContext(fs.readFileSync('integrations/plex-playlist-companion/home.js', 'utf8'), context);
@@ -272,6 +301,21 @@ class Element {
   const css = elements.find((element) => element.tagName === 'STYLE').textContent;
   assert.match(css, /grid-template-rows:var\(--lw-poster-height,252px\) 22px 36px 18px 4px/);
   assert.match(css, /left:7px;bottom:7px/);
+  assert.equal(
+    observers[0].target,
+    body,
+    'Observe the stable body rather than a replaceable Plex root'
+  );
+  const homeSection = elements.find((element) => element.className === 'lw-playlist-home');
+  homeSection.remove();
+  documentEvents.get('click')({ target: { closest: () => ({}) } });
+  timers.shift()();
+  await new Promise(setImmediate);
+  assert.equal(
+    homeSection.isConnected,
+    true,
+    'Logo navigation reattaches the row even when the Home hash stays unchanged'
+  );
   context.location.hash = '#!/settings/web/general';
   vm.runInContext(
     fs.readFileSync('integrations/plex-playlist-companion/settings.js', 'utf8'),
@@ -291,7 +335,24 @@ class Element {
   assert.equal(found.content, settingsContent);
   assert.equal(found.sidebar, settingsSidebar);
   dashboard.openSettings();
-  const position = elements.find((element) => element.tagName === 'SELECT');
+  context.location.hash = '#!/';
+  const shape = elements.find(
+    (element) => element.attributes['aria-label'] === 'Playlist poster shape'
+  );
+  assert.equal(shape.value, 'portrait');
+  shape.value = 'square';
+  shape.onchange();
+  while (timers.length) timers.shift()();
+  await new Promise(setImmediate);
+  assert.equal(storage.getItem('playlist-companion:portrait'), 'false');
+  assert.equal(
+    homeSection.style.getPropertyValue('--lw-poster-height'),
+    '168px',
+    'Square preference applies to the Home row'
+  );
+  const position = elements.find(
+    (element) => element.attributes['aria-label'] === 'Continue Playlists position'
+  );
   position.value = 'after-row';
   const number = elements.find((element) => element.type === 'number');
   number.value = '2';

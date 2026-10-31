@@ -179,7 +179,13 @@
           cache: 'no-store',
         };
         const endpoint = cfg.url + '/api/playlist-companion/artwork';
-        const response = await core.fetchWithTimeout(fetcher, endpoint, options, 12000);
+        const square = storage.getItem('playlist-companion:portrait') === 'false';
+        const response = await core.fetchWithTimeout(
+          fetcher,
+          endpoint + (square ? '?shape=square' : ''),
+          options,
+          12000
+        );
         if (!response.ok) throw new Error('Artwork pairing is unavailable or revoked.');
         const data = await response.json();
         if (data.schema !== 1 || !Array.isArray(data.items) || data.items.length > 1000)
@@ -199,6 +205,7 @@
           )
             continue;
           const query = new URLSearchParams({ serverId: row.serverId, playlistId: row.playlistId });
+          if (square) query.set('shape', 'square');
           const image = await core.fetchWithTimeout(
             fetcher,
             endpoint + '?' + query,
@@ -293,7 +300,7 @@
           }, 100);
       };
       const observer = new MutationObserver(schedule);
-      observer.observe(document.getElementById('plex') || document.body, {
+      observer.observe(document.body, {
         childList: true,
         subtree: true,
         attributes: true,

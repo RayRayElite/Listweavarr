@@ -15,6 +15,22 @@ import playlist_artwork
 
 
 class PlaylistArtworkTests(unittest.TestCase):
+    def test_square_preference_uses_playlist_poster_without_changing_default(self):
+        state = app.read_state()
+        square = b"\x89PNG\r\n\x1a\nsquare"
+        state["lists"][0]["playlist_poster"] = (
+            "data:image/png;base64," + base64.b64encode(square).decode()
+        )
+        app.save_state(state)
+        with self.request(
+            "/api/playlist-companion/artwork?serverId=server&playlistId=7&shape=square"
+        ) as response:
+            self.assertEqual(response.read(), square)
+        with self.request(
+            "/api/playlist-companion/artwork?serverId=server&playlistId=7"
+        ) as response:
+            self.assertNotEqual(response.read(), square)
+
     def test_shared_posters_use_write_capability_and_preflight(self):
         state = app.read_state()
         state["playlist_progress_token"] = "p" * 43
