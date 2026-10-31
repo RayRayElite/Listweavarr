@@ -20,21 +20,27 @@ This checklist separates completed increments from full feature completion.
 - Composite snapshots: combine/common/subtract, exclusion, conservative exact
   identity, provenance, source-pinned preview/create and non-destructive rebuild.
 
+- Native Plex collections now support reviewed creation and in-place updates,
+  exact target identity, portrait artwork, partial-failure recovery and local
+  unlinking. A disposable live add/remove/reorder test passed.
+- Added title/season overview cards, cache-first Official catalogue rendering,
+  linked-playlist availability checks and Upcoming release classification.
+- Availability reads no longer retain the workspace lock; source/connection
+  changes invalidate results, while newer request logs survive the merge.
+
 ## Remaining implementation queue
 
-1. Native Plex collection publication with reviewed differences and target
-   ownership checks. Mixed movie/episode watch orders remain playlists.
-2. Per-list acquisition policies; expand request-stage diagnostics and a unified
+1. Per-list acquisition policies; expand request-stage diagnostics and a unified
    release calendar; additional notification transports.
-3. Single-owner authentication/session recovery before an external request API.
+2. Single-owner authentication/session recovery before an external request API.
    Household/multi-user accounts remain deferred by the user's earlier choice.
-4. Unified search, optional taste onboarding, issue notebook and Plex watchlist
+3. Unified search, optional taste onboarding, issue notebook and Plex watchlist
    bridge; manager-only discovery and optional natural-language list recipes.
-5. Library readiness, duplicate/edition health, quality-profile assistance,
+4. Library readiness, duplicate/edition health, quality-profile assistance,
    protected/reviewed storage maintenance and evidence-based viewing insights.
-6. Fuller composite rule lifecycle and portable curation rules. Generated
+5. Fuller composite rule lifecycle and portable curation rules. Generated
    snapshots are functional; automatic cascades and edited-result merging are not.
-7. Community hosting, account ownership, publishing and moderation. No public
+6. Community hosting, account ownership, publishing and moderation. No public
    Community service/account has been created. Never imply local curator mode
    proves an author's identity on a shared service.
 

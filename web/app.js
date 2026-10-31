@@ -547,7 +547,9 @@ function paintMetadata(item) {
       continue;
     }
     const overview = element.querySelector('.entry-overview');
-    if (m.error)
+    if (element.dataset.scopeCard) {
+      // Scope summaries describe list contents, not an arbitrary episode synopsis.
+    } else if (m.error)
       overview.innerHTML = esc(metadataFailureText(item)) + ' ' + metadataRetryButton(item);
     else
       overview.textContent =
@@ -764,6 +766,7 @@ function visible() {
         (filter === 'all' ||
           (filter === 'missing' && ['missing', 'partial'].includes(s)) ||
           (filter === 'available' && s === 'available') ||
+          (filter === 'upcoming' && s === 'upcoming') ||
           (filter === 'review' && ['unmatched', 'review', 'unchecked'].includes(s))) &&
         (i.title + ' ' + (i.show_title || ''))
           .toLowerCase()
@@ -928,7 +931,57 @@ function row(i) {
       : 'Connect TMDB to see descriptions and ratings.';
   const rating = m && !m.error ? ratingWidget({ ...i, ...m }) : '';
   const service = i.type === 'movie' ? 'Radarr' : 'Sonarr';
-  return `<article class="entry" data-entry="${i.id}"><input type="checkbox" aria-label="Select ${esc(i.title)}" data-item="${i.id}" ${selected.has(i.id) ? 'checked' : ''} ${requestable(i) ? '' : 'disabled'}><span class="rank">${String(rank).padStart(2, '0')}</span><button class="entry-art" data-details="${i.id}" aria-label="Details for ${esc(i.title)}">${m?.poster ? posterArt(m.poster, { ...i, ...m }) : `<span>${esc(i.title.charAt(0))}</span>`}</button><div class="entry-copy"><div class="entry-title"><button data-details="${i.id}" class="title-link">${esc(i.title)}</button> ${i.year ? `<span class="muted">(${esc(i.year)})</span>` : ''}</div><div class="entry-kicker">${i.is_new ? '<span class="badge available">New in source</span> ' : ''}${esc(type)}${i.type !== 'movie' ? ` · <button class="show-link" data-show="${i.id}">${esc(m?.show_title || i.show_title || (i.type === 'show' ? 'Explore full show' : 'View full show'))}</button>` : ''} <span class="entry-rating">${rating}</span></div><p class="entry-overview">${esc(overview)}${m?.error ? ' ' + metadataRetryButton(i) : ''}</p><div class="entry-meta">${esc(i.detail || 'Compare with Plex to check availability')} · <button class="edit-entry" data-edit="${i.id}" aria-label="Correct ${esc(i.title)}">Correct match</button> ${window.watchBadgeFor?.(i) || ''} ${activityBadge(i)}</div></div><div class="entry-controls">${ignoreButton({ ...i, ...m })}<span class="badge ${esc(i.status || 'unchecked')}">${esc({ unchecked: 'Not checked', available: 'In Plex', missing: 'Missing', partial: 'Partial', review: 'Review match', unmatched: 'Unmatched', upcoming: 'Not aired' }[i.status || 'unchecked'])}</span>${requestable(i) ? `<button class="primary add-one" data-add="${i.id}">+ Add to ${service}</button>` : ''}</div></article>`;
+  return `<article class="entry" data-entry="${i.id}"><input type="checkbox" aria-label="Select ${esc(i.title)}" data-item="${i.id}" ${selected.has(i.id) ? 'checked' : ''} ${requestable(i) ? '' : 'disabled'}><span class="rank">${String(rank).padStart(2, '0')}</span><button class="entry-art" data-details="${i.id}" aria-label="Details for ${esc(i.title)}">${m?.poster ? posterArt(m.poster, { ...i, ...m }) : `<span>${esc(i.title.charAt(0))}</span>`}</button><div class="entry-copy"><div class="entry-title"><button data-details="${i.id}" class="title-link">${esc(i.title)}</button> ${i.year ? `<span class="muted">(${esc(i.year)})</span>` : ''}</div><div class="entry-kicker">${i.is_new ? '<span class="badge available">New in source</span> ' : ''}${esc(type)}${i.type !== 'movie' ? ` · <button class="show-link" data-show="${i.id}">${esc(m?.show_title || i.show_title || (i.type === 'show' ? 'Explore full show' : 'View full show'))}</button>` : ''} <span class="entry-rating">${rating}</span></div><p class="entry-overview">${esc(overview)}${m?.error ? ' ' + metadataRetryButton(i) : ''}</p><div class="entry-meta">${esc(i.detail || 'Compare with Plex to check availability')} · <button class="edit-entry" data-edit="${i.id}" aria-label="Correct ${esc(i.title)}">Correct match</button> ${window.watchBadgeFor?.(i) || ''} ${activityBadge(i)}</div></div><div class="entry-controls">${ignoreButton({ ...i, ...m })}<span class="badge ${esc(i.status || 'unchecked')}">${esc({ unchecked: 'Not checked', available: 'In Plex', missing: 'Missing', partial: 'Partial', review: 'Review match', unmatched: 'Unmatched', upcoming: 'Upcoming' }[i.status || 'unchecked'])}</span>${requestable(i) ? `<button class="primary add-one" data-add="${i.id}">+ Add to ${service}</button>` : ''}</div></article>`;
+}
+function listScopeGroups(items, mode) {
+  const groups = new Map();
+  for (const item of items) {
+    const movie = item.type === 'movie',
+      child = ['episode', 'season'].includes(item.type);
+    const id = ['tmdb', 'tvdb', 'imdb']
+      .map((p) => [p, item[(child ? 'show_' : '') + p]])
+      .find(([, v]) => v);
+    const parent = id ? `${id[0]}:${id[1]}` : `unknown:${item.id}`;
+    const season =
+      !movie && mode === 'seasons' && item.season !== undefined ? String(item.season) : '';
+    const key = `${movie ? 'movie' : 'tv'}:${parent}:${season}`;
+    if (!groups.has(key))
+      groups.set(key, {
+        item,
+        title: movie || item.type === 'show' ? item.title : item.show_title || item.title,
+        season,
+        members: [],
+        seasons: new Set(),
+      });
+    const group = groups.get(key);
+    group.members.push(item);
+    if (item.season !== undefined) group.seasons.add(String(item.season));
+  }
+  return [...groups.values()];
+}
+function renderScopeOverview(items, mode) {
+  const groups = listScopeGroups(items, mode);
+  const titles = listScopeGroups(items, 'titles').length;
+  return (
+    `<p class="muted">Includes ${titles} movies/shows${mode === 'seasons' ? ` across ${groups.length} title/season cards` : ''}. Overview of the filtered entries; the saved watch order is unchanged.</p><div class="list-scope-grid">` +
+    groups
+      .map((group) => {
+        const item = group.item,
+          meta = metadataCache.get(metadataKey(item)),
+          movie = item.type === 'movie';
+        const action = movie ? 'data-details' : 'data-show';
+        const scope = movie
+          ? 'Movie'
+          : group.season
+            ? `Season ${group.season}`
+            : group.seasons.size
+              ? 'Seasons ' + [...group.seasons].sort((a, b) => Number(a) - Number(b)).join(', ')
+              : 'Whole show';
+        return `<article class="list-scope-card" data-entry="${esc(item.id)}" data-scope-card="true"><button class="entry-art" ${action}="${esc(item.id)}" aria-label="Details for ${esc(group.title)}">${meta?.poster ? posterArt(meta.poster, item) : `<span>${esc(group.title.charAt(0))}</span>`}</button><strong><button class="title-link" ${action}="${esc(item.id)}">${esc(group.title)}</button></strong><p class="entry-overview muted">${esc(scope)} · ${group.members.length} list entries</p><span class="entry-rating">${meta && !meta.error ? ratingWidget({ ...item, ...meta }) : ''}</span></article>`;
+      })
+      .join('') +
+    '</div>'
+  );
 }
 function renderGroups(items) {
   const groups = new Map();
@@ -1004,6 +1057,9 @@ function renderListUpdates() {
       : '') +
     (list.playlist_needs_update
       ? `<p class="metadata-error">Your linked Plex playlist has updates to review. <button class="secondary" data-review-publication="${esc(list.id)}">Review Plex update</button></p>`
+      : '') +
+    (list.collection_attention
+      ? `<p class="metadata-error">${esc(list.collection_attention)} <button class="secondary" data-review-collection="${esc(list.id)}">Review collection</button></p>`
       : '');
 }
 function render() {
@@ -1030,8 +1086,11 @@ function render() {
     $('entries').innerHTML =
       '<div class="empty"><h2>No entries match this view.</h2><p>Try a different search, year range or availability filter.</p><button type="button" class="secondary" data-reset-list-filters>Clear search &amp; filters</button></div>';
   else
-    $('entries').innerHTML =
-      $('view').value === 'group' ? renderGroups(items) : items.map(row).join('');
+    $('entries').innerHTML = ['titles', 'seasons'].includes($('view').value)
+      ? renderScopeOverview(items, $('view').value)
+      : $('view').value === 'group'
+        ? renderGroups(items)
+        : items.map(row).join('');
   $('source-note').title = (current()?.warnings || []).join('\n');
   renderListUpdates();
   window.renderTraktSavedInfo?.();
@@ -1154,21 +1213,53 @@ function selectListsTab(name) {
       }[name];
 }
 let officialCatalogue = [];
+let officialRefreshing = null,
+  officialLastFetched = 0;
 async function loadOfficialLists() {
-  if (officialLoaded) {
+  if (officialLoaded && Date.now() - officialLastFetched < 60000) {
     drawOfficialCatalogue();
     return;
   }
-  $('official-status').textContent = 'Loading official catalogue...';
-  try {
-    const data = await api('explore/official', {});
-    $('official-status').textContent = data.note;
-    officialCatalogue = data.lists;
-    officialLoaded = true;
-    drawOfficialCatalogue();
-  } catch (e) {
-    $('official-status').textContent = e.message;
-  }
+  if (officialRefreshing) return officialRefreshing;
+  officialRefreshing = (async () => {
+    if (!officialCatalogue.length) {
+      officialCatalogue = state.lists
+        .filter((r) => r.official_authoring && r.official_id)
+        .map((r) => ({
+          ...r,
+          id: r.official_id,
+          version: r.official_version,
+          count: r.items.length,
+        }));
+      if (officialCatalogue.length) drawOfficialCatalogue();
+      else {
+        const cached = typeof officialCardCache === 'function' ? await officialCardCache() : null;
+        if (cached?.lists.length) {
+          officialCatalogue = cached.lists;
+          drawOfficialCatalogue();
+        }
+      }
+    } else drawOfficialCatalogue();
+    $('official-status').textContent = officialCatalogue.length
+      ? 'Showing saved catalogue. Checking for changes in the background…'
+      : 'Loading official catalogue…';
+    try {
+      const data = await api('explore/official', {});
+      officialCatalogue = data.lists;
+      officialLoaded = true;
+      officialLastFetched = Date.now();
+      drawOfficialCatalogue();
+      $('official-status').textContent = data.note;
+      if (typeof officialCardCache === 'function') void officialCardCache(data);
+    } catch (e) {
+      $('official-status').textContent =
+        (officialCatalogue.length ? 'Showing saved catalogue; refresh unavailable: ' : '') +
+        e.message;
+    }
+  })().finally(() => {
+    officialRefreshing = null;
+  });
+  return officialRefreshing;
 }
 bindTabKeys('data-lists-tab', selectListsTab);
 $('official-items').onclick = (e) => {
@@ -1838,7 +1929,7 @@ async function openTitle(id) {
 let activeShowContext = null,
   showRequestScope = null;
 function coverageMarkup(data) {
-  return `<section class="show-coverage"><div class="coverage-heading"><div><p class="eyebrow">YOUR PLEX LIBRARY</p><h3>${data.available} episodes available · ${data.missing} aired episodes missing</h3><p class="muted">${esc(data.libraries.join(', ') || 'No confirmed episodes in Plex')}. Whole-show requests exclude specials.</p></div>${data.coverage_known && data.missing ? '<button class="primary" data-show-scope="show">Request missing from whole show</button>' : data.coverage_known ? '<span class="title-owned">All aired episodes in Plex</span>' : ''}</div>${!data.coverage_known ? '<p class="metadata-error">Coverage could not be confirmed. Check the Plex connection or correct the show match before requesting.</p>' : ''}${data.seasons.map((s) => `<details class="coverage-season"><summary><span>${esc(s.name)}</span><span class="muted">${s.available} in Plex · ${s.aired} aired · ${s.missing} missing</span></summary>${data.coverage_known && s.missing ? `<div class="season-request"><button class="secondary" data-show-scope="season" data-season="${s.number}">Request ${s.missing} missing episode${s.missing === 1 ? '' : 's'} from this season</button></div>` : ''}<ul class="coverage-episodes">${s.episodes.map((e) => `<li><span><small>S${e.season} E${e.episode}</small> <button class="episode-title-link" data-episode-show="${esc(data.show?.tmdb || '')}" data-season="${e.season}" data-episode="${e.episode}">${esc(e.title)}</button></span><span class="badge ${e.status}">${esc({ available: 'In Plex', missing: 'Missing', upcoming: 'Not aired', unknown: 'Unknown' }[e.status])}</span></li>`).join('')}</ul></details>`).join('')}</section>`;
+  return `<section class="show-coverage"><div class="coverage-heading"><div><p class="eyebrow">YOUR PLEX LIBRARY</p><h3>${data.available} episodes available · ${data.missing} aired episodes missing</h3><p class="muted">${esc(data.libraries.join(', ') || 'No confirmed episodes in Plex')}. Whole-show requests exclude specials.</p></div>${data.coverage_known && data.missing ? '<button class="primary" data-show-scope="show">Request missing from whole show</button>' : data.coverage_known ? '<span class="title-owned">All aired episodes in Plex</span>' : ''}</div>${!data.coverage_known ? '<p class="metadata-error">Coverage could not be confirmed. Check the Plex connection or correct the show match before requesting.</p>' : ''}${data.seasons.map((s) => `<details class="coverage-season"><summary><span>${esc(s.name)}</span><span class="muted">${s.available} in Plex · ${s.aired} aired · ${s.missing} missing</span></summary>${data.coverage_known && s.missing ? `<div class="season-request"><button class="secondary" data-show-scope="season" data-season="${s.number}">Request ${s.missing} missing episode${s.missing === 1 ? '' : 's'} from this season</button></div>` : ''}<ul class="coverage-episodes">${s.episodes.map((e) => `<li><span><small>S${e.season} E${e.episode}</small> <button class="episode-title-link" data-episode-show="${esc(data.show?.tmdb || '')}" data-season="${e.season}" data-episode="${e.episode}">${esc(e.title)}</button></span><span class="badge ${e.status}">${esc({ available: 'In Plex', missing: 'Missing', upcoming: 'Upcoming', unknown: 'Unknown' }[e.status])}</span></li>`).join('')}</ul></details>`).join('')}</section>`;
 }
 const showPageCache = new Map();
 function recentShowPage(key) {

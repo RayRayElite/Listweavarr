@@ -34,6 +34,8 @@ bundles to fixtures.
 | [list_sharing.py](../list_sharing.py) | Portable list interchange without private runtime state. | `digest`, `export`, `validate` |
 | [list_updates.py](../list_updates.py) | Read-only linked-source differences and opt-in scheduling. | `fingerprint`, `summarize`, `due`, `finish`, `public`; orchestration in `app.check_linked_list` |
 | [plex_publications.py](../plex_publications.py) | Saved Plex target snapshots and publication differences. | `baseline`, `target`, `changes`; reviewed writes use `app.create_playlist` |
+| [plex_collections.py](../plex_collections.py) | Native collection plans, exact target identity, paged membership and guarded in-place updates. | `kind`, `libraries`, `plan`, `target`, `apply`; tokens/checkpoints in `app.collection_action` |
+| [list_release_state.py](../list_release_state.py) | Cache-first detection of unreleased list scopes with bounded current/future-year metadata refresh. | `upcoming` |
 | [official_lists.py](../official_lists.py) | Versioned Official catalogue authoring and personal-copy creation. | `prepare_publish`, `write_document`, `document`, `catalogue`, `get`, `instantiate` |
 | [collection_tools.py](../collection_tools.py) | Collection diagnostics and reviewable version merges. | `portable`, `snapshot`, `key`, `indexed`, `health`, `preview` |
 | [catalogue_feed.py](../catalogue_feed.py) | Public catalogue download, manifest checks and staged installation. | `digest`, `source_url`, `download`, `validate`, `compare_content`, `merge` |
@@ -67,6 +69,8 @@ runtime_config.py owns data paths, host allowlists, public URL and local curator
 | web/app.js | Shared state, entry rendering, API helper, metadata loading, title and request dialogs |
 | web/lists.js | Personal catalogue, editor, sharing, list covers and local Official publication |
 | web/list-updates.js | Source-update summaries, manual checks and opt-in daily/weekly scheduling |
+| web/collections.js | Explicit library choice, collection diff review and single-use publication |
+| web/official-cache.js | Persistent catalogue-card snapshots, excluding library inventory/credentials |
 | web/explore.js | Discovery shelves, filters, list searches and selection routing |
 | web/trakt.js | List previews, followed calendar and title-related discovery |
 | web/workbench.js | Workbench actions, creator follows, planning and watch-path editing |

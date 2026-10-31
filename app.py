@@ -38,10 +38,12 @@ import request_ledger
 import list_sharing
 import list_updates
 import plex_publications
+import plex_collections
 import playlist_artwork
 import playlist_progress
 import text_list_builder
 import saved_lists
+import list_release_state
 import composite_lists
 import release_watch
 import activity
@@ -1170,6 +1172,7 @@ def compare(items, settings):
     results = []
     for item in items:
         item = dict(item)
+        was_upcoming = item.get("status") == "upcoming"
         for field in ("plex_key", "plex_keys", "detail", "status"):
             item.pop(field, None)
         if item.get("metadata_unresolved"):
@@ -1258,8 +1261,86 @@ def compare(items, settings):
                         )
         elif ids_present(item):
             result.update(status="missing", detail="Not found in Plex")
+        if result["status"] == "missing":
+            release = list_release_state.classify(item, settings, metadata)
+            if release and release["state"] == "upcoming":
+                result.update(
+                    status="upcoming",
+                    detail=release["detail"],
+                    release_date=release["date"],
+                )
+            elif was_upcoming and release is None:
+                result.update(
+                    status="upcoming",
+                    detail="Previously upcoming; release status could not be verified. Recheck when metadata is available.",
+                )
         results.append(result)
     return results
+
+
+def compare_saved_list(identifier):
+    """Read Plex outside the workspace lock, then merge only coverage fields.
+
+    Source edits or connection changes invalidate the result. Concurrent request
+    logs and other unrelated list metadata are retained rather than overwritten
+    by the earlier snapshot. Browsing cached pages need not wait for Plex reads.
+    """
+    with LOCK:
+        snapshot = read_state()
+    entry = next((e for e in snapshot["lists"] if e["id"] == identifier), None)
+    if not entry:
+        raise ValueError("Choose a saved list first.")
+    source = list_updates.fingerprint(entry)
+    compared = compare(entry["items"], snapshot["settings"])
+    if len(compared) != len(entry["items"]):
+        raise ValueError("The comparison returned an incomplete list. Retry.")
+    fields = (
+        "status",
+        "detail",
+        "plex_key",
+        "plex_keys",
+        "match_basis",
+        "missing_episodes",
+        "release_date",
+    )
+    with LOCK:
+        latest = read_state()
+        saved = next((e for e in latest["lists"] if e["id"] == identifier), None)
+        if (
+            not saved
+            or list_updates.fingerprint(saved) != source
+            or latest["settings"] != snapshot["settings"]
+        ):
+            raise ValueError(
+                "The list or connections changed during comparison. Check again; the edited list was preserved."
+            )
+        baseline = saved.get("comparison_baseline") or {
+            i["id"]: i["status"]
+            for i in saved["items"]
+            if i.get("status") not in (None, "unchecked")
+        }
+        by_id = {i["id"]: i for i in compared}
+        if set(by_id) != {i["id"] for i in saved["items"]}:
+            raise ValueError("The comparison returned different entries. Check again.")
+        for item in saved["items"]:
+            result = by_id[item["id"]]
+            for field in fields:
+                item.pop(field, None)
+                if field in result:
+                    item[field] = result[field]
+        saved["availability_report"] = [
+            {"title": i["title"], "from": baseline[i["id"]], "to": i["status"]}
+            for i in saved["items"]
+            if i["id"] in baseline and baseline[i["id"]] != i["status"]
+        ]
+        saved.pop("comparison_baseline", None)
+        saved["compared_at"] = time.time()
+        if saved.get("playlist"):
+            saved["playlist_needs_update"] = playlist_preview(saved)[
+                "fingerprint"
+            ] != saved["playlist"].get("fingerprint")
+        save_state(latest)
+        return saved
 
 
 def title_workspace_state(body, snapshot):
@@ -2152,7 +2233,192 @@ def create_playlist(entry, settings, title, replace=False, expected=None, guard=
     }
 
 
+COLLECTION_PLANS = {}
+
+
+def collection_action(action, body):
+    """Own single-use collection review tokens and persist uncertain targets.
+
+    All provider reads happen outside the workspace lock. A checkpoint records
+    the collection identity before subsequent writes, so partial failures can be
+    reviewed rather than blindly recreating a second collection.
+    """
+    if not PUBLICATION_LOCK.acquire(blocking=False):
+        raise ValueError("Another Plex publication is in progress. Try again shortly.")
+    try:
+        with LOCK:
+            state = read_state()
+        entry = next(
+            (e for e in state["lists"] if e["id"] == body.get("list_id")), None
+        )
+        if not entry:
+            raise ValueError("Choose a saved list.")
+        if action == "unlink":
+            if (
+                body.get("confirmed") is not True
+                or not entry.get("plex_collection")
+                or body.get("expected") != entry["plex_collection"]
+            ):
+                raise ValueError(
+                    "Review the current saved collection before unlinking."
+                )
+            with LOCK:
+                latest = read_state()
+                saved = next(
+                    (e for e in latest["lists"] if e["id"] == entry["id"]), None
+                )
+                if not saved or saved.get("plex_collection") != body["expected"]:
+                    raise ValueError(
+                        "The saved target changed. Reopen the collection dialog."
+                    )
+                saved.pop("plex_collection", None)
+                saved.pop("collection_attention", None)
+                save_state(latest)
+            return {"entry": saved}
+        media = plex_collections.kind(entry)
+        cfg = state["settings"]
+        options = [
+            r for r in plex_collections.libraries(cfg, remote) if r["type"] == media
+        ]
+        if action == "options":
+            return {
+                "libraries": options,
+                "saved": entry.get("plex_collection"),
+                "attention": entry.get("collection_attention"),
+                "kind": media,
+            }
+        if action not in ("preview", "apply"):
+            raise ValueError("Unknown collection action.")
+        if action == "preview":
+            saved = entry.get("plex_collection")
+            section_id = saved["section"] if saved else str(body.get("section", ""))
+            section = next((r for r in options if r["id"] == section_id), None)
+            if not section:
+                raise ValueError("Choose an available matching Plex library.")
+            title = saved["title"] if saved else str(body.get("title", "")).strip()
+            if not title or len(title) > 200:
+                raise ValueError("Enter a collection title of 1–200 characters.")
+            desired = plex_collections.plan(
+                entry, plex_catalog(cfg), section, match_item, cfg["plex"]["url"]
+            )
+            if not desired["keys"]:
+                raise ValueError(
+                    "No titles are uniquely confirmed in this library. Resolve matches before publishing."
+                )
+            target = plex_collections.target(saved, cfg, remote) if saved else None
+            if not target:
+                plex_collections.name_available(title, section_id, cfg["plex"], remote)
+            token = secrets.token_hex(16)
+            COLLECTION_PLANS.clear()
+            COLLECTION_PLANS[token] = {
+                "list_id": entry["id"],
+                "created": time.time(),
+                "base": plex_collections.baseline(entry, cfg),
+                "title": title,
+                "desired": desired,
+                "target": target,
+            }
+            return {
+                "token": token,
+                "title": title,
+                "library": section["title"],
+                "entries": desired["entries"],
+                "omitted": desired["omitted"],
+                "deduplicated": desired["deduplicated"],
+                "updating": bool(target),
+                **plex_publications.changes(
+                    target["keys"] if target else [], desired["keys"]
+                ),
+            }
+        proposal = COLLECTION_PLANS.get(body.get("token"))
+        if (
+            body.get("confirmed") is not True
+            or not proposal
+            or proposal["list_id"] != entry["id"]
+            or time.time() - proposal["created"] > 900
+            or proposal["base"] != plex_collections.baseline(entry, cfg)
+        ):
+            raise ValueError(
+                "This collection preview expired or changed. Preview and confirm again."
+            )
+        section = next(
+            (r for r in options if r["id"] == proposal["desired"]["section"]), None
+        )
+        if (
+            not section
+            or plex_collections.plan(
+                entry, plex_catalog(cfg), section, match_item, cfg["plex"]["url"]
+            )["keys"]
+            != proposal["desired"]["keys"]
+        ):
+            raise ValueError(
+                "Plex availability changed after preview. Preview again before publishing."
+            )
+        expected_base = [proposal["base"]]
+        checked_stamp = [None]
+
+        def current_entry(latest):
+            saved = next((e for e in latest["lists"] if e["id"] == entry["id"]), None)
+            if (
+                not saved
+                or plex_collections.baseline(saved, latest["settings"])
+                != expected_base[0]
+            ):
+                raise ValueError(
+                    "The list or Plex connection changed. Any collection changes are retained; inspect Plex before retrying."
+                )
+            return saved
+
+        def guard():
+            with LOCK:
+                # Large collections may need many moves. Reparse the full
+                # workspace only if its atomic state file changed since the
+                # previous guard, rather than once for every remote operation.
+                stat = (DATA / "state.json").stat()
+                stamp = (stat.st_mtime_ns, stat.st_size)
+                if checked_stamp[0] != stamp:
+                    current_entry(read_state())
+                    checked_stamp[0] = stamp
+
+        def checkpoint(target):
+            with LOCK:
+                latest = read_state()
+                saved = current_entry(latest)
+                saved["plex_collection"] = {
+                    k: target[k]
+                    for k in (
+                        "key",
+                        "title",
+                        "section",
+                        "kind",
+                        "guid",
+                        "machine",
+                        "server",
+                    )
+                }
+                saved["collection_attention"] = (
+                    "Publication started. If it did not finish, preview the current collection before retrying."
+                )
+                save_state(latest)
+                expected_base[0] = plex_collections.baseline(saved, latest["settings"])
+
+        COLLECTION_PLANS.pop(body["token"])
+        result = plex_collections.apply(
+            proposal, entry, cfg, remote, guard, checkpoint, upload_playlist_poster
+        )
+        with LOCK:
+            latest = read_state()
+            saved = current_entry(latest)
+            saved["plex_collection"] = {**result, "updated_at": time.time()}
+            saved.pop("collection_attention", None)
+            save_state(latest)
+        return {"entry": saved, "publication": result}
+    finally:
+        PUBLICATION_LOCK.release()
+
+
 def upload_playlist_poster(key, poster, cfg):
+    """Upload/select artwork for a playlist or native collection metadata key."""
     import base64
 
     validated = saved_lists.poster(poster)
@@ -2536,6 +2802,8 @@ class Handler(BaseHTTPRequestHandler):
             "/navigation.js": "navigation.js",
             "/lists.js": "lists.js",
             "/list-updates.js": "list-updates.js",
+            "/official-cache.js": "official-cache.js",
+            "/collections.js": "collections.js",
             "/requests.js": "requests.js",
             "/workflow.js": "workflow.js",
             "/builder.js": "builder.js",
@@ -2661,6 +2929,12 @@ class Handler(BaseHTTPRequestHandler):
                         "mapped": len(mappings),
                     }
                 )
+            if self.path.startswith("/api/collections/"):
+                return self.respond(
+                    collection_action(self.path.rsplit("/", 1)[-1], body)
+                )
+            if self.path == "/api/compare":
+                return self.respond(compare_saved_list(body.get("list_id")))
             if self.path in ("/api/publications/preview", "/api/publications/apply"):
                 if not PUBLICATION_LOCK.acquire(blocking=False):
                     raise ValueError(
@@ -5080,30 +5354,6 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 if not entry:
                     raise ValueError("Choose a saved list first.")
-                if action == "/api/compare":
-                    baseline = entry.get("comparison_baseline") or {
-                        i["id"]: i["status"]
-                        for i in entry["items"]
-                        if i.get("status") not in (None, "unchecked")
-                    }
-                    entry["items"] = compare(entry["items"], state["settings"])
-                    entry["availability_report"] = [
-                        {
-                            "title": i["title"],
-                            "from": baseline[i["id"]],
-                            "to": i["status"],
-                        }
-                        for i in entry["items"]
-                        if i["id"] in baseline and baseline[i["id"]] != i["status"]
-                    ]
-                    entry.pop("comparison_baseline", None)
-                    entry["compared_at"] = time.time()
-                    if entry.get("playlist"):
-                        entry["playlist_needs_update"] = playlist_preview(entry)[
-                            "fingerprint"
-                        ] != entry["playlist"].get("fingerprint")
-                    save_state(state)
-                    return self.respond(entry)
                 if action == "/api/matches":
                     item = next(i for i in entry["items"] if i["id"] == body["item_id"])
                     query = (

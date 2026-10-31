@@ -210,6 +210,8 @@ def restore(state, data, mode):
         if key == "lists":
             for entry in incoming:
                 entry.pop("playlist", None)
+                entry.pop("plex_collection", None)
+                entry.pop("collection_attention", None)
                 for row in entry["items"]:
                     for field in (
                         "plex_keys",

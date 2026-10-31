@@ -354,3 +354,31 @@ publish that image instead. The other image is used only if the selected shape
 has no image. An old generated square cover no longer overrides an uploaded
 portrait automatically. The Companion's own portrait/square display setting is
 independent of this per-list publication choice.
+
+List overview: the View menu offers Included movies & shows and Included movies
+& seasons. These collapse the filtered entries into poster cards and an Includes
+count. They change presentation only; watch order, request scope and playlist
+contents remain the saved entries. Unidentified parent shows remain separate.
+
+Official catalogue browsing shows saved cards immediately and rechecks the live
+catalogue in the background. Cards persist in browser IndexedDB when available;
+private browsing/quota failures fall back to live loading. A failed refresh keeps
+saved cards and labels them as stale. Catalogue installation remains a separate,
+explicit review.
+
+Check linked Plex playlists rechecks availability across the lists with saved
+playlist targets. New files set an update-to-review notice. Review Plex update
+shows the proposed diff before replacing a playlist. Source/catalogue changes,
+local working-copy updates and Plex publication remain separate decisions.
+
+Upcoming list entries: comparisons use known movie release dates or TV air dates,
+including episode-specific dates, to label unreleased scopes Upcoming instead of
+Missing. Announced in-production titles may show date not announced. Metadata is
+cache-first with bounded refreshes for current/future-year entries; unknown dates
+are not invented. This is a public release/air-date distinction, not proof that a
+movie has reached a particular streaming service or that Plex has imported a file.
+Use the Upcoming list filter to inspect these entries separately. Available early
+copies in Plex retain their available status. Recheck after release to update it.
+
+Native Plex collections: see docs/PLEX_COLLECTIONS.md for the reviewed movie-only
+or whole-show-only collection workflow. Mixed/episode watch orders remain playlists.

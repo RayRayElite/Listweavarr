@@ -26,6 +26,8 @@ PRIVATE_KEYS = {
     "requests",
     "watch_progress",
     "manager_monitor",
+    "plex_collection",
+    "collection_attention",
 }
 
 

@@ -342,6 +342,8 @@ class LocalHTTPWorkflow(unittest.TestCase):
                     "/",
                     "/style.css",
                     "/app.js",
+                    "/official-cache.js",
+                    "/collections.js",
                     "/trakt.js",
                     "/enrichment.js",
                     "/explore.js",

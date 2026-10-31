@@ -7,6 +7,7 @@ release review; a temporary installation is removed after the child exits.
 """
 import json
 import os
+import re
 from pathlib import Path
 import socket
 import subprocess
@@ -92,7 +93,11 @@ def run(archive):
         try:
             assert not get_state()["lists"]
             with urllib.request.urlopen(base + "/", timeout=5) as response:
-                assert b"Listweavarr" in response.read()
+                html = response.read().decode()
+                assert "Listweavarr" in html
+            for asset in set(re.findall(r'(?:src|href)="(/[^" ]+\.(?:js|css))"', html)):
+                with urllib.request.urlopen(base + asset, timeout=5) as response:
+                    assert response.status == 200, asset
             post(
                 "lists/edit",
                 {

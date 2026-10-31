@@ -1531,6 +1531,59 @@ vm.runInContext(
   assert.equal(element('submit').disabled, false);
   vm.runInContext('playlistBlocker({},0)', context);
   assert.match(element('playlist-blocker-heading').textContent, /no confirmed playable/);
+  const scopes = vm.runInContext(
+    `listScopeGroups([
+    {id:'a',type:'episode',show_tmdb:'7',show_title:'Series',season:'1',episode:'1'},
+    {id:'b',type:'episode',show_tmdb:'7',show_title:'Series',season:'2',episode:'1'},
+    {id:'c',type:'movie',tmdb:'7',title:'Film'}
+  ],'titles')`,
+    context
+  );
+  assert.equal(scopes.length, 2);
+  assert.equal(scopes[0].members.length, 2);
+  const seasonScopes = vm.runInContext(
+    `listScopeGroups([
+    {id:'a',type:'episode',show_tmdb:'7',show_title:'Series',season:'1',episode:'1'},
+    {id:'b',type:'episode',show_tmdb:'7',show_title:'Series',season:'2',episode:'1'}
+  ],'seasons')`,
+    context
+  );
+  assert.equal(seasonScopes.length, 2);
+  vm.runInContext(fs.readFileSync('web/official-cache.js', 'utf8'), context);
+  const cachedCard = vm.runInContext(
+    `officialCardSnapshot({lists:[{id:'public',name:'Public',count:2,items:[{private:true}],settings:{key:'private'}}]})`,
+    context
+  );
+  assert.equal(cachedCard.lists[0].items, undefined);
+  assert.equal(cachedCard.lists[0].settings, undefined);
+  assert.equal(await vm.runInContext('officialCardCache()', context), null);
+  vm.runInContext(fs.readFileSync('web/collections.js', 'utf8'), context);
+  vm.runInContext(`collectionToken='old';invalidateCollection()`, context);
+  assert.equal(element('collection-apply').disabled, true);
+  assert.equal(vm.runInContext('collectionToken', context), null);
+  vm.runInContext(
+    `
+    state.lists.push({id:'author',official_id:'official-test',official_authoring:true,official_version:1,name:'Saved cover',items:[]});
+    officialCatalogue=[];officialLoaded=false;officialLastFetched=0;
+    globalThis.cataloguePaints=0;
+    drawOfficialCatalogue=()=>{cataloguePaints++;};
+    api=async(path)=>new Promise((resolve)=>{globalThis.completeCatalogue=resolve;});
+  `,
+    context
+  );
+  const catalogueRefresh = vm.runInContext('loadOfficialBeforeFeedCheck()', context);
+  assert.equal(vm.runInContext('cataloguePaints', context), 1);
+  assert.equal(vm.runInContext('officialCatalogue[0].name', context), 'Saved cover');
+  vm.runInContext(
+    `completeCatalogue({lists:[{id:'official-test',name:'Fresh cover',count:1}],note:'Current catalogue'})`,
+    context
+  );
+  await catalogueRefresh;
+  assert.equal(vm.runInContext('officialCatalogue[0].name', context), 'Fresh cover');
+  vm.runInContext(`officialLastFetched=0;api=async()=>{throw Error('offline');}`, context);
+  await vm.runInContext('loadOfficialBeforeFeedCheck()', context);
+  assert.equal(vm.runInContext('officialCatalogue[0].name', context), 'Fresh cover');
+  assert.match(element('official-status').textContent, /Showing saved catalogue/);
   console.log(
     'UI checks passed, including catalogue delivery, Workbench, paths, taste and maintenance.'
   );

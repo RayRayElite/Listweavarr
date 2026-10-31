@@ -1236,7 +1236,7 @@ $('composite-check').onclick = (e) =>
         .slice(0, 100)
         .map(
           (row) =>
-            `<li>${esc(row.title)}${row.season !== undefined ? ' � S' + esc(row.season) : ''}${row.episode !== undefined ? ' E' + esc(row.episode) : ''}</li>`
+            `<li>${esc(row.title)}${row.season !== undefined ? ' / S' + esc(row.season) : ''}${row.episode !== undefined ? ' E' + esc(row.episode) : ''}</li>`
         )
         .join('');
       $('composite-status').textContent =
@@ -1263,3 +1263,39 @@ $('composite-save').onclick = (e) =>
       $('composite-status').textContent = error.message;
     }
   });
+
+// Availability checks do not republish: each linked playlist still needs review.
+const checkLinkedPlaylistAvailability = (e) =>
+  task(e.target, async () => {
+    const lists = state.lists.filter((r) => r.playlist),
+      failures = [];
+    if (!lists.length)
+      return toast('No linked Plex playlists yet. Create one from a saved list first.');
+    const label = e.target.textContent;
+    try {
+      for (let index = 0; index < lists.length; index++) {
+        e.target.textContent = `Checking ${index + 1}/${lists.length}...`;
+        try {
+          const result = await api('compare', { list_id: lists[index].id });
+          const position = state.lists.findIndex((r) => r.id === result.id);
+          if (position >= 0) state.lists[position] = result;
+        } catch (error) {
+          failures.push(lists[index].name + ': ' + error.message);
+        }
+      }
+      drawPlexPublicationNotice();
+      drawListCatalogue();
+      drawOfficialCatalogue();
+      toast(
+        failures.length
+          ? `${failures.length} checks failed. Completed checks are saved; Plex playlists were not changed.`
+          : 'Availability checked. Review any linked playlist updates before applying them.'
+      );
+      e.target.title = failures.join('\n');
+    } finally {
+      e.target.textContent = label;
+    }
+  });
+
+$('publication-check-all').onclick = checkLinkedPlaylistAvailability;
+$('official-publication-check').onclick = checkLinkedPlaylistAvailability;

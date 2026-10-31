@@ -80,6 +80,9 @@
             </div>
             <div class="catalogue-sort">
               <button id="list-updates-open" class="secondary">Source updates</button>
+              <button id="publication-check-all" class="secondary">
+                Check linked Plex playlists
+              </button>
               <label
                 >Sort lists<select id="saved-list-sort">
                   <option value="title_asc">Title: A to Z</option>
@@ -118,6 +121,7 @@
                 ><button id="list-episode-orders" class="text-action">
                   Episode order &amp; editions</button
                 ><button id="list-health-check" class="text-action">Check list health</button
+                ><button id="collection-open" class="text-action">Plex collection</button
                 ><button id="list-share" class="text-action">Share list</button
                 ><button id="list-publish-official" class="text-action">
                   Publish as Official List</button
@@ -192,6 +196,7 @@
               <button class="filter active" data-filter="all">All entries</button
               ><button class="filter" data-filter="missing">Missing</button
               ><button class="filter" data-filter="available">Available</button
+              ><button class="filter" data-filter="upcoming">Upcoming</button
               ><button class="filter" data-filter="review">Needs review</button>
             </div>
             <div>
@@ -212,6 +217,8 @@
               ><select id="view" aria-label="View mode">
                 <option value="order">List order</option>
                 <option value="group">Group television</option>
+                <option value="titles">Included movies &amp; shows</option>
+                <option value="seasons">Included movies &amp; seasons</option>
               </select>
             </div>
           </div>
@@ -294,6 +301,9 @@
             </div>
           </div>
           <div class="catalogue-sort">
+            <button id="official-publication-check" class="secondary">
+              Check linked Plex playlists
+            </button>
             <label
               >Sort lists<select id="official-list-sort">
                 <option value="title_asc">Title: A to Z</option>
@@ -1222,6 +1232,24 @@ episode,Pilot,,,263365,1,1</pre
         </div>
       </form>
     </dialog>
+    <dialog id="collection-dialog" aria-labelledby="collection-heading">
+      <h2 id="collection-heading">Publish a Plex collection</h2>
+      <p class="muted">
+        For movie-only or whole-show-only lists in one library. Use playlists for mixed movies,
+        seasons and episodes. Existing collections are only updated when previously linked by
+        Listweavarr.
+      </p>
+      <label>Collection title<input id="collection-title" maxlength="200" /></label>
+      <label>Plex library<select id="collection-library"></select></label>
+      <p id="collection-status" role="status"></p>
+      <ol id="collection-members"></ol>
+      <div class="dialog-actions">
+        <button id="collection-preview" class="secondary">Preview changes</button
+        ><button id="collection-unlink" class="text-action" hidden>Unlink saved target</button
+        ><button id="collection-apply" class="primary" disabled>Confirm publication</button
+        ><button class="secondary" data-close="collection-dialog">Cancel</button>
+      </div>
+    </dialog>
     <dialog id="playlist-dialog">
       <form id="playlist-form">
         <p class="eyebrow">FROM LIST TO WATCH ORDER</p>
@@ -1851,12 +1879,14 @@ episode,Pilot,,,263365,1,1</pre
       </div>
     </dialog>
     <div id="toast" role="status" hidden></div>
+    <script src="/official-cache.js"></script>
     <script src="/app.js"></script>
     <script src="/trakt.js"></script>
     <script src="/enrichment.js"></script>
     <script src="/explore.js"></script>
     <script src="/lists.js"></script>
     <script src="/list-updates.js"></script>
+    <script src="/collections.js"></script>
     <script src="/taste.js"></script>
     <script src="/collection-tools.js"></script>
     <script src="/builder.js"></script>

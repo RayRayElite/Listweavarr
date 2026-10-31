@@ -47,6 +47,12 @@ class BackupTests(unittest.TestCase):
 
     def test_portable_redaction_and_roundtrip_scope(self):
         state = self.state()
+        state["lists"][0]["plex_collection"] = {
+            "key": "10",
+            "server": "http://old",
+            "guid": "collection://old",
+        }
+        state["lists"][0]["collection_attention"] = "Interrupted"
         state["lists"][0][
             "source"
         ] = "https://user:SECRET@example.test/list?apikey=SECRET&sort=rank"
@@ -58,6 +64,8 @@ class BackupTests(unittest.TestCase):
             {"settings": {"plex": {"key": "KEPT"}}, "lists": []}, data, "replace"
         )
         self.assertEqual(restored["settings"]["plex"]["key"], "KEPT")
+        self.assertNotIn("plex_collection", restored["lists"][0])
+        self.assertNotIn("collection_attention", restored["lists"][0])
         self.assertEqual(
             [r["type"] for r in restored["lists"][0]["items"]], ["movie", "episode"]
         )

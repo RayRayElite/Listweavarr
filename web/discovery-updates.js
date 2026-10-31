@@ -642,7 +642,7 @@ if (typeof document.createElement === 'function') {
     const groups = [
       ['Edit & share', ['list-manage', 'list-add-entries', 'list-share']],
       ['Watch order', ['list-watch-paths', 'list-episode-orders']],
-      ['Plex & watched progress', ['playlist-open', 'progress-refresh']],
+      ['Plex & watched progress', ['playlist-open', 'collection-open', 'progress-refresh']],
       [
         'Source & metadata',
         [
