@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-param([ValidateSet('menu','install','update','uninstall','status','recover')][string]$Action='menu')
+param([ValidateSet('menu','install','update','uninstall','status','recover','disable')][string]$Action='menu')
 $ErrorActionPreference='Stop'
 $logPath=Join-Path ([IO.Path]::GetTempPath()) 'Listweavarr-Playlist-Companion-setup.log'
 if ($Action -eq 'menu') {
   Write-Host 'Listweavarr Playlist Companion'
   Write-Host 'Close Plex before installing, updating, removing or recovering.'
-  Write-Host '1 Install / update   2 Uninstall   3 Status   4 Recover after Plex update   0 Exit'
+  Write-Host '1 Install / update   2 Uninstall   3 Status   4 Recover after Plex update   5 Disable integration (normal Plex)   0 Exit'
   $choice=Read-Host 'Choose'
-  $Action=switch($choice) {'1' {'update'} '2' {'uninstall'} '3' {'status'} '4' {'recover'} default {exit}}
+  $Action=switch($choice) {'1' {'update'} '2' {'uninstall'} '3' {'status'} '4' {'recover'} '5' {'disable'} default {exit}}
 }
 $python=Get-Command python.exe -ErrorAction SilentlyContinue
 if (-not $python) { throw 'Install Python 3.11 or newer from python.org, then run setup again.' }

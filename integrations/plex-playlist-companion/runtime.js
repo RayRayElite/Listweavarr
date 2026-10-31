@@ -2,6 +2,7 @@
 /* Original companion controls and a narrowly versioned desktop integration. */
 (function () {
   'use strict';
+  if (globalThis.__listweavarrCompanionSafety?.disabled()) return;
   if (globalThis.__listweavarrPlaylistCompanion) return;
   const core = globalThis.ListweavarrPlaylistCore;
   if (!core) return;
@@ -31,7 +32,7 @@
   let attempts = 0;
   const initialize = setInterval(() => {
     try {
-      if (!supported()) throw new Error('Waiting for a supported Plex build');
+      state.verifiedBuild = supported();
       if (!require?.m?.[3467] || !require(3467).XU('appStore')) throw new Error('Waiting for Plex');
       const api = globalThis.ListweavarrPlexAdapter.create(require, localStorage, core);
       clearInterval(initialize);

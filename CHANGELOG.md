@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add an early Ctrl+Alt+Shift+L companion pause/re-enable shortcut and a standalone
+  Windows recovery launcher that preserves newer Plex files and saved progress.
+  New version strings alone no longer block otherwise-compatible runtime hooks.
+- Add a tabbed companion dashboard accessible from Plex Settings and the Home gear,
+  with per-client top, below Continue Watching, numbered-row and bottom placement.
+
 - Match Continue Playlists cards to native Plex sizing and row spacing. Separate
   centered Resume, playlist navigation and bottom-left poster-edit controls;
   reserve uniform metadata slots so cards and progress bars line up.

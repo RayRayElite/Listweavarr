@@ -45,6 +45,20 @@ assert.equal(
   'Remove excess native reserved space, leaving a 32px row gap'
 );
 
+const parent = {};
+const hubs = Array.from({ length: 3 }, (_, index) => ({
+  name: 'row' + index,
+  parentElement: parent,
+  nextSibling: 'after' + index,
+  closest: () => null,
+}));
+const rowDocument = { querySelectorAll: () => hubs };
+assert.equal(home.findHomePlacement(rowDocument, { mode: 'top' }).before, hubs[0]);
+assert.equal(home.findHomePlacement(rowDocument, { mode: 'after-row', index: 2 }).hub, hubs[1]);
+assert.equal(home.findHomePlacement(rowDocument, { mode: 'after-row', index: 99 }).hub, hubs[2]);
+assert.equal(home.findHomePlacement(rowDocument, { mode: 'bottom' }).hub, hubs[2]);
+assert.equal(home.rowPreference({ getItem: () => '{broken' }).mode, 'after-continue');
+
 class Element {
   constructor(tag) {
     this.tagName = tag.toUpperCase();
@@ -61,7 +75,12 @@ class Element {
     return this._text + this.children.map((child) => child.textContent).join('');
   }
   append(...children) {
-    for (const child of children) {
+    for (let child of children) {
+      if (typeof child === 'string') {
+        const span = new Element('span');
+        span.textContent = child;
+        child = span;
+      }
       child.parentElement = this;
       this.children.push(child);
     }
@@ -168,7 +187,9 @@ class Element {
     clearTimeout() {},
     addEventListener() {},
     removeEventListener() {},
-    ListweavarrPlaylistArtwork: { get: async () => null, set: async () => {} },
+    ListweavarrPlaylistArtwork: { get: async () => null, set: async () => {}, paired: () => false },
+    Event,
+    dispatchEvent() {},
     ListweavarrPlaylistCore: core,
   });
   vm.runInContext(fs.readFileSync('integrations/plex-playlist-companion/home.js', 'utf8'), context);
@@ -199,6 +220,28 @@ class Element {
   const css = elements.find((element) => element.tagName === 'STYLE').textContent;
   assert.match(css, /grid-template-rows:var\(--lw-poster-height,252px\) 22px 36px 18px 4px/);
   assert.match(css, /left:7px;bottom:7px/);
+  context.location.hash = '#!/settings/web/general';
+  vm.runInContext(
+    fs.readFileSync('integrations/plex-playlist-companion/settings.js', 'utf8'),
+    context
+  );
+  const dashboard = { verifiedBuild: true, progressSync: { sync: async () => {} } };
+  const disposeSettings = context.ListweavarrPlaylistSettings.mount(api, dashboard);
+  dashboard.openSettings();
+  const position = elements.find((element) => element.tagName === 'SELECT');
+  position.value = 'after-row';
+  const number = elements.find((element) => element.type === 'number');
+  number.value = '2';
+  position.onchange();
+  assert.equal(JSON.parse(storage.getItem('playlist-companion:home-position')).index, 2);
+  const connectionTab = elements.find((element) => element.textContent === 'Connection & sync');
+  connectionTab.onclick();
+  assert.equal(connectionTab.attributes['aria-selected'], 'true');
+  assert.ok(
+    elements.some((element) => element.textContent === 'Open companion settings'),
+    'Dashboard entry is available within Plex Settings'
+  );
+  disposeSettings();
   dispose();
   console.log(
     'Playlist home card navigation, play/edit controls, uniform slots and native sizing passed'

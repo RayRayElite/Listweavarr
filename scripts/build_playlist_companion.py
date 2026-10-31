@@ -21,6 +21,7 @@ FILES = (
     "desktop.py",
     "setup.ps1",
     "Setup Playlist Companion.cmd",
+    "Start Plex without Companion.cmd",
     "README.md",
 )
 BROWSER_FILES = tuple(

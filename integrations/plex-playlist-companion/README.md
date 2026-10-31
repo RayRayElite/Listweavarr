@@ -2,13 +2,14 @@
 
 Optional enhancements for Plex for Windows and Plex Web. Playback bookmarks and
 cached artwork stay on the Plex device. Listweavarr does **not** need to run for
-playlist tracking or resume; it runs only when you want new artwork imported.
+playlist tracking or resume; keep it running for optional cross-client syncing.
 This is a beta, version-specific integration. Plex app updates can require a
 compatibility update. No Plex source, executable or artwork is included here.
 
 ## What it does
 
-- Continue Playlists appears after Plex's complete Continue Watching row.
+- Continue Playlists defaults below Continue Watching. Companion settings can
+  place it at the top, after a numbered Home row, or at the bottom.
 - Normal playlist Play and starting at a middle entry create a resume card.
 - Saves during playback, on Stop/Pause and orderly window close. Completion
   advances the bookmark to the next item; finished playlists leave the row.
@@ -34,8 +35,9 @@ normal playback history when you play media.
 | Local NAS Plex Web | 4.147.1-4ca0656 |
 | Hosted Plex Web | 4.163.0-8246fd2 |
 
-These are exact main-bundle allowlist entries in layout.js. Unknown builds are
-left unchanged. Desktop native Play, middle-entry starts, correct queue ordering,
+These are inspected main-bundle entries in layout.js, used for diagnostics.
+New version strings alone do not disable the integration: native module/player
+contracts determine compatibility. Desktop native Play, middle-entry starts, correct queue ordering,
 Stop/Pause and Home resume have passed live user tests. Episode rollover followed
 by closing Plex without Stop/Pause also preserved the next item. New portrait
 layout, artwork pairing and browser playback still need the current live review;
@@ -58,6 +60,7 @@ Command-line alternatives:
 python desktop.py status
 python desktop.py update
 python desktop.py uninstall
+python desktop.py disable
 ```
 
 Use `--web-client` for a different installed web-client directory. The installer
@@ -72,6 +75,28 @@ Plex release. Unknown releases need an updated companion before reinstalling.
 Uninstall on a supported intact install restores the byte-identical original.
 Setup results are also available in the Windows temporary directory as
 `Listweavarr-Playlist-Companion-setup.log`.
+
+## Settings and quick recovery
+
+Open the Home row's gear, or Plex Settings > Playlist companion > Open companion
+settings. Appearance, Connection & sync, and Recovery tabs keep controls separate.
+Home row placement is per client and applies immediately. Bottom placement follows
+new native rows as Plex loads them; a row number beyond the available rows uses
+the last loaded row.
+
+**Ctrl + Alt + Shift + L** pauses or re-enables the integration and reloads Plex.
+The shortcut registers before the Webpack/player hooks and is still available
+while paused. Paused startup installs no layout, player, artwork or Home widgets.
+Bookmarks, cached posters and pairing remain saved. Changes in version numbers
+do not trigger this pause automatically.
+
+For a client that cannot accept the shortcut, close Plex and run **Start Plex
+without Companion.cmd**, or choose Disable integration in setup. This removes
+only our exact loader tags. On a changed/new Plex index it preserves the new
+vendor content rather than restoring an old Plex version. Recovery copies and
+uncertain companion assets are retained. On an intact known installation,
+Install / update can restore the integration later. Chrome's extension toggle is
+another independent way to stop Web integration.
 
 ## Chrome / Edge installation
 
@@ -145,6 +170,7 @@ node tests/test_playlist_features.cjs
 node tests/test_playlist_sync.cjs
 node tests/test_playlist_poster_sync.cjs
 node tests/test_playlist_home.cjs
+node tests/test_playlist_safety.cjs
 python -m unittest discover -s tests -q
 python scripts/build_playlist_companion.py
 ```

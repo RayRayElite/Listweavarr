@@ -16,6 +16,35 @@ spec.loader.exec_module(desktop)
 
 
 class DesktopLoaderTests(unittest.TestCase):
+    def test_disable_preserves_new_vendor_index_and_modified_assets(self):
+        with patch.object(desktop, "plex_running", return_value=False):
+            desktop.operate(self.root, "install")
+            new_index = b'<html><body>NEW PLEX<script src="js/new-main.js"></script><script src="listweavarr-playlist-runtime.js"></script></body></html>'
+            (self.root / "index.html").write_bytes(new_index)
+            (self.root / "listweavarr-playlist-runtime.js").write_bytes(
+                b"broken companion"
+            )
+            result = desktop.operate(self.root, "disable")
+            self.assertTrue(result["disabled"])
+            self.assertEqual(
+                (self.root / "index.html").read_bytes(),
+                new_index.replace(
+                    b'<script src="listweavarr-playlist-runtime.js"></script>', b""
+                ),
+            )
+            self.assertEqual(
+                (self.root / "listweavarr-playlist-runtime.js").read_bytes(),
+                b"broken companion",
+            )
+            self.assertEqual(desktop.diagnose(self.root)["status"], "disabled")
+
+    def test_known_install_can_disable_then_reinstall(self):
+        with patch.object(desktop, "plex_running", return_value=False):
+            desktop.operate(self.root, "install")
+            desktop.operate(self.root, "disable")
+            self.assertEqual((self.root / "index.html").read_bytes(), self.original)
+            self.assertTrue(desktop.operate(self.root, "update")["installed"])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

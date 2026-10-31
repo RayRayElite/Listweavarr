@@ -26,6 +26,7 @@ ASSETS = {
 }
 BACKUP = "index.html.listweavarr-original"
 STATE = "listweavarr-playlist-install.json"
+DISABLED = "listweavarr-playlist-disabled.json"
 MARKUP = b'\n<!-- Listweavarr playlist companion v1 -->\n<script src="listweavarr-playlist-bookmarks.js"></script>\n<script src="listweavarr-playlist-adapter.js"></script>\n<script src="listweavarr-playlist-artwork.js"></script>\n<script src="listweavarr-playlist-settings.js"></script>\n<script src="listweavarr-playlist-home.js"></script>\n<script src="listweavarr-playlist-runtime.js"></script>\n'
 
 
@@ -108,6 +109,15 @@ def diagnose(root):
     """Read-only status remains useful after Plex replaces its entry point."""
     root = Path(root)
     try:
+        if (root / DISABLED).is_file() and not (root / DISABLED).is_symlink():
+            disabled = json.loads((root / DISABLED).read_text(encoding="utf-8"))
+            data = (root / "index.html").read_bytes()
+            if digest(data) == disabled.get("index_sha256"):
+                return {
+                    "installed": False,
+                    "status": "disabled",
+                    "supported": digest(data) == KNOWN_INDEX,
+                }
         path, data, state = inspect(root)
         return {
             "installed": bool(state),
@@ -119,6 +129,7 @@ def diagnose(root):
             ),
             "index_sha256": digest(data),
         }
+
     except (ValueError, OSError, json.JSONDecodeError) as error:
         return {
             "installed": False,
@@ -126,6 +137,56 @@ def diagnose(root):
             "status": "needs-review",
             "message": str(error),
         }
+
+
+def disable(root):
+    """Remove only our exact loader tags, even from a newer Plex entry point.
+    Never replace a newer vendor index with a backup from an older release.
+    Uncertain or modified assets are retained, but no longer loaded by Plex.
+    """
+    root = Path(root)
+    if root.is_symlink() or not root.is_dir() or plex_running():
+        raise ValueError("Close Plex before disabling the companion.")
+    root = root.resolve(strict=True)
+    if (root / "index.html").is_symlink() or (root / DISABLED).is_symlink():
+        raise ValueError("Refusing a symlink in the installation target.")
+    data = (root / "index.html").read_bytes()
+    cleaned = data
+    for name in ASSETS.values():
+        cleaned = cleaned.replace(f'<script src="{name}"></script>'.encode(), b"")
+    cleaned = cleaned.replace(b"<!-- Listweavarr playlist companion v1 -->", b"")
+    if b"listweavarr-playlist-" in cleaned:
+        raise ValueError("An unfamiliar companion loader remains. No changes made.")
+    state_path = root / STATE
+    original_path = root / BACKUP
+    if (
+        state_path.exists()
+        and not state_path.is_symlink()
+        and original_path.exists()
+        and not original_path.is_symlink()
+    ):
+        try:
+            installed = json.loads(state_path.read_text(encoding="utf-8"))
+            original = original_path.read_bytes()
+            if (
+                digest(data) == installed.get("patched_sha256")
+                and digest(original) == KNOWN_INDEX
+            ):
+                cleaned = original
+        except (ValueError, OSError):
+            pass
+    if cleaned == data:
+        return {"disabled": True, "changed": False, "plex_index_preserved": True}
+    backup = root / ("index.html.listweavarr-disabled-" + digest(data)[:16])
+    if backup.is_symlink() or (backup.exists() and backup.read_bytes() != data):
+        raise ValueError("Recovery backup conflict. No changes made.")
+    if not backup.exists():
+        atomic_write(backup, data)
+    atomic_write(root / "index.html", cleaned)
+    atomic_write(
+        root / DISABLED, json.dumps({"index_sha256": digest(cleaned)}).encode()
+    )
+    return {"disabled": True, "changed": True, "bookmarks_preserved": True}
 
 
 def recover(root):
@@ -172,6 +233,15 @@ def operate(root, action):
         return diagnose(root)
     if action == "recover":
         return recover(root)
+    if action == "disable":
+        return disable(root)
+    if action == "update" and diagnose(root).get("status") == "disabled":
+        if digest((Path(root) / "index.html").read_bytes()) != KNOWN_INDEX:
+            raise ValueError(
+                "This newer Plex index is preserved. Use the hotkey for temporary pauses, or install an updated companion package when available."
+            )
+        recover(root)
+        (Path(root) / DISABLED).unlink(missing_ok=True)
     root, data, state = inspect(root)
     if action not in ("install", "uninstall", "update"):
         raise ValueError("Unsupported action")
@@ -267,7 +337,8 @@ def operate(root, action):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "action", choices=["status", "install", "update", "uninstall", "recover"]
+        "action",
+        choices=["status", "install", "update", "uninstall", "recover", "disable"],
     )
     parser.add_argument(
         "--web-client", default=r"C:\Program Files\Plex\Plex\web-client"

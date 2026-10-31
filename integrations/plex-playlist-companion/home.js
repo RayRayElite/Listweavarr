@@ -80,7 +80,50 @@
     const hub = document.querySelector('[class*="HubCell-hubCell-"], [class*="Hub-hub-"]');
     return hub?.closest('[class*="PageContent-innerPageContent-"]') || hub?.parentElement;
   }
-  function findHomePlacement(document) {
+  function rowPreference(storage) {
+    try {
+      const value = JSON.parse(storage.getItem('playlist-companion:home-position') || '{}');
+      return {
+        mode: ['top', 'after-continue', 'after-row', 'bottom'].includes(value.mode)
+          ? value.mode
+          : 'after-continue',
+        index:
+          Number.isInteger(value.index) && value.index >= 1 && value.index <= 100 ? value.index : 1,
+      };
+    } catch {
+      return { mode: 'after-continue', index: 1 };
+    }
+  }
+  function findHomePlacement(document, preference = { mode: 'after-continue' }) {
+    if (preference.mode !== 'after-continue') {
+      const selector = '[class*="HubCell-hubCell-"], [class*="Hub-hub-"]';
+      const hubs = Array.from(document.querySelectorAll(selector)).filter(
+        (hub) => !hub.closest?.('.lw-playlist-home') && !hub.parentElement?.closest?.(selector)
+      );
+      if (hubs.length) {
+        if (preference.mode === 'top')
+          return {
+            container: hubs[0].parentElement,
+            before: hubs[0],
+            hub: null,
+            reference: hubs[0],
+          };
+        const hub =
+          preference.mode === 'bottom'
+            ? hubs[hubs.length - 1]
+            : hubs[Math.min(hubs.length - 1, Math.max(0, (preference.index || 1) - 1))];
+        return { container: hub.parentElement, before: hub.nextSibling, hub };
+      }
+      const container = findHomeContainer(document);
+      return container
+        ? {
+            container,
+            before: preference.mode === 'top' ? container.firstChild : null,
+            hub: null,
+            atEnd: preference.mode !== 'top',
+          }
+        : null;
+    }
     const heading = Array.from(
       document.querySelectorAll('h1,h2,h3,[role="heading"],[class*="Hub"],[class*="hub"]')
     ).find((element) => element.textContent.trim() === 'Continue Watching');
@@ -396,20 +439,25 @@
         section.remove();
         return;
       }
-      const placement = findHomePlacement(document);
+      const placement = findHomePlacement(document, rowPreference(storage));
       if (
         placement &&
         (!section.isConnected ||
           section.parentElement !== placement.container ||
           (placement.hub
             ? section.previousElementSibling !== placement.hub
-            : placement.container.firstChild !== section))
+            : placement.reference
+              ? section.nextElementSibling !== placement.reference
+              : placement.atEnd
+                ? placement.container.lastElementChild !== section
+                : placement.container.firstChild !== section))
       ) {
         placement.container.insertBefore(section, placement.before);
         console.info('[Listweavarr Playlist Companion] Continue Playlists row attached');
       }
       if (section.isConnected && dirty) refresh();
-      if (section.isConnected && placement?.hub) nativeRowMetrics(placement.hub, section);
+      if (section.isConnected && (placement?.reference || placement?.hub))
+        nativeRowMetrics(placement.reference || placement.hub, section);
     }
     function layoutDiagnostic() {
       if (disposed) return;
@@ -451,6 +499,7 @@
     root.addEventListener('hashchange', changed);
     root.addEventListener('listweavarr-playlist-progress', changed);
     root.addEventListener('resize', schedule);
+    root.addEventListener('listweavarr-playlist-settings', changed);
     attach();
     return () => {
       disposed = true;
@@ -460,6 +509,7 @@
       root.removeEventListener('hashchange', changed);
       root.removeEventListener('listweavarr-playlist-progress', changed);
       root.removeEventListener('resize', schedule);
+      root.removeEventListener('listweavarr-playlist-settings', changed);
       releaseImages();
       section.remove();
       style.remove();
@@ -475,6 +525,7 @@
       itemHref,
       nativeRowMetrics,
       mount,
+      rowPreference,
     };
-  else root.ListweavarrPlaylistHome = { mount };
+  else root.ListweavarrPlaylistHome = { mount, rowPreference };
 })(globalThis);
