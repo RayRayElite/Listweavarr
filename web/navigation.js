@@ -134,7 +134,9 @@ async function applyWorkspaceRoute(hash) {
     } else {
       traktOpen();
       selectExploreTab(
-        ['discover', 'watchlist', 'lists', 'workbench'].includes(parts[1]) ? parts[1] : 'discover'
+        ['discover', 'watchlist', 'lists', 'workbench', 'calendar'].includes(parts[1])
+          ? parts[1]
+          : 'discover'
       );
       if (parts[1] === 'workbench' && WORK_TOOLS.some((row) => row[0] === parts[2])) {
         await loadWorkbench();

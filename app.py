@@ -46,6 +46,7 @@ import saved_lists
 import list_release_state
 import composite_lists
 import release_watch
+import release_calendar as calendar_view
 import activity
 import official_lists
 import collection_tools
@@ -2853,6 +2854,7 @@ class Handler(BaseHTTPRequestHandler):
             "/list-updates.js": "list-updates.js",
             "/official-cache.js": "official-cache.js",
             "/collections.js": "collections.js",
+            "/calendar.js": "calendar.js",
             "/requests.js": "requests.js",
             "/workflow.js": "workflow.js",
             "/builder.js": "builder.js",
@@ -3664,6 +3666,14 @@ class Handler(BaseHTTPRequestHandler):
                         }
                     save_state(latest)
                 return self.respond({"saved": True})
+            if self.path == "/api/calendar":
+                with LOCK:
+                    snapshot = read_state()
+                return self.respond(
+                    calendar_view.build(
+                        snapshot, body.get("month"), body.get("refresh") is True
+                    )
+                )
             if self.path == "/api/options":
                 with LOCK:
                     snapshot = read_state()

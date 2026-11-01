@@ -30,8 +30,9 @@ This checklist separates completed increments from full feature completion.
 
 ## Remaining implementation queue
 
-1. Extend per-list acquisition defaults with reviewed tag policies; expand request-stage diagnostics and a unified
-   release calendar; additional notification transports.
+1. Extend per-list acquisition defaults with reviewed tag policies; additional
+   notification transports. Request diagnostics and the unified calendar now have
+   working implementations; keep improving provider coverage and live UI review.
 2. Single-owner authentication/session recovery before an external request API.
    Household/multi-user accounts remain deferred by the user's earlier choice.
 3. Unified search, optional taste onboarding, issue notebook and Plex watchlist
@@ -74,3 +75,28 @@ manager configuration changes invalidate an open editor. Sharing and Official
 exports exclude these local preferences. No automatic acquisition or tag policy
 was added in this increment. Regression suite: 455 Python tests passed; UI harness
 and frontend/release checks passed. Live visual review remains pending.
+
+
+### Request diagnostics and unified calendar (2026-10-31)
+
+- Requests now display observed stage explanations, suggested checks and bounded,
+  redacted manager evidence without new acquisition actions. Manager file presence
+  maps to Imported / waiting for Plex; failed reads retain the last confirmed
+  state and are included in Needs attention.
+- Explore > Calendar adds agenda/month browsing, source/media filters, poster
+  cards, parent show/episode context and source links. Cache-only reads do not
+  call providers. Refresh merges followed lists, release tracking and creator
+  credits with regional theatrical/digital/disc distinctions and exact identity
+  deduplication. Unknown dates stay unknown; a bounded refresh reports incomplete
+  schedules rather than promising complete coverage.
+- Live read-only refresh against the current installation succeeded in about
+  5.4 seconds, showing followed-list and tracked releases. No acquisition or Plex
+  writes were performed. Provider coverage still depends on announced dates.
+- Visual review remains pending: the browser host was unavailable and Windows
+  capture failed twice (frame/window capture timeouts). Behavioral tests do not
+  replace a visual review.
+
+Validation for this increment: 466 Python tests, both UI behavior harnesses,
+all seven Companion Node harnesses, frontend/privacy/catalogue checks and the
+release ZIP smoke test passed. The restarted app served the live calendar,
+request history and new calendar asset successfully.

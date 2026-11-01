@@ -840,6 +840,14 @@
           ><button
             role="tab"
             aria-selected="false"
+            data-explore-tab="calendar"
+            aria-controls="explore-calendar"
+            tabindex="-1"
+          >
+            Calendar</button
+          ><button
+            role="tab"
+            aria-selected="false"
             data-explore-tab="workbench"
             aria-controls="explore-workbench"
             tabindex="-1"
@@ -1008,6 +1016,54 @@
               </p>
             </form>
           </section>
+        </section>
+        <section id="explore-calendar" role="tabpanel" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">FROM YOUR FOLLOWS</p>
+              <h2>Release calendar</h2>
+              <p class="muted">
+                Followed lists, tracked releases and creator projects in one place.
+              </p>
+            </div>
+            <button id="calendar-refresh" class="secondary">Refresh dates</button>
+          </div>
+          <div class="calendar-toolbar">
+            <div class="calendar-month-controls">
+              <button id="calendar-prev" class="secondary" aria-label="Previous month">
+                &#8592;</button
+              ><label
+                ><span class="sr">Calendar month</span
+                ><input id="calendar-month" type="month" /></label
+              ><button id="calendar-next" class="secondary" aria-label="Next month">&#8594;</button
+              ><button id="calendar-today" class="text-action">This month</button>
+            </div>
+            <div class="calendar-filters">
+              <label
+                >View<select id="calendar-view">
+                  <option value="agenda">Agenda</option>
+                  <option value="month">Month</option>
+                </select></label
+              ><label
+                >Sources<select id="calendar-source">
+                  <option value="all">All follows</option>
+                  <option value="watchlist">Release watchlist</option>
+                  <option value="followed">Followed lists</option>
+                  <option value="creators">Followed creators</option>
+                </select></label
+              ><label
+                >Content<select id="calendar-media">
+                  <option value="all">Movies &amp; TV</option>
+                  <option value="movie">Movies</option>
+                  <option value="tv">TV</option>
+                </select></label
+              >
+            </div>
+          </div>
+          <p id="calendar-status" class="muted" role="status" aria-live="polite"></p>
+          <div id="calendar-grid" hidden></div>
+          <div id="calendar-items"></div>
+          <p id="calendar-note" class="footnote"></p>
         </section>
         <section id="trakt-preview" hidden>
           <div class="section-heading">
@@ -1896,6 +1952,7 @@ episode,Pilot,,,263365,1,1</pre
     <script src="/workspace.js"></script>
     <script src="/audit-workflows.js"></script>
     <script src="/discovery-updates.js"></script>
+    <script src="/calendar.js"></script>
     <script src="/navigation.js"></script>
   </body>
 </html>

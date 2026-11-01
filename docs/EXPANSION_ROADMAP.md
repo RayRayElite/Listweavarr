@@ -112,3 +112,15 @@ time, while specialized download engines remain supported.
   order, optionally skipping exact IDs/scopes, then explicitly save. Linked
   destinations require confirmation to become local. This does not establish a
   new automatic relationship to the merged source.
+
+
+### October 31 implementation update
+
+R1 now includes exact-scope queue explanations, manager evidence and practical
+checks for import paths, permissions and quality rejection. Status refresh stays
+read-only and manager import remains distinct from Plex availability.
+R3 has an initial unified agenda/month calendar under Explore, combining followed
+lists, tracked releases and creator credits with regional format-specific movie
+dates. Unknown dates and incomplete provider coverage are explicitly reported.
+These workflows are implemented; ongoing visual review and broader provider
+coverage remain separate from feature completion.

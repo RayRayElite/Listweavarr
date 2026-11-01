@@ -407,3 +407,40 @@ rather than quietly moving requests to another server.
 **Use normal defaults for this list** clears both services' overrides and works
 even when the managers are offline. These installation-specific preferences do
 not detach linked lists or travel in shared/Official list exports.
+
+
+### Request diagnostics
+
+**Requests** now explains the last observed stage: waiting for a download,
+downloading, importing, an import warning, waiting for Plex, or available in Plex.
+Expand **What to check next** for suggested checks and **Manager messages** for
+the manager's bounded, redacted evidence. Import warnings expand their suggested
+checks automatically. Path/eligible-file, permission and quality messages get
+different advice; this is evidence-based guidance rather than a guaranteed cause.
+
+**Needs attention** includes failed requests and connection-check warnings.
+A failed status refresh retains the last confirmed state. A manager reporting a
+file means **Imported / waiting for Plex**, not available in Plex. Refreshing
+status is read-only; any retry still opens a separate confirmation step.
+
+### Unified release calendar
+
+Open **Explore > Calendar** for **Agenda** or **Month** views of the release
+watchlist, explicitly followed saved lists and followed creators' credited
+projects. Filter by source or movies/TV. Select a day in Month view to see its
+poster cards. Titles and source chips are normal links supporting new tabs.
+Episodes show both their parent show and season/episode numbers.
+
+The calendar renders cached dates first, then checks providers in the background
+(up to once per five minutes for the current month in the open client). Use
+**Refresh dates** for another check. A refresh reads at most 50 TMDB metadata
+records and optional Trakt movie/episode calendars. Larger follows also use
+cached data, and warnings explain incomplete coverage or offline providers.
+Date browsing spans up to two years before/after the current month.
+
+Movie events distinguish theatrical, digital and disc dates in the selected
+country (tracked titles retain their saved country). A general movie date is
+explicitly labeled **Expected movie release**, with no claim of home availability.
+TV premiere and episode dates follow provider air dates, which may differ from
+local streaming availability. Unknown dates are omitted and announced dates may
+change. This calendar never requests, monitors or downloads media by itself.

@@ -42,6 +42,7 @@ const REQUEST_LABELS = {
   unavailable: 'Status unavailable',
 };
 function requestPriority(row) {
+  if (row.check_warning) return -1;
   return [
     'attention',
     'failed',
@@ -79,13 +80,22 @@ function requestArtwork(row) {
         )}</span>`
   }</button>`;
 }
+function requestDiagnosticMarkup(row) {
+  const diagnostic = row.diagnostic;
+  if (!diagnostic?.summary) return '';
+  return `<div class="request-diagnostic"><p>${esc(diagnostic.summary)}</p>${diagnostic.next_steps?.length ? `<details ${row.status === 'attention' ? 'open' : ''}><summary>What to check next</summary><ol>${diagnostic.next_steps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol></details>` : ''}${diagnostic.evidence?.length ? `<details><summary>${esc(diagnostic.manager || 'Manager')} messages (${diagnostic.evidence.length})</summary>${diagnostic.evidence.map((message) => `<p class="manager-evidence">${esc(message)}</p>`).join('')}</details>` : ''}${row.checked_at ? `<p class="muted">Last verified ${esc(new Date(row.checked_at * 1000).toLocaleString())}</p>` : ''}</div>`;
+}
 function drawRequests() {
   const query = $('requests-search').value.trim().toLowerCase(),
     filter = $('requests-filter').value;
   const visible = requestRows
     .filter(
       (r) =>
-        (filter ? r.status === filter : !['declined', 'cancelled'].includes(r.status)) &&
+        (filter === 'attention'
+          ? ['attention', 'failed', 'unavailable'].includes(r.status) || r.check_warning
+          : filter
+            ? r.status === filter
+            : !['declined', 'cancelled'].includes(r.status)) &&
         (!query || r.item.title.toLowerCase().includes(query))
     )
     .sort(
@@ -93,8 +103,8 @@ function drawRequests() {
         requestPriority(a) - requestPriority(b) ||
         (b.updated_at || b.created_at) - (a.updated_at || a.created_at)
     );
-  const needs = requestRows.filter((r) =>
-    ['attention', 'failed', 'unavailable'].includes(r.status)
+  const needs = requestRows.filter(
+    (r) => ['attention', 'failed', 'unavailable'].includes(r.status) || r.check_warning
   ).length;
   const activeCount = requestRows.filter((r) =>
     ['downloading', 'importing', 'requested', 'imported', 'monitored'].includes(r.status)
@@ -108,7 +118,7 @@ function drawRequests() {
     (visible
       .map(
         (row) =>
-          `<article class="request-history-row" data-status="${esc(row.status)}">${requestArtwork(row)}<div class="request-history-copy"><span class="request-state">${esc(REQUEST_LABELS[row.status] || row.status)}${row.percent != null ? ' &middot; ' + esc(row.percent) + '%' : ''}</span><button class="title-link" data-request-title="${esc(row.id)}">${esc(row.item.title)}</button><p class="muted">${row.item.type === 'movie' ? 'Movie' : row.item.type === 'episode' ? 'Episode' : 'TV'}${row.item.year ? ' &middot; ' + esc(row.item.year) : ''}${row.item.season != null ? ' &middot; S' + esc(row.item.season) : ''}${row.item.episode != null ? ' E' + esc(row.item.episode) : ''} &middot; ${esc(row.service)} &middot; ${row.tier === '4k' ? '4K' : 'Standard'}${row.mode === 'monitor' ? ' &middot; Release monitoring' : ''}</p><p class="request-message">${esc(row.message === (REQUEST_LABELS[row.status] || row.status) ? '' : row.message || '')}${row.check_warning ? ' &middot; ' + esc(row.check_warning) : ''}</p><details><summary>Request history</summary>${(
+          `<article class="request-history-row" data-status="${esc(row.status)}">${requestArtwork(row)}<div class="request-history-copy"><span class="request-state">${esc(REQUEST_LABELS[row.status] || row.status)}${row.percent != null ? ' &middot; ' + esc(row.percent) + '%' : ''}</span><button class="title-link" data-request-title="${esc(row.id)}">${esc(row.item.title)}</button><p class="muted">${row.item.type === 'movie' ? 'Movie' : row.item.type === 'episode' ? 'Episode' : 'TV'}${row.item.year ? ' &middot; ' + esc(row.item.year) : ''}${row.item.season != null ? ' &middot; S' + esc(row.item.season) : ''}${row.item.episode != null ? ' E' + esc(row.item.episode) : ''} &middot; ${esc(row.service)} &middot; ${row.tier === '4k' ? '4K' : 'Standard'}${row.mode === 'monitor' ? ' &middot; Release monitoring' : ''}</p><p class="request-message">${esc(row.message === (REQUEST_LABELS[row.status] || row.status) ? '' : row.message || '')}${row.check_warning ? ' &middot; ' + esc(row.check_warning) : ''}</p>${requestDiagnosticMarkup(row)}<details><summary>Request history</summary>${(
             row.events || []
           )
             .slice()

@@ -11,6 +11,7 @@ import json
 import secrets
 import time
 import providers
+import activity
 
 FIELDS = (
     "type",
@@ -164,6 +165,19 @@ def apply_status(state, updates):
         old = request.get("status")
         if status == "unavailable":
             request["check_warning"] = update.get("label", "Status unavailable")
+            request["diagnostic"] = copy.deepcopy(
+                update.get(
+                    "diagnostic",
+                    {
+                        "stage": "connection",
+                        "summary": "Status could not be verified. Last confirmed state is retained.",
+                        "next_steps": [
+                            "Test this request's saved manager route, then refresh status."
+                        ],
+                        "evidence": [],
+                    },
+                )
+            )
             continue
         request.pop("check_warning", None)
         status = {
@@ -172,12 +186,17 @@ def apply_status(state, updates):
             ),
             "not_managed": "requested",
             "import_blocked": "attention",
+            "downloaded": "imported",
         }.get(status, status)
         request.update(
             status=status,
             message=update.get("label", status),
             percent=update.get("percent"),
             checked_at=time.time(),
+        )
+        request["diagnostic"] = copy.deepcopy(
+            update.get("diagnostic")
+            or activity.diagnostic(update, [], request.get("service", "sonarr"), {})
         )
         if status != old:
             request.setdefault("events", []).append(

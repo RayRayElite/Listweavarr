@@ -7,6 +7,7 @@ See docs/CODE_MAP.md for related modules, routes and contribution guidance.
 """
 import datetime
 import hashlib
+import re
 import threading
 import time
 import urllib.parse
@@ -53,16 +54,179 @@ def queue(settings, service, call, force=False):
 
 
 def queue_label(records):
-    if any(r.get("trackedDownloadStatus") in ("warning", "error") for r in records):
-        return "import_blocked", "Import needs attention"
-    if any(
+    importing = any(
         str(r.get("status", "")).lower() == "completed"
         or r.get("trackedDownloadState")
         in ("importPending", "importing", "importBlocked")
         for r in records
+    )
+    if any(
+        r.get("trackedDownloadStatus") in ("warning", "error")
+        or r.get("trackedDownloadState") == "importBlocked"
+        for r in records
     ):
+        return "import_blocked", (
+            "Import needs attention" if importing else "Download needs attention"
+        )
+    if importing:
         return "importing", "Waiting for import"
     return "downloading", "Downloading"
+
+
+def diagnostic(result, records, service, settings):
+    """Explain observed stages without inferring a successful search or import.
+
+    Queue messages are evidence, not commands: never automatically retry, delete
+    files or change permissions. Only expose bounded text, never raw responses.
+    """
+    state = result["state"]
+    stage, summary, steps = {
+        "available": ("ready", "Plex confirmed this requested scope is available.", []),
+        "downloaded": (
+            "plex_scan",
+            "The manager reports a file; Plex availability is not confirmed yet.",
+            [
+                "Check the title in Plex, then refresh request status.",
+                "If it is absent, check the manager's library destination and Plex's library scan.",
+            ],
+        ),
+        "imported": (
+            "plex_scan",
+            "The manager reports a file; Plex availability is not confirmed yet.",
+            ["Check the requested edition in Plex and refresh its library."],
+        ),
+        "not_managed": (
+            "manager",
+            "No exact matching title was found in this manager.",
+            [
+                "Check the request's manager route and title identity before reviewing a retry."
+            ],
+        ),
+        "requested": (
+            "waiting",
+            "No active download is visible for this scope. Monitoring alone does not prove a release was found.",
+            [
+                "Check the manager's history and monitored episodes or movie.",
+                "Review indexer availability and quality restrictions in the manager before retrying.",
+            ],
+        ),
+        "unavailable": (
+            "connection",
+            "The latest status could not be verified. Previously confirmed availability is unchanged.",
+            [
+                "Test the saved manager route in Settings / Connections, then refresh status."
+            ],
+        ),
+        "importing": (
+            "import",
+            "The download completed or is awaiting the manager's import step.",
+            [
+                "Check Activity / Queue in the manager for import messages.",
+                "Keep the download accessible until the manager imports it.",
+            ],
+        ),
+        "downloading": (
+            "download",
+            "The manager reports an active download for this scope.",
+            [
+                "Check the download client if progress stops. Refreshing status does not restart a download."
+            ],
+        ),
+        "import_blocked": (
+            "attention",
+            "The manager reports a warning or blocked import.",
+            [
+                "Open Activity / Queue in the manager and review the reported reason before retrying."
+            ],
+        ),
+    }.get(state, ("waiting", result.get("label", "Waiting for status"), []))
+    evidence = []
+    secrets = [
+        str(cfg.get("key"))
+        for cfg in settings.values()
+        if isinstance(cfg, dict) and cfg.get("key")
+    ]
+
+    def clean(value):
+        text = str(value or "")
+        for secret in secrets:
+            text = text.replace(secret, "[redacted]")
+        text = re.sub(
+            r"(?i)((?:api[_-]?key|token|password|authorization|x-plex-token)\s*[=:]\s*)[^\s&]+",
+            r"\1[redacted]",
+            text,
+        )
+        text = re.sub(r"https?://[^\s]+", "[link omitted]", text)
+        return text[:700]
+
+    for record in records[:30]:
+        for message in (record.get("statusMessages") or [])[:10]:
+            values = (
+                ([message.get("title")] + list(message.get("messages") or []))
+                if isinstance(message, dict)
+                else [message]
+            )
+            for value in values:
+                text = clean(value)
+                if text and text not in evidence:
+                    evidence.append(text)
+        for field in ("errorMessage",):
+            text = clean(record.get(field))
+            if text and text not in evidence:
+                evidence.append(text)
+    evidence = evidence[:12]
+    combined = " ".join(evidence).lower()
+    if state == "import_blocked":
+        if any(
+            term in combined
+            for term in ("permission", "access denied", "unauthorizedaccess")
+        ):
+            stage, summary = (
+                "permissions",
+                "The manager reports an access or permission problem.",
+            )
+            steps = [
+                "Verify the manager's container user can read the download and write to the library destination.",
+                "Check the mounted paths and ownership; do not grant unrestricted permissions as a workaround.",
+            ]
+        elif any(
+            term in combined
+            for term in (
+                "eligible",
+                "path does not exist",
+                "directory does not exist",
+                "not accessible",
+                "not found",
+                "no files",
+            )
+        ):
+            stage, summary = (
+                "import_path",
+                "The manager cannot find an eligible file at the reported download location.",
+            )
+            steps = [
+                "Check the completed download contains a supported, extracted media file.",
+                "Verify the download client path points to the same files inside the manager container; check mounts or remote path mappings.",
+            ]
+        elif any(
+            term in combined
+            for term in ("quality", "custom format", "upgrade", "sample")
+        ):
+            stage, summary = (
+                "import_quality",
+                "The manager reports a file or quality rejection.",
+            )
+            steps = [
+                "Review the file and rejection reason in the manager's Manual Import screen.",
+                "Check the quality profile and custom-format rules before changing them.",
+            ]
+    return {
+        "stage": stage,
+        "summary": summary,
+        "next_steps": steps,
+        "evidence": evidence,
+        "manager": service.capitalize(),
+    }
 
 
 def summarize(items, settings, call, force=False):
@@ -203,6 +367,7 @@ def summarize(items, settings, call, force=False):
                 outputs[row["id"]] = {
                     "state": state,
                     "label": label,
+                    "_queue_evidence": matches,
                     "percent": (
                         round(max(0, min(100, (1 - left / total) * 100)), 1)
                         if total
@@ -218,4 +383,15 @@ def summarize(items, settings, call, force=False):
                 + "; no active download",
                 "prevent_duplicate": False,
             }
+    # Attach explanations once, preserving the exact-scope state and duplicate guards.
+    for row in items:
+        result = outputs.get(row["id"])
+        if result is not None:
+            service = "radarr" if row["type"] == "movie" else "sonarr"
+            result.setdefault(
+                "diagnostic",
+                diagnostic(
+                    result, result.pop("_queue_evidence", []), service, settings
+                ),
+            )
     return {"items": outputs, "warnings": warnings, "checked_at": time.time()}

@@ -130,3 +130,25 @@ before saving. `web/discovery-updates.js` owns the dedicated Manage list editor;
 switching routes. `tests/test_list_acquisition.py` covers isolated defaults,
 invalid options, changed routes, revision conflicts, offline reset and export
 privacy. Saving preferences must never call manager write APIs.
+
+
+## Request diagnostics and release calendar
+
+`activity.diagnostic` turns exact-scope queue evidence into bounded, redacted
+explanations and suggested checks. It does not perform extra manager calls or
+writes. `request_ledger.apply_status` retains last confirmed states on read
+failures and maps manager files to the imported stage. `web/requests.js` keeps
+raw evidence behind disclosure controls. Tests live in
+`tests/test_request_diagnostics.py`.
+
+`release_calendar.py` assembles a read-only month snapshot from tracked releases,
+followed lists and creator credits. Cached reads make no network calls; refresh
+has a 50-record TMDB budget and optional Trakt month queries. Exact identity,
+date, format and region determine deduplication. A bounded in-memory Trakt
+snapshot survives navigation but is invalidated by follow/account changes.
+`/api/calendar` reads a state snapshot outside slow provider work and does not
+write user state. `web/calendar.js` owns the Explore tab, source filters, agenda,
+month grid, cached-first behavior and stale-response guards. Calendar JS loads
+before navigation so shareable `#/explore/calendar` routes work. Python tests
+cover date boundaries, provenance, region, scope and failure handling;
+`tests/test_calendar_ui.cjs` exercises the actual renderer and async races.

@@ -237,7 +237,7 @@ def check_source(entry, settings):
     }
 
 
-def calendar(settings, lists):
+def calendar(settings, lists, start=None, days=7, artwork_refresh=True):
     movie_ids, show_ids = set(), set()
     for entry in lists:
         if not entry.get(
@@ -256,9 +256,20 @@ def calendar(settings, lists):
                 if identifier:
                     show_ids.add(str(identifier))
     now = datetime.datetime.now(datetime.timezone.utc)
-    start = (now.date() - datetime.timedelta(days=1)).isoformat()
-    end = now + datetime.timedelta(days=7)
-    results = []
+    custom_window = start is not None
+    first_day = (
+        start
+        if isinstance(start, datetime.date)
+        else datetime.date.fromisoformat(start) if start else now.date()
+    )
+    days = int(days)
+    if not 1 <= days <= 31:
+        raise ValueError("Calendar windows must be 1 to 31 days.")
+    start = (
+        first_day if custom_window else now.date() - datetime.timedelta(days=1)
+    ).isoformat()
+    last_day = first_day + datetime.timedelta(days=days - 1 if custom_window else days)
+    results, warnings = [], []
     for kind, wanted in [("movie", movie_ids), ("show", show_ids)]:
         if not wanted:
             continue
@@ -267,9 +278,14 @@ def calendar(settings, lists):
             + ("movies" if kind == "movie" else "shows")
             + "/"
             + start
-            + "/9"
+            + "/"
+            + str(days if custom_window else days + 2)
         )
-        records = cached_get(path, settings, 3600)["data"]
+        try:
+            records = cached_get(path, settings, 3600)["data"]
+        except ValueError:
+            warnings.append("Trakt " + kind + " dates could not be checked.")
+            continue
         for index, record in enumerate(records):
             media = record.get(kind) or {}
             if str((media.get("ids") or {}).get("tmdb")) not in wanted:
@@ -281,7 +297,9 @@ def calendar(settings, lists):
                 continue
             if kind == "show":
                 released = datetime.datetime.fromisoformat(date.replace("Z", "+00:00"))
-                if not now <= released <= end:
+                if not first_day <= released.date() <= last_day or (
+                    not custom_window and released < now
+                ):
                     continue
                 payload = {
                     "type": "episode",
@@ -289,11 +307,7 @@ def calendar(settings, lists):
                     "episode": record.get("episode") or {},
                 }
             else:
-                if (
-                    not now.date()
-                    <= datetime.date.fromisoformat(date[:10])
-                    <= end.date()
-                ):
+                if not first_day <= datetime.date.fromisoformat(date[:10]) <= last_day:
                     continue
                 payload = {"type": "movie", "movie": media}
             payload["id"] = index + 1
@@ -322,7 +336,7 @@ def calendar(settings, lists):
             + "?append_to_response=videos,credits,external_ids"
             + ("" if movie else ",aggregate_credits")
         )
-        if not data and settings.get("tmdb", {}).get("key"):
+        if not data and artwork_refresh and settings.get("tmdb", {}).get("key"):
             try:
                 data = providers.cached_tmdb(path, settings)
             except ValueError:
@@ -357,6 +371,7 @@ def calendar(settings, lists):
         unique[key] = row
     return {
         "items": sorted(unique.values(), key=lambda r: r["release_date"]),
-        "days": 7,
+        "days": days,
+        "warnings": warnings,
         "note": "Upcoming releases for titles in your followed saved lists. Dates depend on Trakt; calendar times are shown in your browser time zone.",
     }

@@ -1292,6 +1292,7 @@ vm.runInContext(
   vm.runInContext(fs.readFileSync('web/workspace.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/audit-workflows.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/discovery-updates.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('web/calendar.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/navigation.js', 'utf8'), context);
   const candidate = vm.runInContext(
     `requestCandidateMarkup({title:'Arrival <2016>',year:'2016',type:'movie',tmdb:'329865',poster:'https://image.tmdb.org/t/p/w342/a.jpg',overview:'A linguist makes first contact.'},0)`,
