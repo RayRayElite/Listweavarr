@@ -701,6 +701,84 @@
               Enabling notifications starts with new events, not your old request history.
             </p>
           </div>
+          <details class="connection notification-services">
+            <summary>
+              <strong>ntfy, Gotify &amp; custom webhooks</strong
+              ><span class="muted">Optional delivery services</span>
+            </summary>
+            <p class="muted">
+              Choose an existing service. Only selected request events, titles and scope are sent.
+              Each service has a separate queue and is disabled until you enable it.
+            </p>
+            <label
+              >Service<select id="notify-kind">
+                <option value="ntfy">ntfy</option>
+                <option value="gotify">Gotify</option>
+                <option value="webhook">JSON webhook</option>
+              </select></label
+            >
+            <p id="notify-help" class="muted"></p>
+            <div class="fields">
+              <label
+                >Endpoint URL<input
+                  id="notify-url"
+                  type="password"
+                  autocomplete="new-password" /></label
+              ><label
+                >Access / application token<input
+                  id="notify-token"
+                  type="password"
+                  autocomplete="new-password"
+              /></label>
+            </div>
+            <label class="preference-check"
+              ><input id="notify-enabled" type="checkbox" />Enable this service</label
+            >
+            <fieldset class="notification-events">
+              <legend>Send these events</legend>
+              <label
+                ><input type="checkbox" data-notify-event="available" checked />Available in
+                Plex</label
+              ><label><input type="checkbox" data-notify-event="failed" />Request failed</label
+              ><label><input type="checkbox" data-notify-event="attention" />Needs attention</label
+              ><label
+                ><input type="checkbox" data-notify-event="awaiting_approval" />Awaiting
+                approval</label
+              ><label><input type="checkbox" data-notify-event="requested" />Request sent</label
+              ><label
+                ><input type="checkbox" data-notify-event="monitored" />Release monitoring</label
+              >
+            </fieldset>
+            <div class="fields">
+              <label>Quiet hours start<input id="notify-quiet-start" type="time" /></label
+              ><label>Quiet hours end<input id="notify-quiet-end" type="time" /></label>
+            </div>
+            <p class="footnote">
+              Optional quiet hours use the server's local timezone. Events wait in the queue until
+              quiet hours end.
+            </p>
+            <label class="preference-check"
+              ><input id="notify-batch" type="checkbox" />Group ready events into one message (up to
+              10)</label
+            >
+            <label class="preference-check"
+              ><input id="notify-clear-token" type="checkbox" />Remove the saved token when
+              saving</label
+            >
+            <div class="workflow-buttons">
+              <button id="notify-save" class="primary">Save service</button
+              ><button id="notify-test" class="secondary">Send test notification</button>
+            </div>
+            <p id="notify-status" role="status" class="muted"></p>
+            <details>
+              <summary>Recent delivery history</summary>
+              <div id="notify-history"></div>
+            </details>
+            <p class="footnote">
+              Blank endpoint/token keeps the saved value. Tokens and endpoints are excluded from
+              portable backups. Enabling or changing a destination starts with new events.
+            </p>
+          </details>
         </section>
         <section
           id="settings-backups"
@@ -1952,6 +2030,7 @@ episode,Pilot,,,263365,1,1</pre
     <script src="/workspace.js"></script>
     <script src="/audit-workflows.js"></script>
     <script src="/discovery-updates.js"></script>
+    <script src="/notifications.js"></script>
     <script src="/calendar.js"></script>
     <script src="/navigation.js"></script>
   </body>

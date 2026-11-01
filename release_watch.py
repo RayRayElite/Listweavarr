@@ -9,6 +9,7 @@ import datetime
 import re
 import time
 import providers
+import acquisition_tags
 
 
 def region(value):
@@ -145,6 +146,7 @@ def monitor(item, settings, profile, root, call):
         r["path"] for r in request("rootfolder")
     ]:
         raise ValueError("Choose a valid quality profile and root folder.")
+    tags = acquisition_tags.for_request(settings, request)
     if service == "radarr":
         found = next(
             (r for r in request("movie") if str(r.get("tmdbId")) == str(item["tmdb"])),
@@ -153,6 +155,7 @@ def monitor(item, settings, profile, root, call):
         if found and found.get("hasFile"):
             return "Already has a file in Radarr"
         if found:
+            acquisition_tags.apply(found, tags)
             found.update(monitored=True, minimumAvailability="released")
             request("movie/" + str(found["id"]), found, "PUT")
         else:
@@ -164,6 +167,7 @@ def monitor(item, settings, profile, root, call):
                 rootFolderPath=root,
                 addOptions={"searchForMovie": False},
             )
+            acquisition_tags.apply(found, tags)
             request("movie", found, "POST")
         return "Monitored in Radarr for digital/disc release; no immediate search submitted"
     metadata = providers.cached_tmdb(
@@ -178,6 +182,7 @@ def monitor(item, settings, profile, root, call):
         (r for r in request("series") if str(r.get("tvdbId")) == str(tvdb)), None
     )
     if found:
+        acquisition_tags.apply(found, tags)
         found.update(monitored=True, monitorNewItems="all")
         for season in found.get("seasons", []):
             if season.get("seasonNumber", 0) > 0:
@@ -211,5 +216,6 @@ def monitor(item, settings, profile, root, call):
                 "searchForCutoffUnmetEpisodes": False,
             },
         )
+        acquisition_tags.apply(found, tags)
         request("series", found, "POST")
     return "Monitored in Sonarr, including future seasons (excluding specials); no immediate search submitted"

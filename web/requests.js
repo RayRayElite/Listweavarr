@@ -198,8 +198,10 @@ async function reviewRequestRetry(id) {
   const result = await api('options', {
       services: [row.service],
       routes: { [row.service]: row.route || 'primary' },
+      include_tags: true,
     }),
     options = result[row.service];
+  options.defaults = { ...options.defaults, tags: row.options?.tags || [] };
   requestRetry = row;
   $('request-retry-heading').textContent =
     (row.mode === 'monitor' ? 'Monitor ' : 'Request ') + row.item.title;
@@ -210,7 +212,7 @@ async function reviewRequestRetry(id) {
         row.item.type +
         ' scope. Plex and the manager are checked again to avoid duplicate downloads.';
   $('request-retry-options').innerHTML =
-    `<p class="muted">${esc(options.routes?.find((r) => r.id === (row.route || 'primary'))?.name || row.service)} &middot; ${row.tier === '4k' ? '4K' : 'Standard'}</p><label>Quality profile<select id="retry-profile">${options.profiles.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Destination<select id="retry-root">${options.roots.map((r) => `<option value="${esc(r.path)}">${esc(r.path)}</option>`).join('')}</select></label>`;
+    `<p class="muted">${esc(options.routes?.find((r) => r.id === (row.route || 'primary'))?.name || row.service)} &middot; ${row.tier === '4k' ? '4K' : 'Standard'}</p><label>Quality profile<select id="retry-profile">${options.profiles.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Destination<select id="retry-root">${options.roots.map((r) => `<option value="${esc(r.path)}">${esc(r.path)}</option>`).join('')}</select></label>${requestTagsMarkup(options, 'retry')}`;
   if (options.defaults?.profile) $('retry-profile').value = options.defaults.profile;
   if (options.defaults?.root) $('retry-root').value = options.defaults.root;
   $('request-retry-status').textContent = '';
@@ -225,6 +227,7 @@ $('request-retry-confirm').onclick = (e) =>
       id: requestRetry.id,
       profile: $('retry-profile').value,
       root: $('retry-root').value,
+      tags: requestTags('retry'),
       confirmed: true,
       approved: requestRetry.status === 'awaiting_approval',
     });

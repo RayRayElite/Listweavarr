@@ -12,6 +12,7 @@ import secrets
 import time
 import providers
 import activity
+import acquisition_tags
 
 FIELDS = (
     "type",
@@ -105,6 +106,8 @@ def record(
         entry["list_id"] = list_id
     if options:
         entry["options"] = {"profile": str(options["profile"]), "root": options["root"]}
+        if "tags" in options:
+            entry["options"]["tags"] = acquisition_tags.identifiers(options["tags"])
     entry["events"].append({"at": time.time(), "status": status, "message": message})
     entry["events"] = entry["events"][-30:]
     return entry

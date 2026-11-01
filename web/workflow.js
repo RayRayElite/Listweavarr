@@ -134,6 +134,7 @@ document.addEventListener?.('change', (e) => {
           services: [service],
           routes: { [service]: select.value },
           list_id: select.dataset.listContext || undefined,
+          include_tags: true,
         })
       )[service];
       $(prefix + '-profile').innerHTML = options.profiles
@@ -144,6 +145,8 @@ document.addEventListener?.('change', (e) => {
         .join('');
       if (options.defaults?.profile) $(prefix + '-profile').value = options.defaults.profile;
       if (options.defaults?.root) $(prefix + '-root').value = options.defaults.root;
+      const tags = document.querySelector(`[data-manager-tags="${prefix}"]`);
+      if (tags) tags.outerHTML = requestTagsMarkup(options, prefix);
       const note = document.querySelector(`[data-route-note="${prefix}"]`);
       if (note) note.textContent = options.warning || options.defaults_source;
       select.dataset.loadedRoute = options.route;

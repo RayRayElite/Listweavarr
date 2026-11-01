@@ -152,3 +152,25 @@ month grid, cached-first behavior and stale-response guards. Calendar JS loads
 before navigation so shareable `#/explore/calendar` routes work. Python tests
 cover date boundaries, provenance, region, scope and failure handling;
 `tests/test_calendar_ui.cjs` exercises the actual renderer and async races.
+
+
+## Acquisition tags, notification transports and session renewal
+
+`acquisition_tags.py` validates existing manager tag IDs and merges selections
+without removing existing tags. The routed `_request_tags` snapshot is populated
+only from reviewed options; both immediate requests and release monitoring validate
+live tags before writes. `request_ledger` retains selected IDs for approvals/retries.
+`requestTagsMarkup` carries selections through batch, TV scope and retry reviews.
+
+`notification_channels.py` provides ntfy, Gotify and generic webhook transports,
+quiet-hour and digest selection. It reuses `discord_notify`'s bounded event cursor,
+outbox and retry engine through isolated per-service views. `dispatch_channel_once`
+collects under the state lock, sends outside it and validates destination identity
+before recording completion. Tokens are not exposed by its public response or
+portable backups. `web/notifications.js` owns the optional settings panel.
+
+`/api/session` renews the local CSRF token. POST rejects stale tokens with a distinct
+`session_expired` code before body parsing/action dispatch; `api()` retries once
+only for that explicit rejection and coalesces concurrent renewals. Tests include
+`test_acquisition_tags.py`, `test_notification_channels.py`, and both Python/Node
+`test_session_recovery` harnesses.

@@ -29,6 +29,8 @@ PRIVATE_KEYS = {
     "plex_collection",
     "collection_attention",
     "request_preferences",
+    "notification_channels",
+    "notification_outboxes",
 }
 
 

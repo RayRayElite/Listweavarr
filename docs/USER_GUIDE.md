@@ -444,3 +444,47 @@ explicitly labeled **Expected movie release**, with no claim of home availabilit
 TV premiere and episode dates follow provider air dates, which may differ from
 local streaming availability. Unknown dates are omitted and announced dates may
 change. This calendar never requests, monitors or downloads media by itself.
+
+
+### Reviewed manager tags
+
+**Manage list > Downloads > Acquisition defaults** now offers existing manager
+tags alongside the route, profile and destination. Tags are visible in the
+individual/batch or TV scope request review and can be changed before confirming.
+They are additive: existing manager tags are preserved, no tags are created, and
+removing a selection does not delete tags already on media. A removed tag is
+reported during review; stale tag IDs block a confirmed request before any manager
+writes. Saved policies stay local and are excluded from shared/Official exports.
+
+### Additional notification services
+
+Under **Settings > Notifications**, expand **ntfy, Gotify & custom webhooks**.
+Each service has its own saved endpoint/token, selected request events, queue and
+recent delivery history. Services default off. Blank credentials keep existing
+values; use the remove-token checkbox to clear a token. Save before using the
+explicit test button. No account or hosted service is created for you.
+
+- ntfy uses a full topic URL and an optional access token. See the
+  [ntfy publishing documentation](https://docs.ntfy.sh/publish/).
+- Gotify uses the `/message` endpoint and an application token sent in the
+  `X-Gotify-Key` header. See [Gotify's push API](https://gotify.net/docs/pushmsg).
+- JSON webhooks receive `title`, `message`, `event`, and `source`. An optional
+  token uses Bearer authentication. Grouped deliveries use event `batch`.
+
+Optional quiet hours use the server's local timezone and defer queued deliveries.
+Batching combines up to 10 ready events within the message size limit. Transient
+failures and rate limits retry with backoff; permanent failures stop. Delivery is
+at least once: a crash after acceptance can result in a repeated notification.
+Changing/disabling a destination cancels its pending queue, without replaying old
+history. An already in-flight delivery may finish. Endpoints/tokens are omitted
+from portable backups, and restoring a workspace resets collection cursors so
+restored history is not resent. Public endpoints require HTTPS; local HTTP servers
+are supported. Redirects are not followed.
+
+### Session renewal after a restart
+
+An open page renews its session token once when the server explicitly rejects a
+stale token before reading or acting on the request. Network failures, other
+permission errors and failed operations are never automatically replayed. This
+avoids unnecessary reloads after local server restarts; it is not an owner sign-in
+system or a replacement for authentication on an externally exposed installation.

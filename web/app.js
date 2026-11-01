@@ -298,6 +298,16 @@ function managerIsConfigured(service) {
   );
 }
 
+function requestTagsMarkup(options, prefix) {
+  if (options.tags_loaded === false) return '';
+  const selected = (options.defaults?.tags || []).map(String);
+  return `<fieldset class="request-tags" data-manager-tags="${prefix}"><legend>Tags <span class="muted">(add only)</span></legend>${(options.tags || []).map((tag) => `<label class="preference-check"><span>${esc(tag.label)}</span><input type="checkbox" data-request-tag-prefix="${prefix}" value="${tag.id}" ${selected.includes(String(tag.id)) ? 'checked' : ''}></label>`).join('') || '<span class="muted">No tags configured on this manager.</span>'}</fieldset>`;
+}
+function requestTags(prefix) {
+  return [...document.querySelectorAll(`[data-request-tag-prefix="${prefix}"]:checked`)].map(
+    (input) => Number(input.value)
+  );
+}
 function requestRouteMarkup(options, service, prefix) {
   const routes = options.routes || [
     {
@@ -308,7 +318,7 @@ function requestRouteMarkup(options, service, prefix) {
       configured: true,
     },
   ];
-  return `<p class="muted" data-route-note="${prefix}">${esc(options.warning || options.defaults_source || 'Normal defaults')}</p><label>Manager route<select id="${prefix}-route" data-manager-route="${service}" data-route-prefix="${prefix}" data-list-context="${esc(options.list_id || '')}" data-loaded-route="${esc(options.route || 'primary')}">${routes.map((route) => `<option value="${esc(route.id)}" ${route.id === (options.route || 'primary') ? 'selected' : ''} ${!route.enabled || !route.configured ? 'disabled' : ''}>${esc(route.name)} - ${route.tier === '4k' ? '4K' : 'Standard'}</option>`).join('')}</select></label>`;
+  return `<p class="muted" data-route-note="${prefix}">${esc(options.warning || options.defaults_source || 'Normal defaults')}</p><label>Manager route<select id="${prefix}-route" data-manager-route="${service}" data-route-prefix="${prefix}" data-list-context="${esc(options.list_id || '')}" data-loaded-route="${esc(options.route || 'primary')}">${routes.map((route) => `<option value="${esc(route.id)}" ${route.id === (options.route || 'primary') ? 'selected' : ''} ${!route.enabled || !route.configured ? 'disabled' : ''}>${esc(route.name)} - ${route.tier === '4k' ? '4K' : 'Standard'}</option>`).join('')}</select></label>${requestTagsMarkup(options, prefix)}`;
 }
 
 function ratingPreferencesMarkup() {
@@ -569,13 +579,28 @@ function toast(message) {
   clearTimeout(window.toastTimer);
   window.toastTimer = setTimeout(() => ($('toast').hidden = true), 7000);
 }
-async function api(path, body) {
+let sessionRenewal = null;
+async function api(path, body, renew = true) {
   const response = await fetch('/api/' + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Listweavarr-Token': state.csrf },
     body: JSON.stringify(body),
   });
   const result = await response.json();
+  if (response.status === 403 && result.code === 'session_expired' && renew) {
+    if (!sessionRenewal)
+      sessionRenewal = (async () => {
+        const renewed = await fetch('/api/session', { cache: 'no-store' });
+        const session = await renewed.json();
+        if (!renewed.ok || typeof session.csrf !== 'string' || !session.csrf)
+          throw Error('The app session could not be renewed. Reload the page.');
+        state.csrf = session.csrf;
+      })().finally(() => {
+        sessionRenewal = null;
+      });
+    await sessionRenewal;
+    return api(path, body, false);
+  }
   if (!response.ok) throw Error(result.error || 'Request failed');
   return result;
 }
@@ -2143,7 +2168,11 @@ async function reviewShowScope(button) {
       ? context.data.missing
       : context.data.seasons.find((s) => s.number === season)?.missing;
   if (!missing) return;
-  const options = await api('options', { list_id: context.listId, services: ['sonarr'] });
+  const options = await api('options', {
+    list_id: context.listId,
+    services: ['sonarr'],
+    include_tags: true,
+  });
   showRequestScope = { ...context, scope, season };
   $('show-request-title').textContent =
     context.data.details.title + (scope === 'season' ? ` · Season ${season}` : ' · whole show');
@@ -2214,6 +2243,7 @@ $('show-request-submit').onclick = (e) =>
       profile: $('show-profile').value,
       root: $('show-root').value,
       route: $('show-route')?.value || 'primary',
+      tags: requestTags('show'),
     });
     showPageCache.clear();
     if (result.entry) {
@@ -2729,7 +2759,7 @@ $('review').onclick = (e) =>
   task(e.target, async () => {
     const items = current().items.filter((i) => selected.has(i.id));
     const services = [...new Set(items.map((i) => (i.type === 'movie' ? 'radarr' : 'sonarr')))];
-    const options = await api('options', { list_id: active, services });
+    const options = await api('options', { list_id: active, services, include_tags: true });
     $('review-items').innerHTML = items
       .map(
         (i) =>
@@ -2761,6 +2791,7 @@ $('submit-requests').onclick = (e) =>
           profile: $(s + '-profile').value,
           root: $(s + '-root').value,
           route: $(s + '-route')?.value || 'primary',
+          tags: requestTags(s),
         };
     const result = await api('request', { list_id: active, ids: [...selected], options });
     $('request-results').innerHTML = result.results

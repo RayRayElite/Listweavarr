@@ -30,9 +30,9 @@ This checklist separates completed increments from full feature completion.
 
 ## Remaining implementation queue
 
-1. Extend per-list acquisition defaults with reviewed tag policies; additional
-   notification transports. Request diagnostics and the unified calendar now have
-   working implementations; keep improving provider coverage and live UI review.
+1. Continue notification refinement and live service verification. Reviewed
+   per-list tags and optional ntfy/Gotify/webhook transports are implemented,
+   including quiet hours, bounded batching, retries and delivery history.
 2. Single-owner authentication/session recovery before an external request API.
    Household/multi-user accounts remain deferred by the user's earlier choice.
 3. Unified search, optional taste onboarding, issue notebook and Plex watchlist
@@ -100,3 +100,15 @@ Validation for this increment: 466 Python tests, both UI behavior harnesses,
 all seven Companion Node harnesses, frontend/privacy/catalogue checks and the
 release ZIP smoke test passed. The restarted app served the live calendar,
 request history and new calendar asset successfully.
+
+
+### Reviewed tags, optional transports and restart recovery
+
+Implemented additive per-list manager tags through saved defaults, request review,
+TV scope requests and approval/retry records. Invalid removed tag IDs prevent
+manager writes. Optional ntfy/Gotify/JSON webhook channels use separate durable
+queues, selected request events, quiet hours, batching and recent delivery status.
+No destinations were enabled and no external test notifications were sent.
+Session renewal handles explicit pre-dispatch stale-token errors once; owner
+sign-in remains the next security increment. Community hosting and cross-platform
+Companion deployment remain outside this local increment.

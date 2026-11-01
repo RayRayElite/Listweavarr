@@ -240,6 +240,12 @@ def restore(state, data, mode):
         for job in result.get("notification_outbox", []):
             if job.get("status") == "pending":
                 job["status"] = "cancelled"
+    for kind, cfg in result.get("notification_channels", {}).items():
+        cfg["since"] = time.time()
+        cfg["collected"] = {}
+        for job in result.get("notification_outboxes", {}).get(kind, []):
+            if job.get("status") == "pending":
+                job["status"] = "cancelled"
     return result
 
 

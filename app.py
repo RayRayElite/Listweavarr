@@ -33,6 +33,7 @@ import suggestions
 import poster_overlays
 import ignored_titles
 import discord_notify
+import notification_channels
 import manager_routes
 import request_ledger
 import list_sharing
@@ -48,6 +49,7 @@ import composite_lists
 import release_watch
 import release_calendar as calendar_view
 import activity
+import acquisition_tags
 import official_lists
 import collection_tools
 import taste
@@ -464,6 +466,41 @@ def dispatch_discord_once():
     return not error
 
 
+def dispatch_channel_once():
+    """Collect one opted-in transport's work, then deliver outside the state lock."""
+    with LOCK:
+        state = read_state()
+        if not any(
+            c.get("enabled") for c in state.get("notification_channels", {}).values()
+        ):
+            return False
+        before = json.dumps(
+            [state.get("notification_channels"), state.get("notification_outboxes")],
+            sort_keys=True,
+        )
+        notification_channels.collect(state)
+        work = notification_channels.next_job(state)
+        if work or before != json.dumps(
+            [state.get("notification_channels"), state.get("notification_outboxes")],
+            sort_keys=True,
+        ):
+            save_state(state)
+    if not work:
+        return False
+    error = None
+    try:
+        notification_channels.send(
+            work["kind"], work["config"], work["job"]["content"], work["job"]["event"]
+        )
+    except discord_notify.DeliveryError as exc:
+        error = exc
+    with LOCK:
+        state = read_state()
+        notification_channels.finish(state, work, error)
+        save_state(state)
+    return error is None
+
+
 def start_background_tasks():
     global BACKGROUND_STARTED
     if BACKGROUND_STARTED:
@@ -492,6 +529,9 @@ def start_background_tasks():
                     last_check = time.time()
                 for _ in range(5):
                     if not dispatch_discord_once():
+                        break
+                for _ in range(5):
+                    if not dispatch_channel_once():
                         break
             except Exception:
                 pass  # Keep retries alive without exposing credentials in logs.
@@ -1934,7 +1974,9 @@ def release_calendar(state):
     return result
 
 
-def request_options(state, service, route=None, list_id=None, tier="standard"):
+def request_options(
+    state, service, route=None, list_id=None, tier="standard", include_tags=False
+):
     # List defaults are local preferences, never an automatic acquisition policy.
     entry = next((r for r in state.get("lists", []) if r["id"] == list_id), {})
     preferred = entry.get("request_preferences", {}).get(service, {})
@@ -1976,7 +2018,20 @@ def request_options(state, service, route=None, list_id=None, tier="standard"):
             source = "List defaults"
         else:
             warning = "Saved list quality profile or destination was removed. Review the normal defaults."
+    tags = (
+        acquisition_tags.options(lambda path: arr_call(settings, service, path))
+        if include_tags
+        else []
+    )
+    if include_tags and source == "List defaults":
+        wanted = acquisition_tags.identifiers(preferred.get("tags"))
+        valid = {row["id"] for row in tags}
+        defaults["tags"] = [value for value in wanted if value in valid]
+        if len(defaults["tags"]) != len(wanted):
+            warning = "Some saved list tags were removed. Review the remaining selected tags before confirming."
     return {
+        "tags": tags,
+        "tags_loaded": include_tags,
         "list_id": list_id,
         "defaults_source": source,
         "warning": warning,
@@ -2098,6 +2153,9 @@ def show_overview(item, settings):
 
 
 def request_show_scope(item, settings, body):
+    settings = dict(
+        settings, _request_tags=acquisition_tags.identifiers(body.get("tags"))
+    )
     if item["type"] == "movie":
         raise ValueError("Choose a television entry first.")
     overview = show_overview(item, settings)
@@ -2621,6 +2679,7 @@ def request_item(item, settings, profile, root, allowed_episodes=None):
         r["path"] for r in call("rootfolder")
     ]:
         raise ValueError("Choose a valid quality profile and root folder.")
+    tags = acquisition_tags.for_request(settings, call)
     if settings.get(service, {}).get("key"):
         progress = activity.summarize(
             [dict(item, id="request-check")], settings, arr_call, True
@@ -2644,6 +2703,8 @@ def request_item(item, settings, profile, root, allowed_episodes=None):
         if existing:
             if existing.get("hasFile"):
                 return "Already has a file in Radarr"
+            if acquisition_tags.apply(existing, tags):
+                call("movie/" + str(existing["id"]), existing, "PUT")
             call("command", {"name": "MoviesSearch", "movieIds": [existing["id"]]})
             return "Search submitted for existing movie"
         found = call("movie/lookup/tmdb?tmdbId=" + item["tmdb"])
@@ -2653,6 +2714,7 @@ def request_item(item, settings, profile, root, allowed_episodes=None):
             monitored=True,
             addOptions={"searchForMovie": True},
         )
+        acquisition_tags.apply(found, tags)
         call("movie", found)
         return "Movie added and search submitted"
     tvdb = (
@@ -2679,7 +2741,10 @@ def request_item(item, settings, profile, root, allowed_episodes=None):
             seasonFolder=True,
             addOptions={"monitor": "none", "searchForMissingEpisodes": False},
         )
+        acquisition_tags.apply(series, tags)
         series = call("series", series)
+    elif acquisition_tags.apply(series, tags):
+        call("series/" + str(series["id"]), series, "PUT")
     episodes = sonarr_episode_metadata(call, series["id"])
     today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     targets = [
@@ -2806,6 +2871,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.artwork_response(raw, mime=mime)
             except ValueError:
                 return self.artwork_response({"error": "Artwork not available"}, 404)
+        if self.path == "/api/session":
+            return self.respond({"csrf": SESSION})
         if self.path == "/api/state":
             state = read_state()
             return self.respond(public_state(state))
@@ -2855,6 +2922,7 @@ class Handler(BaseHTTPRequestHandler):
             "/official-cache.js": "official-cache.js",
             "/collections.js": "collections.js",
             "/calendar.js": "calendar.js",
+            "/notifications.js": "notifications.js",
             "/requests.js": "requests.js",
             "/workflow.js": "workflow.js",
             "/builder.js": "builder.js",
@@ -2924,13 +2992,21 @@ class Handler(BaseHTTPRequestHandler):
         if (
             self.headers.get("Host")
             not in runtime_config.server_options()["allowed_hosts"]
-            or (
-                self.headers.get("X-Listweavarr-Token")
-                or self.headers.get("X-ReelCheck-Token")
-            )
-            != SESSION
         ):
-            return self.respond({"error": "Reload the app and try again."}, 403)
+            return self.respond({"error": "This host is not allowed."}, 403)
+        if (
+            self.headers.get("X-Listweavarr-Token")
+            or self.headers.get("X-ReelCheck-Token")
+        ) != SESSION:
+            # This response is emitted before reading the body or dispatching an
+            # action. The browser may renew its token and retry exactly once.
+            return self.respond(
+                {
+                    "error": "The app session restarted. Renew the session and try again.",
+                    "code": "session_expired",
+                },
+                403,
+            )
         try:
             length = int(self.headers.get("Content-Length", 0))
             if length > (
@@ -3293,6 +3369,32 @@ class Handler(BaseHTTPRequestHandler):
                 action = self.path.rsplit("/", 1)[-1]
                 with LOCK:
                     snapshot = read_state()
+                if action == "channels":
+                    return self.respond(notification_channels.public(snapshot))
+                if action == "channel-save":
+                    with LOCK:
+                        latest = read_state()
+                        result = notification_channels.configure(latest, body)
+                        save_state(latest)
+                    return self.respond(result)
+                if action == "channel-test":
+                    if (
+                        not body.get("confirmed")
+                        or body.get("kind") not in notification_channels.KINDS
+                    ):
+                        raise ValueError(
+                            "Confirm a test to the saved notification service."
+                        )
+                    kind = body["kind"]
+                    cfg = snapshot.get("notification_channels", {}).get(kind, {})
+                    if not cfg.get("url"):
+                        raise ValueError("Save a notification endpoint before testing.")
+                    notification_channels.send(
+                        kind,
+                        cfg,
+                        "Listweavarr notification test. Your saved service is reachable.",
+                    )
+                    return self.respond({"ok": True})
                 if action == "settings":
                     return self.respond(discord_notify.public(snapshot))
                 if action == "save":
@@ -3540,7 +3642,13 @@ class Handler(BaseHTTPRequestHandler):
                         option = {
                             "profile": body.get("profile"),
                             "root": body.get("root"),
+                            "tags": acquisition_tags.identifiers(
+                                body.get(
+                                    "tags", request.get("options", {}).get("tags", [])
+                                )
+                            ),
                         }
+                        settings["_request_tags"] = option["tags"]
                         item = dict(request["item"])
                         if request.get("status") == "available":
                             raise ValueError("This title is already available in Plex.")
@@ -3620,7 +3728,11 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     service = body.get("service")
                     result = request_options(
-                        snapshot, service, body.get("route"), entry["id"]
+                        snapshot,
+                        service,
+                        body.get("route"),
+                        entry["id"],
+                        include_tags=True,
                     )
                     signature = saved_lists.revision(
                         manager_routes.config(snapshot, service, result["route"])
@@ -3639,6 +3751,9 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError(
                             "Quality profile or destination no longer exists. Reload the options."
                         )
+                    selected_tags = acquisition_tags.validate(
+                        body.get("tags", []), result["tags"]
+                    )
                 with LOCK:
                     latest = read_state()
                     saved = next(
@@ -3663,6 +3778,7 @@ class Handler(BaseHTTPRequestHandler):
                             "server": cfg.get("url"),
                             "profile": str(body["profile"]),
                             "root": body["root"],
+                            "tags": selected_tags,
                         }
                     save_state(latest)
                 return self.respond({"saved": True})
@@ -3685,6 +3801,7 @@ class Handler(BaseHTTPRequestHandler):
                             body.get("routes", {}).get(service),
                             body.get("list_id"),
                             body.get("tier", "standard"),
+                            include_tags=body.get("include_tags") is True,
                         )
                         for service in body.get("services", [])
                         if service in ("sonarr", "radarr")
@@ -5703,7 +5820,11 @@ class Handler(BaseHTTPRequestHandler):
                             result["requested_item"],
                             status="awaiting_approval" if queued else "requested",
                             message=result["message"],
-                            options={"profile": body["profile"], "root": body["root"]},
+                            options={
+                                "profile": body["profile"],
+                                "root": body["root"],
+                                "tags": acquisition_tags.identifiers(body.get("tags")),
+                            },
                             list_id=entry["id"],
                             route=route,
                             tier=cfg["tier"],
@@ -5737,6 +5858,7 @@ class Handler(BaseHTTPRequestHandler):
                             )
                             cfg = manager_routes.config(state, service, route)
                             settings = manager_routes.routed(state, service, route)
+                            settings["_request_tags"] = option.get("tags", [])
                             queued = bool(
                                 state.get("request_policy", {}).get("require_approval")
                             )

@@ -724,7 +724,7 @@ async function openListAcquisitionDefaults() {
       revision = options.revision;
       loaded = options;
       find('[data-options]').innerHTML =
-        `<label>Manager route<select data-route>${options.routes.map((r) => `<option value="${esc(r.id)}" ${r.id === options.route ? 'selected' : ''} ${!r.enabled || !r.configured ? 'disabled' : ''}>${esc(r.name)}</option>`).join('')}</select></label><label>Quality profile<select data-profile>${options.profiles.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Destination<select data-root>${options.roots.map((r) => `<option value="${esc(r.path)}">${esc(r.path)}</option>`).join('')}</select></label>`;
+        `<label>Manager route<select data-route>${options.routes.map((r) => `<option value="${esc(r.id)}" ${r.id === options.route ? 'selected' : ''} ${!r.enabled || !r.configured ? 'disabled' : ''}>${esc(r.name)}</option>`).join('')}</select></label><label>Quality profile<select data-profile>${options.profiles.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Destination<select data-root>${options.roots.map((r) => `<option value="${esc(r.path)}">${esc(r.path)}</option>`).join('')}</select></label>${requestTagsMarkup(options, 'list-defaults')}`;
       if (options.defaults.profile) find('[data-profile]').value = options.defaults.profile;
       if (options.defaults.root) find('[data-root]').value = options.defaults.root;
       find('[data-route]').onchange = (e) => load(e.target.value);
@@ -756,6 +756,7 @@ async function openListAcquisitionDefaults() {
         route: loaded.route,
         profile: find('[data-profile]').value,
         root: find('[data-root]').value,
+        tags: requestTags('list-defaults'),
         revision,
         signature: loaded.signature,
       });

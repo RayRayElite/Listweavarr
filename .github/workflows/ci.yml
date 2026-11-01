@@ -24,6 +24,7 @@ jobs:
       - run: python -m unittest discover -s tests -q
       - run: node tests/test_ui.cjs
       - run: node tests/test_calendar_ui.cjs
+      - run: node tests/test_session_recovery.cjs
       - run: node tests/test_playlist_bookmarks.cjs
       - run: node tests/test_playlist_adapter.cjs
       - run: node tests/test_playlist_features.cjs
