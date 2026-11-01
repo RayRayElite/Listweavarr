@@ -38,6 +38,7 @@ def run(archive):
             LISTWEAVARR_PUBLIC_URL=base,
             LISTWEAVARR_OPEN_BROWSER="0",
             LISTWEAVARR_CURATOR_MODE="0",
+            LISTWEAVARR_OWNER_PASSWORD_FILE="",
             LISTWEAVARR_ALLOWED_HOSTS="",
         )
 
@@ -128,7 +129,57 @@ def run(archive):
             assert restored["items"][0]["status"] == "unchecked"
         finally:
             stop(process)
-    print("Packaged clean startup, reviewed backup restore and data restart passed")
+        password_file = target / "private-test-data" / "owner-password"
+        password_file.write_text("a packaged owner test passphrase", encoding="utf-8")
+        env["LISTWEAVARR_OWNER_PASSWORD_FILE"] = str(password_file)
+        process = start()
+        try:
+            try:
+                get_state()
+                raise AssertionError("Owner mode must protect workspace state")
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 401
+                exc.close()
+            with urllib.request.urlopen(base + "/", timeout=5) as response:
+                assert "Owner password" in response.read().decode()
+            with urllib.request.urlopen(base + "/sign-in.js", timeout=5) as response:
+                assert response.status == 200
+            request = urllib.request.Request(
+                base + "/api/auth/login",
+                data=json.dumps(
+                    {"password": "a packaged owner test passphrase"}
+                ).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                cookie = response.headers["Set-Cookie"].split(";", 1)[0]
+                assert "HttpOnly" in response.headers["Set-Cookie"]
+        finally:
+            stop(process)
+        process = start()
+        try:
+            request = urllib.request.Request(
+                base + "/api/state", headers={"Cookie": cookie}
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                authenticated = json.load(response)
+                assert authenticated["lists"][0]["name"] == "Release recovery fixture"
+            request = urllib.request.Request(
+                base + "/api/auth/logout",
+                data=b"{}",
+                headers={
+                    "Cookie": cookie,
+                    "Content-Type": "application/json",
+                    "X-Listweavarr-Token": authenticated["csrf"],
+                },
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                assert "Max-Age=0" in response.headers["Set-Cookie"]
+        finally:
+            stop(process)
+    print(
+        "Packaged startup, reviewed restore, restart persistence and optional owner sign-in passed"
+    )
 
 
 if __name__ == "__main__":

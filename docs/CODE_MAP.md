@@ -174,3 +174,16 @@ portable backups. `web/notifications.js` owns the optional settings panel.
 only for that explicit rejection and coalesces concurrent renewals. Tests include
 `test_acquisition_tags.py`, `test_notification_channels.py`, and both Python/Node
 `test_session_recovery` harnesses.
+
+
+## Optional owner access
+
+`owner_access.OwnerAccess` is initialized once from an optional operator password
+file. It uses a scrypt verifier, a private random key, hashed opaque sessions,
+seven-day expiry and persistent revocation. `Handler` gates state/job/normal API
+routes, exposes same-origin JSON sign-in and CSRF-protected sign-out, and serves
+`web/sign-in.html` before the main shell. Paired Companion endpoints keep their
+existing scoped bearer-token guards. `web/access.js` reports the mode in Settings.
+`tests/test_owner_access.py` covers persistence, rotation, logout, expiry, rate
+limits, HTTP gating and Companion authorization boundaries. See OWNER_ACCESS.md
+for deployment and recovery; authentication remains off in existing local installs.

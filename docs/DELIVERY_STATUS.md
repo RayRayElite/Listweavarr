@@ -33,8 +33,9 @@ This checklist separates completed increments from full feature completion.
 1. Continue notification refinement and live service verification. Reviewed
    per-list tags and optional ntfy/Gotify/webhook transports are implemented,
    including quiet hours, bounded batching, retries and delivery history.
-2. Single-owner authentication/session recovery before an external request API.
-   Household/multi-user accounts remain deferred by the user's earlier choice.
+2. Optional single-owner sign-in/session recovery is implemented. An external
+   request API still requires a separate scoped-token design. Household/multi-user
+   accounts remain deferred by the user's earlier choice.
 3. Unified search, optional taste onboarding, issue notebook and Plex watchlist
    bridge; manager-only discovery and optional natural-language list recipes.
 4. Library readiness, duplicate/edition health, quality-profile assistance,
@@ -110,5 +111,22 @@ manager writes. Optional ntfy/Gotify/JSON webhook channels use separate durable
 queues, selected request events, quiet hours, batching and recent delivery status.
 No destinations were enabled and no external test notifications were sent.
 Session renewal handles explicit pre-dispatch stale-token errors once; owner
-sign-in remains the next security increment. Community hosting and cross-platform
+sign-in is implemented in the following increment. Community hosting and cross-platform
 Companion deployment remain outside this local increment.
+
+
+### Optional owner sign-in
+
+Added operator-enabled password-file access, a dedicated sign-in screen, rate
+limits, seven-day opaque cookie sessions with hashed persistent storage, durable
+logout and password-file rotation recovery. State/jobs and normal API operations
+are gated; existing scoped Companion endpoints and health checks retain their
+separate access model. Settings > Access reports the mode. Current installation
+remains in unchanged local mode; no password was selected or enabled for the user.
+
+Validation: 480 Python tests passed, along with UI/calendar/session Node checks,
+frontend/privacy/catalogue validation and release-ZIP startup, backup restoration,
+restart persistence and owner sign-in checks. Owner access was tested only in
+isolated fixture installations; the user's running instance remains in local mode.
+The new notification transports were validated with mocked endpoints; no external
+notification destination was configured or sent a message during development.

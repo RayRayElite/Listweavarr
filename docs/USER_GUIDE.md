@@ -488,3 +488,12 @@ stale token before reading or acting on the request. Network failures, other
 permission errors and failed operations are never automatically replayed. This
 avoids unnecessary reloads after local server restarts; it is not an owner sign-in
 system or a replacement for authentication on an externally exposed installation.
+
+
+### Optional owner sign-in
+
+**Settings > Access** reports whether owner sign-in is enabled and provides a
+sign-out button when active. It stays off until the operator configures a private
+password file. See [Owner access](OWNER_ACCESS.md) for local/Docker setup, session
+expiry and recovery. Changing that password file and restarting signs all devices
+out without changing library data. Existing Companion pairings remain separate.

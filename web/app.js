@@ -587,6 +587,10 @@ async function api(path, body, renew = true) {
     body: JSON.stringify(body),
   });
   const result = await response.json();
+  if (response.status === 401 && result.code === 'auth_required') {
+    window.location.reload();
+    throw Error('Sign in to continue.');
+  }
   if (response.status === 403 && result.code === 'session_expired' && renew) {
     if (!sessionRenewal)
       sessionRenewal = (async () => {
@@ -1306,7 +1310,9 @@ $('activity-list-select').onchange = (e) => {
 };
 let settingsTab = 'preferences';
 function selectSettingsTab(name) {
-  if (!['preferences', 'connections', 'requests', 'notifications', 'backups'].includes(name))
+  if (
+    !['preferences', 'connections', 'requests', 'notifications', 'access', 'backups'].includes(name)
+  )
     return;
   settingsTab = name;
   document.querySelectorAll('[data-settings-tab]').forEach((button) => {
@@ -1393,7 +1399,12 @@ function renderArr() {
 }
 async function refreshConnections() {
   showPageCache.clear();
-  const fresh = await (await fetch('/api/state')).json();
+  const response = await fetch('/api/state');
+  if (response.status === 401) {
+    window.location.reload();
+    throw Error('Sign in to continue.');
+  }
+  const fresh = await response.json();
   state.settings = fresh.settings;
   extraRatingsCache.clear();
   extraRatingsPending.clear();
@@ -2835,7 +2846,13 @@ $('review').onclick = (e) => {
   return reviewRequests(e);
 };
 fetch('/api/state')
-  .then((r) => r.json())
+  .then((r) => {
+    if (r.status === 401) {
+      window.location.reload();
+      throw Error('Sign in to continue.');
+    }
+    return r.json();
+  })
   .then(async (data) => {
     state = data;
     active = state.lists.some((l) => l.id === localStorage.getItem('reelcheck-active-list'))

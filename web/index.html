@@ -447,6 +447,15 @@
           >
             Notifications</button
           ><button
+            id="settings-tab-access"
+            role="tab"
+            aria-selected="false"
+            aria-controls="settings-access"
+            tabindex="-1"
+            data-settings-tab="access"
+          >
+            Access</button
+          ><button
             id="settings-tab-backups"
             role="tab"
             aria-selected="false"
@@ -779,6 +788,33 @@
               portable backups. Enabling or changing a destination starts with new events.
             </p>
           </details>
+        </section>
+        <section id="settings-access" role="tabpanel" aria-labelledby="settings-tab-access" hidden>
+          <div class="connection">
+            <h2>Owner access</h2>
+            <p id="owner-access-status" class="muted" role="status">Checking access mode...</p>
+            <p class="muted">
+              Optional single-owner sign-in is enabled by the installation operator using
+              LISTWEAVARR_OWNER_PASSWORD_FILE. It leaves existing local installations unchanged
+              until configured.
+            </p>
+            <p class="muted">
+              Sessions last seven days and survive server restarts. Change the password file and
+              restart to sign all devices out. Recovery preserves your lists and integrations.
+            </p>
+            <button id="owner-sign-out" class="secondary" hidden>Sign out of this browser</button>
+            <p class="footnote">
+              For remote access, use HTTPS and configure LISTWEAVARR_PUBLIC_URL to match the public
+              origin. Read the
+              <a
+                href="https://github.com/RayRayElite/Listweavarr/blob/main/docs/OWNER_ACCESS.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                >owner access guide</a
+              >
+              for local and Docker setup.
+            </p>
+          </div>
         </section>
         <section
           id="settings-backups"
@@ -2030,6 +2066,7 @@ episode,Pilot,,,263365,1,1</pre
     <script src="/workspace.js"></script>
     <script src="/audit-workflows.js"></script>
     <script src="/discovery-updates.js"></script>
+    <script src="/access.js"></script>
     <script src="/notifications.js"></script>
     <script src="/calendar.js"></script>
     <script src="/navigation.js"></script>

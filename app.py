@@ -34,6 +34,7 @@ import poster_overlays
 import ignored_titles
 import discord_notify
 import notification_channels
+import owner_access
 import manager_routes
 import request_ledger
 import list_sharing
@@ -66,6 +67,7 @@ ROOT = Path(__file__).parent
 DATA = runtime_config.DATA_DIR
 LOCK = threading.Lock()
 SESSION = secrets.token_urlsafe(32)
+OWNER = owner_access.OwnerAccess(DATA)
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 LIST_UPDATE_LOCK = threading.Lock()
@@ -2787,11 +2789,26 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass  # Avoid logging credentials or imported content.
 
-    def respond(self, value, status=200):
+    def respond(self, value, status=200, cookie=None):
         raw = json.dumps(value).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def signin_response(self):
+        raw = (ROOT / "web" / "sign-in.html").read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+        )
         self.end_headers()
         self.wfile.write(raw)
 
@@ -2871,6 +2888,21 @@ class Handler(BaseHTTPRequestHandler):
                 return self.artwork_response(raw, mime=mime)
             except ValueError:
                 return self.artwork_response({"error": "Artwork not available"}, 404)
+        if self.path == "/api/auth/status":
+            return self.respond(
+                {
+                    "enabled": OWNER.enabled,
+                    "authenticated": OWNER.authorized(self.headers.get("Cookie")),
+                    "session_days": 7,
+                }
+            )
+        if not OWNER.authorized(self.headers.get("Cookie")):
+            if self.path in ("/", "/index.html"):
+                return self.signin_response()
+            if self.path.startswith("/api/"):
+                return self.respond(
+                    {"error": "Sign in to continue.", "code": "auth_required"}, 401
+                )
         if self.path == "/api/session":
             return self.respond({"csrf": SESSION})
         if self.path == "/api/state":
@@ -2923,6 +2955,8 @@ class Handler(BaseHTTPRequestHandler):
             "/collections.js": "collections.js",
             "/calendar.js": "calendar.js",
             "/notifications.js": "notifications.js",
+            "/sign-in.js": "sign-in.js",
+            "/access.js": "access.js",
             "/requests.js": "requests.js",
             "/workflow.js": "workflow.js",
             "/builder.js": "builder.js",
@@ -2994,6 +3028,49 @@ class Handler(BaseHTTPRequestHandler):
             not in runtime_config.server_options()["allowed_hosts"]
         ):
             return self.respond({"error": "This host is not allowed."}, 403)
+        if self.path == "/api/auth/login":
+            origin = self.headers.get("Origin")
+            if origin and (
+                urllib.parse.urlsplit(origin).netloc != self.headers.get("Host")
+                or urllib.parse.urlsplit(origin).scheme not in ("http", "https")
+            ):
+                return self.respond({"error": "Sign-in origin is not allowed."}, 403)
+            if (
+                self.headers.get("Content-Type", "").split(";", 1)[0]
+                != "application/json"
+            ):
+                return self.respond(
+                    {"error": "Sign in using the application form."}, 400
+                )
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                if not 0 < length <= 8192:
+                    raise ValueError("Invalid sign-in request.")
+                body = json.loads(self.rfile.read(length))
+                if not isinstance(body, dict):
+                    raise ValueError("Invalid sign-in request.")
+                token = OWNER.login(body.get("password"), self.client_address[0])
+                secure = runtime_config.server_options()["public_url"].startswith(
+                    "https:"
+                )
+                return self.respond(
+                    {"ok": True}, cookie=owner_access.cookie_header(token, secure)
+                )
+            except owner_access.LoginError as exc:
+                return self.respond({"error": str(exc)}, exc.status)
+            except (ValueError, TypeError):
+                return self.respond({"error": "Invalid sign-in request."}, 400)
+            except OSError:
+                return self.respond(
+                    {
+                        "error": "Could not save the sign-in session. Check the data folder and free space."
+                    },
+                    503,
+                )
+        if not OWNER.authorized(self.headers.get("Cookie")):
+            return self.respond(
+                {"error": "Sign in to continue.", "code": "auth_required"}, 401
+            )
         if (
             self.headers.get("X-Listweavarr-Token")
             or self.headers.get("X-ReelCheck-Token")
@@ -3016,6 +3093,16 @@ class Handler(BaseHTTPRequestHandler):
             ):
                 raise ValueError("Request too large.")
             body = json.loads(self.rfile.read(length))
+            if self.path == "/api/auth/logout":
+                OWNER.logout(self.headers.get("Cookie"))
+                return self.respond(
+                    {"ok": True},
+                    cookie=owner_access.cookie_header(
+                        secure=runtime_config.server_options()["public_url"].startswith(
+                            "https:"
+                        )
+                    ),
+                )
             if self.path == "/api/playlist-companion/pair":
                 if body.get("revoke"):
                     with LOCK:

@@ -14,7 +14,7 @@ The default named volume owns the correct permissions. A bind mount is also poss
 
 ## NAS or trusted LAN
 
-The app has no login and is single-user. Everyone who can reach its API can act as its user. An explicit Host allowlist/CSRF check is not user authentication.
+The app is single-user and supports optional [owner sign-in](OWNER_ACCESS.md). Without it, everyone who can reach an allowed host can act as its user. Enable owner access for the intended deployment; Host allowlisting and CSRF checks are not user authentication.
 
 For access from another device, copy .env.example to .env and configure your actual address, for example:
 
@@ -41,6 +41,7 @@ Plex login forwards back to LISTWEAVARR_PUBLIC_URL. Set it before authorizing wh
 | LISTWEAVARR_PUBLIC_URL | Browser-visible HTTP(S) origin; no path or credentials |
 | LISTWEAVARR_ALLOWED_HOSTS | Additional exact host[:port] values, comma separated |
 | LISTWEAVARR_OPEN_BROWSER | 1 locally; 0 in Docker |
+| LISTWEAVARR_OWNER_PASSWORD_FILE | Optional private password-file path; enables owner sign-in |
 | LISTWEAVARR_CURATOR_MODE | 0; 1 enables local Official authoring, not hosted identity |
 | LISTWEAVARR_OVERLAY_DIR | Optional folder containing status-top-left and network-top-left user assets |
 | LISTWEAVARR_PUBLISH_IP | Compose host binding only; defaults to 127.0.0.1 |

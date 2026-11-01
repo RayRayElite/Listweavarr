@@ -1,6 +1,6 @@
 # Security policy
 
-Listweavarr is a trusted single-user application. It has no user authentication, and API state is accessible to anyone who can reach an allowed host. Default configurations bind/publish only to localhost. Use an authenticated proxy/private network for remote access; never publish the port directly to the Internet.
+Listweavarr is a single-user application with optional owner authentication. Without `LISTWEAVARR_OWNER_PASSWORD_FILE`, anyone who can reach an allowed host can act as its user. Defaults bind/publish only to localhost. See [owner access](docs/OWNER_ACCESS.md) for password-file setup, session expiry/revocation and recovery. For remote use, configure HTTPS via an appropriate proxy or use a restricted private network. This is not a public household/multi-user request service.
 
 API mutations require the session CSRF token and an explicit Host allowlist. These controls resist cross-site requests and DNS rebinding; they do not authenticate a person. Public URL configuration must be an explicit origin. Curator mode is a local authoring switch, not remote curator identity.
 

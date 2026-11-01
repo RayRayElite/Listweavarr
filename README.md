@@ -58,7 +58,7 @@ For NAS/LAN deployment, custom ports, migration from a local installation and ba
 
 ## Access and privacy
 
-Listweavarr is currently **single-user and has no application login**. Default local and Compose configurations expose it only to localhost. Configured LAN access must be restricted to trusted users. Do not expose it directly to the Internet; use an authenticated reverse proxy or private network. Host allowlisting and CSRF tokens are browser-request protections, not user authentication.
+Listweavarr is **single-user**, with optional [owner sign-in](docs/OWNER_ACCESS.md). Local access remains the default until `LISTWEAVARR_OWNER_PASSWORD_FILE` is configured. Default local and Compose configurations expose it only to localhost. For remote use, configure owner access and HTTPS through an appropriate reverse proxy or use a restricted private network. Host allowlisting and CSRF tokens are browser-request protections, not user authentication.
 
 Credentials stay in the server-side state file and are omitted from ordinary browser state responses and portable backups. Protect the data directory and volume: it contains credentials in plaintext. Do not publish it, an exported credential backup, logs containing provider responses, or screenshots of your private library.
 

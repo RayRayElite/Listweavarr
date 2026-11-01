@@ -10,6 +10,7 @@ services:
     environment:
       LISTWEAVARR_PUBLIC_URL: ${LISTWEAVARR_PUBLIC_URL:-http://127.0.0.1:8765}
       LISTWEAVARR_ALLOWED_HOSTS: ${LISTWEAVARR_ALLOWED_HOSTS:-127.0.0.1:8765,localhost:8765}
+      LISTWEAVARR_OWNER_PASSWORD_FILE: ${LISTWEAVARR_OWNER_PASSWORD_FILE:-}
     volumes:
       - listweavarr_config:/config
     read_only: true

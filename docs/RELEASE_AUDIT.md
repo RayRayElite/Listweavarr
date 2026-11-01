@@ -36,3 +36,8 @@ A tracked-file privacy gate checks excluded paths, likely credentials and catalo
 338 Python tests passed locally, with the client regression harness, static frontend validator, archive integrity and tracked-file privacy checks. GitHub CI passed on Python 3.11 and 3.14 in a clean Linux checkout. The real Docker image built and ran as non-root with a read-only application filesystem, checked health/UI/Host protection and persisted synthetic data across restart. CI additionally checks volume persistence after container recreation. Docker is not installed on the developer Windows machine; container validation is performed in GitHub CI.
 
 The app remains single-user trusted-local/LAN software with no login. Default container publishing is localhost-only; remote access requires an authenticated proxy/private network. Public Community hosting, a curated publisher service and registry-hosted images are not claimed as deployed. Docker Compose builds this release from source.
+
+
+Owner-access update: the initial release audit's no-login limitation has since
+been addressed by optional password-file owner authentication. It remains off
+unless explicitly configured. See OWNER_ACCESS.md and current DELIVERY_STATUS.md.

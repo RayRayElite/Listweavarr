@@ -41,6 +41,7 @@ def validate_paths(paths):
             continue
         if (
             name.startswith(DENIED)
+            or Path(name).name in ("owner-session.key", "owner-sessions.json", "owner-password")
             or "__pycache__/" in name
             or name.endswith((".pyc", ".bak", ".log"))
         ):
