@@ -153,6 +153,10 @@ class Element {
   close() {
     this.open = false;
   }
+  addEventListener(name, callback) {
+    this['on' + name] = callback;
+  }
+  focus() {}
   click() {
     this.clicks = (this.clicks || 0) + 1;
   }
@@ -293,6 +297,15 @@ class Element {
     assert.equal(card.children[3].className, 'lw-playlist-position');
   }
   assert.equal(starts, 2, 'Only explicit Play actions start playback');
+  const menu = cards[0].querySelector('.lw-playlist-menu');
+  assert.equal(menu.children[0].attributes['aria-label'], 'Options for ' + first.title);
+  const remove = menu
+    .querySelectorAll('button')
+    .find((button) => button.textContent === 'Remove from Continue Playlists');
+  remove.onclick({ preventDefault() {}, stopPropagation() {} });
+  assert.equal(core.load(storage, first).dismissed, true);
+  assert.equal(core.load(storage, second).dismissed, undefined);
+  assert.equal(starts, 2, 'Removing a card does not start or change Plex playback');
   assert.equal(
     elements.find((element) => element.tagName === 'INPUT').clicks,
     undefined,

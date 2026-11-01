@@ -231,3 +231,52 @@ def update_entries(entry, items, body):
         "mode": mode,
     }
     return result, report
+
+
+def remove_entries(entry, body, normalize):
+    """Remove only reviewed IDs; reuse the normal revision/linkage protections."""
+    ids = body.get("ids")
+    if not isinstance(ids, list) or not ids or any(not isinstance(v, str) for v in ids):
+        raise ValueError("Select entries to remove.")
+    known = {row["id"] for row in entry["items"]}
+    if not set(ids) <= known:
+        raise ValueError("Some selected entries changed. Select them again.")
+    payload = dict(
+        body,
+        name=entry["name"],
+        description=entry.get("description", ""),
+        poster=entry.get("poster", ""),
+        items=[row for row in entry["items"] if row["id"] not in set(ids)],
+    )
+    return edit(entry, payload, normalize)
+
+
+def append_lists(entry, sources, body):
+    """Snapshot ordered source members; never copy availability or request records."""
+    if not sources or any(source["id"] == entry["id"] for source in sources):
+        raise ValueError("Choose other saved lists to append.")
+    incoming = []
+    for source in sources:
+        for value in source["items"]:
+            row = {
+                key: copy.deepcopy(value[key])
+                for key in (
+                    "title",
+                    "type",
+                    "year",
+                    "tmdb",
+                    "tvdb",
+                    "imdb",
+                    "show_tmdb",
+                    "show_tvdb",
+                    "show_imdb",
+                    "show_title",
+                    "season",
+                    "episode",
+                    "metadata_unresolved",
+                )
+                if key in value
+            }
+            row.update(id=secrets.token_hex(8), status="unchecked")
+            incoming.append(row)
+    return update_entries(entry, incoming, dict(body, mode="append"))

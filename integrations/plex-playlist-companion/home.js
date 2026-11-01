@@ -200,6 +200,13 @@
       .lw-playlist-home button.lw-playlist-edit{left:7px;bottom:7px;width:32px;height:32px;border:0;background:#0009}
       .lw-playlist-poster:hover .lw-playlist-edit,.lw-playlist-poster:focus-within .lw-playlist-edit,.lw-playlist-poster:hover .lw-playlist-play,.lw-playlist-poster:focus-within .lw-playlist-play{opacity:1;pointer-events:auto}
       .lw-playlist-home button.lw-playlist-edit:hover,.lw-playlist-home button.lw-playlist-play:hover{color:#e5a00d;border-color:#e5a00d}
+      .lw-playlist-menu{position:absolute;right:7px;bottom:7px;z-index:5;font-size:14px}
+      .lw-playlist-menu summary{list-style:none;cursor:pointer;border-radius:50%;background:#000b;color:#fff;width:32px;height:32px;text-align:center;font-size:24px;line-height:25px;opacity:0}
+      .lw-playlist-menu summary::-webkit-details-marker{display:none}
+      .lw-playlist-poster:hover .lw-playlist-menu summary,.lw-playlist-poster:focus-within .lw-playlist-menu summary,.lw-playlist-menu[open] summary{opacity:1}
+      .lw-playlist-menu-options{position:absolute;right:-7px;bottom:38px;width:var(--lw-poster-width,168px);background:#282828;border:1px solid #555;border-radius:6px;padding:6px;box-shadow:0 8px 24px #0009}
+      .lw-playlist-menu-options button,.lw-playlist-menu-options a{display:block;width:100%;border:0;background:none;color:#eee;text-align:left;padding:10px;font:inherit;cursor:pointer;text-decoration:none;border-radius:3px;box-sizing:border-box}
+      .lw-playlist-menu-options button:hover,.lw-playlist-menu-options a:hover{background:#444;color:#e5a00d}
       .lw-playlist-editor{background:#252525;color:#eee;border:1px solid #555;border-radius:8px;padding:24px;width:420px;max-width:90vw;font:14px system-ui}
       .lw-playlist-editor::backdrop{background:#0009}
       .lw-playlist-editor button{background:#383838;color:#eee;border:1px solid #666;border-radius:4px;padding:10px 16px;margin:12px 8px 0 0;cursor:pointer}
@@ -292,7 +299,7 @@
       section.append(header, cards, status);
       for (const selection of rows) {
         const saved = core.load(storage, selection);
-        if (!saved) continue;
+        if (!saved || saved.dismissed) continue;
         if (saved.completed && saved.entryNumber === saved.totalEntries) continue;
         const article = document.createElement('article');
         article.className = 'lw-playlist-card';
@@ -399,6 +406,44 @@
           if (!editDialog.open) editDialog.showModal();
         };
         poster.append(choose);
+        const menu = document.createElement('details');
+        menu.className = 'lw-playlist-menu';
+        const trigger = text('summary', '\u2026');
+        trigger.title = 'Playlist options';
+        trigger.setAttribute('aria-label', 'Options for ' + selection.title);
+        const options = document.createElement('div');
+        options.className = 'lw-playlist-menu-options';
+        const open = text('a', 'Open playlist');
+        open.href = playlistHref(selection);
+        const edit = text('button', 'Edit poster');
+        edit.type = 'button';
+        edit.onclick = (event) => {
+          menu.open = false;
+          choose.onclick(event);
+        };
+        const remove = text('button', 'Remove from Continue Playlists');
+        remove.type = 'button';
+        remove.onclick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          core.dismiss(storage, selection);
+          render();
+        };
+        menu.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            menu.open = false;
+            trigger.focus();
+          }
+        });
+        menu.addEventListener('toggle', () => {
+          if (menu.open)
+            for (const other of cards.querySelectorAll('.lw-playlist-menu')) {
+              if (other !== menu) other.open = false;
+            }
+        });
+        options.append(open, edit, remove);
+        menu.append(trigger, options);
+        poster.append(menu);
         cards.append(article);
         (async () => {
           let blob;

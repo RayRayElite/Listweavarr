@@ -1292,6 +1292,8 @@ vm.runInContext(
   vm.runInContext(fs.readFileSync('web/workspace.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/audit-workflows.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/discovery-updates.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('web/search.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('web/issues.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/access.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/notifications.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/calendar.js', 'utf8'), context);
@@ -1587,6 +1589,40 @@ vm.runInContext(
   await vm.runInContext('loadOfficialBeforeFeedCheck()', context);
   assert.equal(vm.runInContext('officialCatalogue[0].name', context), 'Fresh cover');
   assert.match(element('official-status').textContent, /Showing saved catalogue/);
+  // Ordered list append follows selection order, then moves only selected sources.
+  vm.runInContext(
+    `appendListContext={target:{entry:{id:'target'}},sources:[{entry:{id:'a',name:'Alpha',count:2},checked:false},{entry:{id:'b',name:'Beta',count:3},checked:false},{entry:{id:'c',name:'Charlie',count:4},checked:false}]};$('append-lists-search').value='';`,
+    context
+  );
+  await vm.runInContext(
+    `$('append-lists-rows').onchange({target:{dataset:{appendSource:'c'},checked:true}});$('append-lists-rows').onchange({target:{dataset:{appendSource:'b'},checked:true}});`,
+    context
+  );
+  assert.equal(
+    vm.runInContext(
+      `appendListContext.sources.filter(row=>row.checked).map(row=>row.entry.id).join(',')`,
+      context
+    ),
+    'c,b'
+  );
+  assert.match(element('append-lists-summary').textContent, /2 lists selected \/ 7 source entries/);
+  vm.runInContext(
+    `$('append-lists-rows').onclick({target:{closest:()=>({dataset:{appendMove:'1',direction:'-1'}})}});`,
+    context
+  );
+  assert.equal(
+    vm.runInContext(
+      `appendListContext.sources.filter(row=>row.checked).map(row=>row.entry.id).join(',')`,
+      context
+    ),
+    'b,c'
+  );
+  // Person playlist shortcut reaches publication review even while its outer task is busy.
+  await vm.runInContext(
+    `busy=false;discoveryContext={kind:'person',identifier:'1',data:{name:'Actor',items:[{key:'movie:1',type:'movie',tmdb:'1',title:'Film',roles:['Actor'],credit_types:['actor']}]}};discoverySelected=new Set(['movie:1']);$('discovery-sort').value='original';globalThis.personCalls=[];api=async(path,body)=>{personCalls.push(path);return {entry:{id:'person-list',name:'Actor',items:[]}}};replaceList=()=>{};closeWorkspacePanel=()=>{};openPlaylistPreview=async()=>{personCalls.push('review')};$('discovery-playlist').onclick({target:$('discovery-playlist')});`,
+    context
+  );
+  assert.equal(vm.runInContext(`personCalls.join(',')`, context), 'discover/save,review');
   console.log(
     'UI checks passed, including catalogue delivery, Workbench, paths, taste and maintenance.'
   );

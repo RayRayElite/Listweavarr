@@ -38,6 +38,16 @@ class ProgressTests(unittest.TestCase):
         self.assertEqual(self.exchange([self.row]), [newer])
         self.assertEqual(self.exchange([newer]), [newer])
 
+    def test_dismissal_sync_survives_stale_client_and_new_play_restores(self):
+        self.exchange([self.row])
+        dismissed = dict(self.row, dismissed=True, updatedAt=2000)
+        self.exchange([dismissed])
+        self.assertEqual(self.exchange([self.row]), [dismissed])
+        resumed = dict(self.row, updatedAt=3000)
+        self.assertEqual(self.exchange([resumed]), [resumed])
+        with self.assertRaises(ValueError):
+            self.exchange([dict(resumed, dismissed="true")])
+
     def test_profiles_are_separate(self):
         self.exchange([self.row])
         self.scope = dict(self.scope, userId="bob")

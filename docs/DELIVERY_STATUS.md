@@ -36,8 +36,7 @@ This checklist separates completed increments from full feature completion.
 2. Optional single-owner sign-in/session recovery is implemented. An external
    request API still requires a separate scoped-token design. Household/multi-user
    accounts remain deferred by the user's earlier choice.
-3. Unified search, optional taste onboarding, issue notebook and Plex watchlist
-   bridge; manager-only discovery and optional natural-language list recipes.
+3. Optional taste onboarding and Plex watchlist bridge; manager-only discovery and optional natural-language list recipes.
 4. Library readiness, duplicate/edition health, quality-profile assistance,
    protected/reviewed storage maintenance and evidence-based viewing insights.
 5. Fuller composite rule lifecycle and portable curation rules. Generated
@@ -130,3 +129,10 @@ restart persistence and owner sign-in checks. Owner access was tested only in
 isolated fixture installations; the user's running instance remains in local mode.
 The new notification transports were validated with mocked endpoints; no external
 notification destination was configured or sent a message during development.
+
+
+## November 1: search, notes and collection membership
+
+Implemented unified local/provider search, private issue notebook with backup integration, batch member removal, ordered saved-list append snapshots and person-project playlist previews. Companion cards now offer Open/Edit/Remove, with synced dismissal scoped to the active Plex profile. Automated checks and isolated-browser UI verification are recorded separately from live Windows playback acceptance.
+
+Plex-backed owner sign-in remains pending; the optional password-file owner gate is the current fallback. Managed Plex profiles already have separate Companion progress. Main-workspace household accounts and cross-platform Companion clients remain deferred.

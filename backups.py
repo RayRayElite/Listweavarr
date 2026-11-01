@@ -14,6 +14,7 @@ import secrets
 import time
 import urllib.parse
 import ratings
+import issue_notebook
 import explore
 import taste
 import companion
@@ -38,6 +39,7 @@ FIELDS = (
     "requests",
     "request_notifications",
     "request_policy",
+    "library_issues",
 )
 SENSITIVE = {
     "key",
@@ -137,6 +139,7 @@ def validate(document, normalize):
             count += 1
             if count > 100000:
                 raise ValueError("This backup exceeds 100,000 entries.")
+    issue_notebook.validate_backup(data.get("library_issues", []))
     companion.validate_state(data)
     for field in (
         "ignored_titles",
@@ -196,6 +199,7 @@ def validate(document, normalize):
         "items": count,
         "ignored": len(data.get("ignored_titles", [])),
         "tracked": len(data.get("release_watchlist", [])),
+        "issues": len(data.get("library_issues", [])),
     }
 
 
@@ -228,6 +232,7 @@ def restore(state, data, mode):
             "release_watchlist",
             "requests",
             "request_notifications",
+            "library_issues",
         ):
             existing = result.setdefault(key, [])
             known = {r["id"] for r in existing}

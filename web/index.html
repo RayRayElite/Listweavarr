@@ -29,6 +29,12 @@
       <div id="requests-notice" class="source-notice" hidden role="status"></div>
       <header>
         <span>LIBRARY / <b id="breadcrumb">MY LISTS</b></span
+        ><button
+          id="global-search-open"
+          class="secondary global-search-trigger"
+          aria-label="Search titles and lists (Control K)"
+        >
+          <span aria-hidden="true">&#8981;</span> Search <kbd>Ctrl K</kbd></button
         ><span class="local">● &nbsp; LOCAL SESSION</span>
       </header>
       <section id="workspace">
@@ -113,6 +119,7 @@
             <button id="list-back" class="secondary">Back to My Lists</button
             ><button id="list-manage" class="secondary">Edit list &amp; poster</button
             ><button id="composite-rebuild" class="secondary" hidden>Rebuild from sources</button
+            ><button id="list-append-lists" class="secondary">Add saved lists</button
             ><button id="list-add-entries" class="secondary">Add entries</button>
             <details class="list-tools-menu">
               <summary class="secondary">List tools</summary>
@@ -271,6 +278,12 @@
             Sorting changes this view only. Playlists keep the original source order.
           </p>
           <div class="actions">
+            <label class="preference-check"
+              ><input id="entry-selection-mode" type="checkbox" /> Edit selection</label
+            >
+            <button id="remove-selected-entries" class="secondary" hidden disabled>
+              Remove selected
+            </button>
             <label
               ><input id="select-all" type="checkbox" /><span id="select-all-label"
                 >Select all missing</span
@@ -876,6 +889,7 @@
           <button id="parent-request" class="primary" data-show-scope="show" hidden>
             Request missing from whole show</button
           ><button id="title-save" class="primary" hidden>Save title & compare with Plex</button
+          ><button id="title-issues" class="secondary">Issues</button
           ><button id="title-add" class="primary" hidden>Add to Radarr</button
           ><button class="secondary" data-close="title-dialog">Back</button>
         </div>
@@ -886,7 +900,10 @@
             <p class="eyebrow">EXPLORE / PROJECTS</p>
             <h2 id="discovery-title">Explore projects</h2>
           </div>
-          <button class="secondary" data-close="discovery-dialog">Back to title</button>
+          <div class="project-header-actions">
+            <button id="discovery-playlist" class="primary" hidden>Make Plex playlist</button
+            ><button class="secondary" data-close="discovery-dialog">Back to title</button>
+          </div>
         </div>
         <div id="person-profile"></div>
         <p id="discovery-note" class="muted"></p>
@@ -900,6 +917,10 @@
             <option value="">Both</option>
             <option value="movie">Movies</option>
             <option value="show">TV</option></select
+          ><select id="discovery-credit" aria-label="Project credit">
+            <option value="">All credits</option>
+            <option value="actor">Acting</option>
+            <option value="director">Directing</option></select
           ><select id="discovery-sort" aria-label="Sort projects">
             <option value="original">Original order</option>
             <option value="date-desc">Release date - newest</option>
@@ -1268,6 +1289,133 @@
         >
       </footer>
     </main>
+    <dialog
+      id="global-search-dialog"
+      class="global-search-dialog"
+      aria-labelledby="global-search-heading"
+    >
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">FIND YOUR NEXT THREAD</p>
+          <h2 id="global-search-heading">Search titles &amp; lists</h2>
+        </div>
+        <button id="global-search-close" class="secondary">Close</button>
+      </div>
+      <form id="global-search-form" class="global-search-form">
+        <label class="sr" for="global-search-query">Search titles, people and lists</label
+        ><input
+          id="global-search-query"
+          type="search"
+          maxlength="120"
+          autocomplete="off"
+          placeholder="A title, actor, franchise or saved list..."
+        /><button class="primary" type="submit">Search</button>
+      </form>
+      <div class="global-search-options">
+        <label class="preference-check"
+          ><input id="global-search-provider" type="checkbox" checked />Search TMDB too</label
+        ><label class="preference-check"
+          ><input id="global-search-ignored" type="checkbox" />Include ignored titles</label
+        ><button id="global-search-index" class="text-action">Refresh library</button>
+      </div>
+      <p id="global-search-status" class="muted" role="status" aria-live="polite">
+        Search your workspace, then discover provider matches.
+      </p>
+      <div id="global-search-local"></div>
+      <div id="global-search-remote"></div>
+    </dialog>
+    <section id="issue-notebook-panel" role="tabpanel" aria-labelledby="request-issues-tab" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">PRIVATE LIBRARY NOTES</p>
+          <h2>Issue notebook <span id="issue-open-count" class="muted"></span></h2>
+          <p class="muted">
+            Keep track of playback, audio, subtitles and edition problems. Notes do not request or
+            modify media.
+          </p>
+        </div>
+        <button id="issue-new" class="secondary">Find a title to add an issue</button>
+      </div>
+      <div id="issue-scope" class="issue-scope" hidden></div>
+      <div class="requests-tools">
+        <label class="sr" for="issue-query">Search issues</label
+        ><input
+          id="issue-query"
+          type="search"
+          placeholder="Find a title or note..."
+          maxlength="200"
+        /><label
+          >Status<select id="issue-filter-status">
+            <option value="open">Open</option>
+            <option value="resolved">Resolved</option>
+            <option value="all">All statuses</option>
+          </select></label
+        ><label
+          >Category<select id="issue-filter-category">
+            <option value="all">All categories</option>
+            <option value="playback">Playback</option>
+            <option value="edition">Edition</option>
+            <option value="subtitles">Subtitles</option>
+            <option value="audio">Audio</option>
+            <option value="metadata">Metadata / numbering</option>
+            <option value="other">Other</option>
+          </select></label
+        ><button id="issue-refresh" class="secondary">Refresh notes</button>
+      </div>
+      <p id="issue-status" class="muted" role="status"></p>
+      <div id="issue-rows"></div>
+      <button id="issue-more" class="secondary" hidden>Show more issues</button>
+    </section>
+    <dialog id="issue-editor" aria-labelledby="issue-editor-heading">
+      <form id="issue-form">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">LIBRARY ISSUE</p>
+            <h2 id="issue-editor-heading">Record an issue</h2>
+          </div>
+          <button id="issue-editor-close" class="secondary" type="button">Close</button>
+        </div>
+        <p id="issue-editor-title"></p>
+        <div class="fields">
+          <label
+            >Category<select id="issue-category">
+              <option value="playback">Playback problem</option>
+              <option value="edition">Wrong edition</option>
+              <option value="subtitles">Subtitles</option>
+              <option value="audio">Audio</option>
+              <option value="metadata">Metadata / numbering</option>
+              <option value="other">Other</option>
+            </select></label
+          ><label
+            >Priority<select id="issue-severity">
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select></label
+          ><label
+            >Status<select id="issue-state">
+              <option value="open">Open</option>
+              <option value="resolved">Resolved</option>
+            </select></label
+          >
+        </div>
+        <label for="issue-note">What happened?</label
+        ><textarea
+          id="issue-note"
+          required
+          maxlength="5000"
+          rows="6"
+          placeholder="What was wrong, where it happened, and anything you checked..."
+        ></textarea>
+        <p class="footnote">
+          Private to this Listweavarr workspace. Included in workspace backups, excluded from public
+          list sharing.
+        </p>
+        <div id="issue-related"></div>
+        <p id="issue-editor-status" role="status" class="muted"></p>
+        <button id="issue-save" type="submit" class="primary">Save issue</button>
+      </form>
+    </dialog>
     <dialog id="import-dialog">
       <form id="import-form">
         <p class="eyebrow">ADD TO YOUR WATCH DESK</p>
@@ -2048,6 +2196,26 @@ episode,Pilot,,,263365,1,1</pre
         ><button class="secondary" data-close="composite-dialog">Cancel</button>
       </div>
     </dialog>
+    <dialog id="append-lists-dialog" aria-labelledby="append-lists-heading">
+      <h2 id="append-lists-heading">Add saved lists</h2>
+      <p id="append-lists-status" role="status"></p>
+      <input
+        id="append-lists-search"
+        type="search"
+        aria-label="Find saved lists to add"
+        placeholder="Find saved lists..."
+      />
+      <p id="append-lists-summary" class="muted" role="status"></p>
+      <div id="append-lists-rows"></div>
+      <label class="preference-check"
+        ><input id="append-lists-skip" type="checkbox" checked />Skip exact duplicate titles or
+        episodes</label
+      >
+      <div class="dialog-actions">
+        <button id="append-lists-save" class="primary" disabled>Append selected lists</button
+        ><button data-close="append-lists-dialog" class="secondary">Cancel</button>
+      </div>
+    </dialog>
     <div id="toast" role="status" hidden></div>
     <script src="/official-cache.js"></script>
     <script src="/app.js"></script>
@@ -2066,6 +2234,8 @@ episode,Pilot,,,263365,1,1</pre
     <script src="/workspace.js"></script>
     <script src="/audit-workflows.js"></script>
     <script src="/discovery-updates.js"></script>
+    <script src="/search.js"></script>
+    <script src="/issues.js"></script>
     <script src="/access.js"></script>
     <script src="/notifications.js"></script>
     <script src="/calendar.js"></script>

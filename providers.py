@@ -1483,7 +1483,14 @@ def discovery(kind, identifier, settings):
                 continue
             key = media + ":" + str(r["id"])
             role = r.get("character") or r.get("job")
+            credit = (
+                "director"
+                if r.get("job") == "Director"
+                else "crew" if r.get("job") else "actor"
+            )
             if key in rows:
+                if credit not in rows[key]["credit_types"]:
+                    rows[key]["credit_types"].append(credit)
                 if role and role not in rows[key]["roles"]:
                     rows[key]["roles"].append(role)
                 continue
@@ -1500,6 +1507,7 @@ def discovery(kind, identifier, settings):
                 "rating": r.get("vote_average") if r.get("vote_count") else None,
                 "group": group,
                 "roles": [role] if role else [],
+                "credit_types": [credit],
             }
     result = {
         "name": name,

@@ -190,3 +190,8 @@ writes happen during playback, so orderly Stop is not required. Completion uses
 the final reported second of a known duration; errors or unknown durations never
 imply completion. Changed or ambiguous playlist identities require review rather
 than guessing by title or using global watched flags.
+
+
+### Card options
+
+The poster's bottom-right three-dot menu opens the playlist, edits its poster or removes it from Continue Playlists. Removal preserves its resume bookmark and Plex playlist. It syncs as a timestamped dismissal for the same profile when progress sync is enabled; starting the playlist again restores its card. Update both paired clients to honor dismissals.

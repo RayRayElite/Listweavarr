@@ -50,6 +50,7 @@ def merge(state, body):
         if (
             row["updatedAt"] > now + 300000
             or row["ratingKeyOccurrences"] < 1
+            or ("dismissed" in row and type(row["dismissed"]) is not bool)
             or type(row.get("completed")) is not bool
         ):
             raise ValueError("Invalid bookmark timestamp or completion")

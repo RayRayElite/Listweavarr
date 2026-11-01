@@ -497,3 +497,24 @@ sign-out button when active. It stays off until the operator configures a privat
 password file. See [Owner access](OWNER_ACCESS.md) for local/Docker setup, session
 expiry and recovery. Changing that password file and restarting signs all devices
 out without changing library data. Existing Companion pairings remain separate.
+
+
+## Search and private issue notes
+
+Use **Search** in the header (or Ctrl/Cmd+K) to find saved/Official lists, titles in saved lists and the cached Plex library. Online TMDB title/person results load separately; a provider outage leaves local results usable. **Refresh library index** explicitly refreshes Plex. An unindexed library is labeled unknown, never assumed missing. Episode matches only confirm their parent show unless episode availability has been checked through the normal list comparison.
+
+Open **Issues** on a title to record a private playback, edition, subtitle, audio or metadata problem. **Requests / Issues** is the searchable notebook, with priorities, resolve/reopen and editing. Show views include notes on their seasons/episodes. Related request history uses the exact title scope. Notes are included in local backups, excluded from public list sharing, and never trigger downloads or change media files.
+
+## Remove or combine saved list entries
+
+On a list page, enable **Edit selection** to select any entries, including available ones. **Select all entries** follows the current filters. **Remove selected** asks for confirmation and edits only this list. Disable Edit selection to return to selecting missing entries for downloads. Existing Plex playlists are flagged for a reviewed update rather than changed automatically.
+
+Choose **Manage list / Edit & share / Add saved lists** to append other saved collections. Check the sources, use Up/Down to choose their order, and append. Each source keeps its internal order. Exact duplicates are skipped by default; uncheck that option to retain repeats (Plex may not preserve repeated media occurrences, so publication preflight still checks them). Source lists are unchanged; the combined entries are a snapshot, not live nested links. Compare with Plex afterwards to refresh availability. Member edits to a linked list require confirmation that automatic source updates will stop.
+
+## Actor and director playlists
+
+Open a person's projects from a cast/crew card or search. Filter **Acting** or **Directing**, choose movie/TV and sorting, then select projects or use **Make playlist from visible projects**. This creates a saved list, checks Plex availability and opens the normal publication preview. Only confirmed available items can be published; missing titles are not requested automatically. Whole-show projects retain show scope rather than pretending to be individual episodes.
+
+## Continue Playlists card options
+
+Hover/focus a Companion poster and open the bottom-right three-dot menu for **Open playlist**, **Edit poster**, or **Remove from Continue Playlists**. Removal hides the card without deleting the Plex playlist, artwork, watched history or bookmark. With progress sync enabled the dismissal is shared between paired clients for the same server/profile/playlist. A new playback checkpoint restores the card. Older clients should be updated too so their UI honors the dismissal.

@@ -124,3 +124,21 @@ lists, tracked releases and creator credits with regional format-specific movie
 dates. Unknown dates and incomplete provider coverage are explicitly reported.
 These workflows are implemented; ongoing visual review and broader provider
 coverage remain separate from feature completion.
+
+
+### November 1 implementation update
+
+Unified search now combines cached Plex titles, saved-list entries and Official
+list discovery with independent TMDB title/person results. A private issue
+notebook records playback/edition/audio/subtitle/metadata observations, with
+priorities, edit revisions, resolve/reopen and local-backup support.
+
+Collection membership now supports batch removal and ordered append snapshots
+from other saved lists. Person filmographies can filter acting/directing and
+open the standard reviewed Plex playlist publishing flow. Companion card menus
+can hide a playlist's Continue card without deleting the playlist, using
+profile-scoped synced dismissals.
+
+Plex-backed primary owner authentication is a separate pending increment; the
+optional password-file owner gate remains the current fallback. These changes
+do not enable household workspace accounts or cross-platform client patches.

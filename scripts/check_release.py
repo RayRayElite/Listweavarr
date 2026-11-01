@@ -31,6 +31,7 @@ PRIVATE_KEYS = {
     "request_preferences",
     "notification_channels",
     "notification_outboxes",
+    "library_issues",
 }
 
 

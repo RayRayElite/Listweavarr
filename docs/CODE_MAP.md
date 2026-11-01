@@ -187,3 +187,13 @@ existing scoped bearer-token guards. `web/access.js` reports the mode in Setting
 `tests/test_owner_access.py` covers persistence, rotation, logout, expiry, rate
 limits, HTTP gating and Companion authorization boundaries. See OWNER_ACCESS.md
 for deployment and recovery; authentication remains off in existing local installs.
+
+
+## Search, issue notes and list membership
+
+- `unified_search.py` ranks local read-only snapshots separately from paged TMDB search. Exact scoped provider identities reconcile matches; `explore.peek_library` never waits for a network scan.
+- `web/search.js` controls cancellation, separate local/provider results and pagination. `api` accepts an optional abort signal while retaining the explicit session-expiry retry rule.
+- `issue_notebook.py` validates private notes, immutable title identity, edit revisions and exact related request scope. `web/issues.js` owns notebook/editor state and unsaved-draft protection. Backup validation includes notes; public exports exclude them.
+- `saved_lists.remove_entries` reuses ordinary edit revision, source-detachment and publication-dirty rules. `append_lists` snapshots ordered sources, gives entries new IDs and strips availability/request data. Routes pin target and source revisions under the state lock; lightweight append-options avoids downloading all list posters.
+- Person project `credit_types` distinguishes acting from directing independently of character-name text. Project publication saves selected keys in reviewed order, compares availability, then reuses `openPlaylistPreview`.
+- Companion `bookmarks.dismiss` writes a profile-scoped timestamped dismissal instead of deleting data. Existing newest-checkpoint sync transports it; fresh playback restores visibility. `home.js` renders the native-style card options.

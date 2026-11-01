@@ -1299,3 +1299,121 @@ const checkLinkedPlaylistAvailability = (e) =>
 
 $('publication-check-all').onclick = checkLinkedPlaylistAvailability;
 $('official-publication-check').onclick = checkLinkedPlaylistAvailability;
+
+// Membership actions use reviewed revisions, never the potentially stale rendered rows.
+$('entry-selection-mode').onchange = (event) => {
+  entrySelectionMode = event.target.checked;
+  selected.clear();
+  render();
+};
+$('remove-selected-entries').onclick = (event) =>
+  task(event.target, async () => {
+    const target = await api('lists/revision', { list_id: active });
+    const ids = [...selected];
+    if (!ids.length) return;
+    const warning = target.entry.source
+      ? ' This converts the linked list to a local list and stops source updates.'
+      : '';
+    if (
+      !confirm(
+        `Remove ${ids.length} selected entries from ${target.entry.name}?${warning} Plex playlists will not be changed.`
+      )
+    )
+      return;
+    const result = await api('lists/remove-entries', {
+      list_id: target.entry.id,
+      revision: target.revision,
+      ids,
+      confirm_detach: true,
+    });
+    selected.clear();
+    replaceList(result.entry);
+    toast(`${result.report.removed} entries removed.`);
+  });
+let appendListContext = null;
+function drawAppendLists() {
+  const context = appendListContext;
+  if (!context) return;
+  const chosen = context.sources.filter((row) => row.checked),
+    query = $('append-lists-search').value.trim().toLowerCase();
+  $('append-lists-rows').innerHTML =
+    context.sources
+      .map((source, index) => ({ source, index }))
+      .filter(({ source }) => source.checked || source.entry.name.toLowerCase().includes(query))
+      .map(
+        ({ source, index }) =>
+          `<div class="saved-list-append-row ${source.checked ? 'is-selected' : ''}"><input type="checkbox" data-append-source="${esc(source.entry.id)}" aria-label="Include ${esc(source.entry.name)}" ${source.checked ? 'checked' : ''}><span>${source.checked ? `<b>${index + 1}.</b> ` : ''}${esc(source.entry.name)} <small>${source.entry.count} entries</small></span>${source.checked ? `<button class="secondary" data-append-move="${index}" data-direction="-1" ${index === 0 ? 'disabled' : ''} aria-label="Move ${esc(source.entry.name)} up">Up</button><button class="secondary" data-append-move="${index}" data-direction="1" ${index === chosen.length - 1 ? 'disabled' : ''} aria-label="Move ${esc(source.entry.name)} down">Down</button>` : ''}</div>`
+      )
+      .join('') || '<p class="muted">No matching saved lists.</p>';
+  $('append-lists-summary').textContent =
+    `${chosen.length} list${chosen.length === 1 ? '' : 's'} selected / ${chosen.reduce((sum, row) => sum + row.entry.count, 0)} source entries before duplicate checking`;
+  $('append-lists-save').disabled = !chosen.length;
+}
+$('append-lists-search').oninput = drawAppendLists;
+$('list-append-lists').onclick = (event) =>
+  task(event.target, async () => {
+    const target = await api('lists/revision', { list_id: active });
+    appendListContext = { target, sources: [] };
+    $('append-lists-heading').textContent = 'Add saved lists to ' + target.entry.name;
+    $('append-lists-status').textContent = 'Loading saved lists...';
+    $('append-lists-rows').innerHTML = '';
+    $('append-lists-save').disabled = true;
+    $('append-lists-search').value = '';
+    $('append-lists-summary').textContent = '';
+    $('append-lists-dialog').showModal();
+    const { sources } = await api('lists/append-options', { list_id: target.entry.id });
+    appendListContext.sources = sources.map((source) => ({ ...source, checked: false }));
+    $('append-lists-status').textContent = target.entry.source
+      ? 'Adding entries converts this linked list to local and stops source updates.'
+      : 'Select lists and arrange their order. Entries are appended in the displayed order; each source keeps its internal order. This is a snapshot, not a live nested link.';
+    $('append-lists-skip').checked = true;
+    drawAppendLists();
+  });
+$('append-lists-rows').onchange = (event) => {
+  const row = appendListContext?.sources.find(
+    (row) => row.entry.id === event.target.dataset.appendSource
+  );
+  if (row) {
+    row.checked = event.target.checked;
+    appendListContext.sources = [
+      ...appendListContext.sources.filter((source) => source !== row && source.checked),
+      ...(row.checked ? [row] : []),
+      ...appendListContext.sources.filter((source) => source !== row && !source.checked),
+      ...(!row.checked ? [row] : []),
+    ];
+    drawAppendLists();
+  }
+};
+$('append-lists-rows').onclick = (event) => {
+  const button = event.target.closest('[data-append-move]');
+  if (!button || !appendListContext) return;
+  const index = Number(button.dataset.appendMove),
+    next = index + Number(button.dataset.direction),
+    rows = appendListContext.sources;
+  if (next < 0 || next >= rows.filter((row) => row.checked).length) return;
+  [rows[index], rows[next]] = [rows[next], rows[index]];
+  drawAppendLists();
+};
+$('append-lists-save').onclick = (event) =>
+  task(event.target, async () => {
+    const context = appendListContext,
+      sources = context.sources.filter((row) => row.checked);
+    if (
+      context.target.entry.source &&
+      !confirm('Convert this linked list to local and stop automatic source updates?')
+    )
+      return;
+    const result = await api('lists/append-lists', {
+      list_id: context.target.entry.id,
+      revision: context.target.revision,
+      source_ids: sources.map((row) => row.entry.id),
+      source_revisions: Object.fromEntries(sources.map((row) => [row.entry.id, row.revision])),
+      skip_duplicates: $('append-lists-skip').checked,
+      confirm_detach: true,
+    });
+    $('append-lists-dialog').close();
+    replaceList(result.entry);
+    toast(
+      `${result.report.added} entries added; ${result.report.skipped} exact duplicates skipped. Compare with Plex to check availability.`
+    );
+  });

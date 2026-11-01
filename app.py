@@ -35,6 +35,8 @@ import ignored_titles
 import discord_notify
 import notification_channels
 import owner_access
+import unified_search
+import issue_notebook
 import manager_routes
 import request_ledger
 import list_sharing
@@ -2957,6 +2959,8 @@ class Handler(BaseHTTPRequestHandler):
             "/notifications.js": "notifications.js",
             "/sign-in.js": "sign-in.js",
             "/access.js": "access.js",
+            "/search.js": "search.js",
+            "/issues.js": "issues.js",
             "/requests.js": "requests.js",
             "/workflow.js": "workflow.js",
             "/builder.js": "builder.js",
@@ -3869,6 +3873,44 @@ class Handler(BaseHTTPRequestHandler):
                         }
                     save_state(latest)
                 return self.respond({"saved": True})
+            if self.path.startswith("/api/search/"):
+                with LOCK:
+                    snapshot = read_state()
+                action = self.path.rsplit("/", 1)[-1]
+                if action == "index":
+                    if not snapshot["settings"].get("plex", {}).get("key"):
+                        raise ValueError("Connect Plex to refresh library search.")
+                    catalog, _ = explore.library(
+                        snapshot["settings"], plex_catalog, refresh=True
+                    )
+                    return self.respond({"count": len(catalog)})
+                catalog, known = explore.peek_library(snapshot["settings"])
+                if action == "local":
+                    try:
+                        official = official_lists.catalogue()["lists"]
+                    except (OSError, ValueError):
+                        official = []
+                    return self.respond(
+                        unified_search.local(snapshot, body, catalog, known, official)
+                    )
+                if action == "provider":
+                    return self.respond(
+                        unified_search.remote(snapshot, body, catalog, known)
+                    )
+                raise ValueError("Unknown search action.")
+            if self.path.startswith("/api/issues/"):
+                action = self.path.rsplit("/", 1)[-1]
+                if action == "save":
+                    with LOCK:
+                        latest = read_state()
+                        result = issue_notebook.save(latest, body)
+                        save_state(latest)
+                    return self.respond(result)
+                if action == "list":
+                    with LOCK:
+                        snapshot = read_state()
+                    return self.respond(issue_notebook.listing(snapshot, body))
+                raise ValueError("Unknown issue notebook action.")
             if self.path == "/api/calendar":
                 with LOCK:
                     snapshot = read_state()
@@ -4180,6 +4222,66 @@ class Handler(BaseHTTPRequestHandler):
                     save_state(state)
                 return self.respond(
                     {"entry": updated, "revision": saved_lists.revision(updated)}
+                )
+            if self.path in ("/api/lists/remove-entries", "/api/lists/append-lists"):
+                with LOCK:
+                    state = read_state()
+                    entry = next(
+                        (r for r in state["lists"] if r["id"] == body.get("list_id")),
+                        None,
+                    )
+                    if not entry:
+                        raise ValueError("Choose a saved list.")
+                    if self.path.endswith("remove-entries"):
+                        updated = saved_lists.remove_entries(entry, body, normalize)
+                        report = {
+                            "removed": len(entry["items"]) - len(updated["items"])
+                        }
+                    else:
+                        ids = body.get("source_ids")
+                        if (
+                            not isinstance(ids, list)
+                            or not 1 <= len(ids) <= 100
+                            or any(not isinstance(v, str) for v in ids)
+                            or len(set(ids)) != len(ids)
+                        ):
+                            raise ValueError("Choose up to 100 distinct saved lists.")
+                        by_id = {r["id"]: r for r in state["lists"]}
+                        if any(identifier not in by_id for identifier in ids):
+                            raise ValueError(
+                                "A source list was removed. Reopen the selection."
+                            )
+                        sources = [by_id[identifier] for identifier in ids]
+                        revisions = body.get("source_revisions", {})
+                        if not isinstance(revisions, dict) or any(
+                            revisions.get(r["id"]) != saved_lists.revision(r)
+                            for r in sources
+                        ):
+                            raise ValueError(
+                                "A source list changed. Reopen the selection before appending."
+                            )
+                        updated, report = saved_lists.append_lists(entry, sources, body)
+                    state["lists"][state["lists"].index(entry)] = updated
+                    save_state(state)
+                return self.respond({"entry": updated, "report": report})
+            if self.path == "/api/lists/append-options":
+                with LOCK:
+                    snapshot = read_state()
+                return self.respond(
+                    {
+                        "sources": [
+                            {
+                                "entry": {
+                                    "id": row["id"],
+                                    "name": row["name"],
+                                    "count": len(row["items"]),
+                                },
+                                "revision": saved_lists.revision(row),
+                            }
+                            for row in snapshot["lists"]
+                            if row["id"] != body.get("list_id")
+                        ]
+                    }
                 )
             if self.path == "/api/lists/revision":
                 with LOCK:
@@ -5552,9 +5654,18 @@ class Handler(BaseHTTPRequestHandler):
                 if self.path == "/api/discover":
                     return self.respond(result)
                 keys = body.get("keys")
-                if not isinstance(keys, list) or not keys:
+                if (
+                    not isinstance(keys, list)
+                    or not keys
+                    or any(not isinstance(key, str) for key in keys)
+                ):
                     raise ValueError("Select at least one project.")
-                rows = [normalize(r) for r in result["items"] if r["key"] in keys]
+                by_key = {r["key"]: r for r in result["items"]}
+                rows = [
+                    normalize(by_key[key])
+                    for key in dict.fromkeys(keys)
+                    if isinstance(key, str) and key in by_key
+                ]
                 if not rows:
                     raise ValueError("No selected projects were found.")
                 rows = compare(rows, snapshot["settings"])

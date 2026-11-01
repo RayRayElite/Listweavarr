@@ -90,6 +90,7 @@ let state = { lists: [], settings: {} },
   active = '',
   filter = 'all',
   selected = new Set(),
+  entrySelectionMode = false,
   busy = false;
 const $ = (id) => document.getElementById(id);
 const esc = (v) =>
@@ -580,11 +581,12 @@ function toast(message) {
   window.toastTimer = setTimeout(() => ($('toast').hidden = true), 7000);
 }
 let sessionRenewal = null;
-async function api(path, body, renew = true) {
+async function api(path, body, renew = true, signal) {
   const response = await fetch('/api/' + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Listweavarr-Token': state.csrf },
     body: JSON.stringify(body),
+    signal,
   });
   const result = await response.json();
   if (response.status === 401 && result.code === 'auth_required') {
@@ -603,7 +605,7 @@ async function api(path, body, renew = true) {
         sessionRenewal = null;
       });
     await sessionRenewal;
-    return api(path, body, false);
+    return api(path, body, false, signal);
   }
   if (!response.ok) throw Error(result.error || 'Request failed');
   return result;
@@ -929,16 +931,24 @@ function updateSelection() {
   $('request-summary').textContent = selected.size
     ? `${selected.size} entries selected. Choose a profile and destination before sending.`
     : 'Use Add beside a missing title, or select titles to add together.';
-  const eligible = visible().filter(requestable);
+  const eligible = visible().filter((item) => entrySelectionMode || requestable(item));
   const selectLabel = $('select-all').closest?.('label');
   if (selectLabel) selectLabel.hidden = !current();
   $('select-all').disabled = busy || !eligible.length;
-  $('select-all-label').textContent = `Select all missing (${eligible.length})`;
+  $('select-all-label').textContent =
+    `${entrySelectionMode ? 'Select all entries' : 'Select all missing'} (${eligible.length})`;
+  $('remove-selected-entries').hidden = !entrySelectionMode;
+  $('remove-selected-entries').disabled = busy || !selected.size;
+  $('review-top').hidden = entrySelectionMode;
+  if (entrySelectionMode && tray) tray.hidden = true;
   $('selection-help').textContent = eligible.length
     ? 'Select all includes every matching missing or partial entry, including those below the screen. Search and year filters apply. Already requested items are skipped.'
     : visible().some((item) => ['missing', 'partial'].includes(item.status))
       ? 'These missing entries are already requested or managed. Check download progress for their current status.'
       : 'No requestable missing entries match this view. Compare with Plex to refresh availability.';
+  if (entrySelectionMode)
+    $('selection-help').textContent =
+      'Select entries to remove from this list. Search and year filters apply; Plex playlists are not changed.';
   $('selection-count').hidden = !eligible.length && !selected.size;
   $('select-all').checked = eligible.length > 0 && eligible.every((i) => selected.has(i.id));
   $('select-all').indeterminate =
@@ -960,7 +970,7 @@ function row(i) {
       : 'Connect TMDB to see descriptions and ratings.';
   const rating = m && !m.error ? ratingWidget({ ...i, ...m }) : '';
   const service = i.type === 'movie' ? 'Radarr' : 'Sonarr';
-  return `<article class="entry" data-entry="${i.id}"><input type="checkbox" aria-label="Select ${esc(i.title)}" data-item="${i.id}" ${selected.has(i.id) ? 'checked' : ''} ${requestable(i) ? '' : 'disabled'}><span class="rank">${String(rank).padStart(2, '0')}</span><button class="entry-art" data-details="${i.id}" aria-label="Details for ${esc(i.title)}">${m?.poster ? posterArt(m.poster, { ...i, ...m }) : `<span>${esc(i.title.charAt(0))}</span>`}</button><div class="entry-copy"><div class="entry-title"><button data-details="${i.id}" class="title-link">${esc(i.title)}</button> ${i.year ? `<span class="muted">(${esc(i.year)})</span>` : ''}</div><div class="entry-kicker">${i.is_new ? '<span class="badge available">New in source</span> ' : ''}${esc(type)}${i.type !== 'movie' ? ` · <button class="show-link" data-show="${i.id}">${esc(m?.show_title || i.show_title || (i.type === 'show' ? 'Explore full show' : 'View full show'))}</button>` : ''} <span class="entry-rating">${rating}</span></div><p class="entry-overview">${esc(overview)}${m?.error ? ' ' + metadataRetryButton(i) : ''}</p><div class="entry-meta">${esc(i.detail || 'Compare with Plex to check availability')} · <button class="edit-entry" data-edit="${i.id}" aria-label="Correct ${esc(i.title)}">Correct match</button> ${window.watchBadgeFor?.(i) || ''} ${activityBadge(i)}</div></div><div class="entry-controls">${ignoreButton({ ...i, ...m })}<span class="badge ${esc(i.status || 'unchecked')}">${esc({ unchecked: 'Not checked', available: 'In Plex', missing: 'Missing', partial: 'Partial', review: 'Review match', unmatched: 'Unmatched', upcoming: 'Upcoming' }[i.status || 'unchecked'])}</span>${requestable(i) ? `<button class="primary add-one" data-add="${i.id}">+ Add to ${service}</button>` : ''}</div></article>`;
+  return `<article class="entry" data-entry="${i.id}"><input type="checkbox" aria-label="Select ${esc(i.title)}" data-item="${i.id}" ${selected.has(i.id) ? 'checked' : ''} ${entrySelectionMode || requestable(i) ? '' : 'disabled'}><span class="rank">${String(rank).padStart(2, '0')}</span><button class="entry-art" data-details="${i.id}" aria-label="Details for ${esc(i.title)}">${m?.poster ? posterArt(m.poster, { ...i, ...m }) : `<span>${esc(i.title.charAt(0))}</span>`}</button><div class="entry-copy"><div class="entry-title"><button data-details="${i.id}" class="title-link">${esc(i.title)}</button> ${i.year ? `<span class="muted">(${esc(i.year)})</span>` : ''}</div><div class="entry-kicker">${i.is_new ? '<span class="badge available">New in source</span> ' : ''}${esc(type)}${i.type !== 'movie' ? ` · <button class="show-link" data-show="${i.id}">${esc(m?.show_title || i.show_title || (i.type === 'show' ? 'Explore full show' : 'View full show'))}</button>` : ''} <span class="entry-rating">${rating}</span></div><p class="entry-overview">${esc(overview)}${m?.error ? ' ' + metadataRetryButton(i) : ''}</p><div class="entry-meta">${esc(i.detail || 'Compare with Plex to check availability')} · <button class="edit-entry" data-edit="${i.id}" aria-label="Correct ${esc(i.title)}">Correct match</button> ${window.watchBadgeFor?.(i) || ''} ${activityBadge(i)}</div></div><div class="entry-controls">${ignoreButton({ ...i, ...m })}<span class="badge ${esc(i.status || 'unchecked')}">${esc({ unchecked: 'Not checked', available: 'In Plex', missing: 'Missing', partial: 'Partial', review: 'Review match', unmatched: 'Unmatched', upcoming: 'Upcoming' }[i.status || 'unchecked'])}</span>${requestable(i) ? `<button class="primary add-one" data-add="${i.id}">+ Add to ${service}</button>` : ''}</div></article>`;
 }
 function listScopeGroups(items, mode) {
   const groups = new Map();
@@ -1787,6 +1797,9 @@ async function openDiscovery(kind, identifier) {
   discoverySelected.clear();
   $('discovery-sort').value = kind === 'person' ? 'date-desc' : 'original';
   $('discovery-search').value = '';
+  $('discovery-credit').value = '';
+  $('discovery-credit').hidden = kind !== 'person';
+  $('discovery-playlist').hidden = true;
   $('discovery-type').value = '';
   $('discovery-note').textContent = '';
   $('discovery-save').disabled = true;
@@ -1866,6 +1879,7 @@ function drawDiscovery() {
       (r) =>
         !isIgnored(r) &&
         (!type || r.type === type) &&
+        (!$('discovery-credit').value || r.credit_types?.includes($('discovery-credit').value)) &&
         (r.title + ' ' + r.roles.join(' ')).toLowerCase().includes(query)
     ),
     $('discovery-sort').value
@@ -1880,6 +1894,13 @@ function drawDiscovery() {
       )
       .join('') || '<p>No matching projects.</p>';
 
+  $('discovery-playlist').hidden = discoveryContext.kind !== 'person';
+  $('discovery-playlist').disabled = !rows.length;
+  $('discovery-playlist').textContent = discoverySelected.size
+    ? `Make playlist from ${discoverySelected.size} selected`
+    : 'Make playlist from visible projects';
+  const saveActions = $('discovery-save').closest?.('.dialog-actions');
+  if (saveActions) saveActions.hidden = !discoverySelected.size;
   $('discovery-save').hidden = !discoverySelected.size;
   $('discovery-save').disabled = !discoverySelected.size;
   $('discovery-save').textContent = `Save ${discoverySelected.size} selected & compare with Plex`;
@@ -1887,6 +1908,10 @@ function drawDiscovery() {
 $('discovery-search').oninput = drawDiscovery;
 $('discovery-type').onchange = drawDiscovery;
 $('discovery-sort').onchange = drawDiscovery;
+$('discovery-credit').onchange = () => {
+  discoverySelected.clear();
+  drawDiscovery();
+};
 $('discovery-content').onchange = (e) => {
   const key = e.target.dataset.project;
   if (!key) return;
@@ -1900,6 +1925,7 @@ $('discovery-all').onclick = () => {
     if (
       !isIgnored(r) &&
       (!t || r.type === t) &&
+      (!$('discovery-credit').value || r.credit_types?.includes($('discovery-credit').value)) &&
       (r.title + ' ' + r.roles.join(' ')).toLowerCase().includes(q)
     )
       discoverySelected.add(r.key);
@@ -1921,6 +1947,23 @@ $('discovery-save').onclick = (e) =>
     closeWorkspacePanel('discovery-dialog');
     closeWorkspacePanel('title-dialog');
     toast('Saved and compared with Plex. Select missing titles to review downloads.');
+  });
+// Save a reviewed person-project snapshot, then use the normal Plex publication preview.
+$('discovery-playlist').onclick = (event) =>
+  task(event.target, async () => {
+    if (discoveryContext?.kind !== 'person') return;
+    if (!discoverySelected.size) $('discovery-all').click();
+    if (!discoverySelected.size) throw Error('Select at least one project.');
+    const order = sortProjects(discoveryContext.data.items, $('discovery-sort').value);
+    const result = await api('discover/save', {
+      kind: discoveryContext.kind,
+      identifier: discoveryContext.identifier,
+      keys: order.filter((row) => discoverySelected.has(row.key)).map((row) => row.key),
+    });
+    replaceList(result.entry);
+    closeWorkspacePanel('discovery-dialog');
+    closeWorkspacePanel('title-dialog');
+    await openPlaylistPreview();
   });
 async function openTitle(id) {
   externalTitle = null;
@@ -2442,29 +2485,29 @@ async function reviewLinkedPlaylist(id) {
   playlistBlocker(plan, plan.after_count);
   $('playlist-dialog').showModal();
 }
-$('playlist-open').onclick = (e) =>
-  task(e.target, async () => {
-    publicationToken = null;
-    publicationListId = active;
-    $('playlist-title').disabled = false;
-    const plan = await api('playlist/preview', { list_id: active });
-    originalPlaylistPreview = plan;
-    $('playlist-preview-items').innerHTML =
-      `<details><summary>Review selected watch order and omitted entries</summary><ol>${(plan.entries || []).map((r) => `<li><strong>${esc(r.title)}</strong> / ${esc(r.type)} / ${r.count ? r.count + ' playable item(s)' : 'Omitted: ' + esc(r.status)}${r.status === 'partial' ? ' / incomplete scope' : ''}<small>${esc(r.detail)}</small></li>`).join('')}</ol></details>`;
-    $('playlist-title').value = plan.name;
-    playlistBlocker(plan, plan.count);
-    $('playlist-replace-label').hidden = !current().playlist;
-    $('playlist-replace').checked = false;
-    $('playlist-plan').textContent =
-      `${plan.count} available movies/episodes in ${plan.watch_order ? plan.watch_order + ' watch order' : 'original list order'}. ${plan.omitted} entries currently have no confirmed available items and will be omitted. Availability is checked again before creation.`;
+async function openPlaylistPreview() {
+  publicationToken = null;
+  publicationListId = active;
+  $('playlist-title').disabled = false;
+  const plan = await api('playlist/preview', { list_id: active });
+  originalPlaylistPreview = plan;
+  $('playlist-preview-items').innerHTML =
+    `<details><summary>Review selected watch order and omitted entries</summary><ol>${(plan.entries || []).map((r) => `<li><strong>${esc(r.title)}</strong> / ${esc(r.type)} / ${r.count ? r.count + ' playable item(s)' : 'Omitted: ' + esc(r.status)}${r.status === 'partial' ? ' / incomplete scope' : ''}<small>${esc(r.detail)}</small></li>`).join('')}</ol></details>`;
+  $('playlist-title').value = plan.name;
+  playlistBlocker(plan, plan.count);
+  $('playlist-replace-label').hidden = !current().playlist;
+  $('playlist-replace').checked = false;
+  $('playlist-plan').textContent =
+    `${plan.count} available movies/episodes in ${plan.watch_order ? plan.watch_order + ' watch order' : 'original list order'}. ${plan.omitted} entries currently have no confirmed available items and will be omitted. Availability is checked again before creation.`;
+  originalPlaylistPlan = $('playlist-plan').textContent;
+  if (plan.duplicate_count) {
+    $('playlist-plan').textContent +=
+      ` ${plan.duplicate_count} repeated Plex items need review in List health before publishing. Plex may collapse those occurrences.`;
     originalPlaylistPlan = $('playlist-plan').textContent;
-    if (plan.duplicate_count) {
-      $('playlist-plan').textContent +=
-        ` ${plan.duplicate_count} repeated Plex items need review in List health before publishing. Plex may collapse those occurrences.`;
-      originalPlaylistPlan = $('playlist-plan').textContent;
-    }
-    $('playlist-dialog').showModal();
-  });
+  }
+  $('playlist-dialog').showModal();
+}
+$('playlist-open').onclick = (e) => task(e.target, openPlaylistPreview);
 $('playlist-replace').onchange = (e) =>
   task(e.target, async () => {
     publicationToken = null;
@@ -2657,7 +2700,9 @@ $('backup-preview').onclick = (e) =>
       data.summary.ignored +
       ' ignored titles, ' +
       data.summary.tracked +
-      ' tracked releases.';
+      ' tracked releases, ' +
+      (data.summary.issues || 0) +
+      ' private issue notes.';
     $('backup-review').hidden = false;
   });
 $('backup-restore').onclick = (e) =>
@@ -2749,7 +2794,7 @@ $('entries').onchange = (e) => {
 };
 $('select-all').onchange = (e) => {
   visible()
-    .filter(requestable)
+    .filter((item) => entrySelectionMode || requestable(item))
     .forEach((i) => (e.target.checked ? selected.add(i.id) : selected.delete(i.id)));
   render();
 };

@@ -646,7 +646,7 @@ if (typeof document.createElement === 'function') {
     host.append(acquisition);
     acquisition.onclick = () => task(acquisition, () => openListAcquisitionDefaults());
     const groups = [
-      ['Edit & share', ['list-manage', 'list-add-entries', 'list-share']],
+      ['Edit & share', ['list-manage', 'list-add-entries', 'list-append-lists', 'list-share']],
       ['Watch order', ['list-watch-paths', 'list-episode-orders']],
       ['Downloads', ['list-acquisition-defaults']],
       ['Plex & watched progress', ['playlist-open', 'collection-open', 'progress-refresh']],

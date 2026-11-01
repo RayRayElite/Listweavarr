@@ -46,6 +46,23 @@ def library(settings, loader, refresh=False):
         return copy.deepcopy(rows), True
 
 
+def peek_library(settings):
+    """Never wait on an in-progress network scan during type-ahead search."""
+    cfg = settings.get("plex", {})
+    if not cfg.get("key"):
+        return [], False
+    identity = hashlib.sha256(
+        (cfg.get("url", "") + "\0" + cfg["key"]).encode()
+    ).hexdigest()
+    if not _library_lock.acquire(blocking=False):
+        return [], False
+    try:
+        saved = _library_cache.get(identity)
+        return (copy.deepcopy(saved[1]), True) if saved else ([], False)
+    finally:
+        _library_lock.release()
+
+
 def title_key(row):
     return ("tv" if row.get("type") == "show" else "movie") + ":" + str(row.get("tmdb"))
 

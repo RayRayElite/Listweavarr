@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /* Presentation wiring keeps existing reviewed actions as the source of truth. */
 function titleActionMarkup() {
-  return ['title-add', 'parent-request', 'title-save']
+  return ['title-add', 'parent-request', 'title-save', 'title-issues']
     .map((id) => {
       const button = $(id);
       if (button.hidden) return '';
-      return `<button type="button" class="${id === 'title-save' ? 'secondary' : 'primary'}" data-title-command="${id}" ${button.disabled ? 'disabled' : ''}>${esc(button.textContent)}</button>`;
+      return `<button type="button" class="${['title-save', 'title-issues'].includes(id) ? 'secondary' : 'primary'}" data-title-command="${id}" ${button.disabled ? 'disabled' : ''}>${esc(button.textContent)}</button>`;
     })
     .join('');
 }

@@ -102,6 +102,18 @@
   function save(storage, bookmark) {
     storage.setItem(storageKey(bookmark), JSON.stringify(bookmark));
   }
+  // Keep the bookmark as a synced tombstone: deletion would let an offline client restore it.
+  // A new playback checkpoint has no dismissed flag and brings the card back naturally.
+  function dismiss(storage, context) {
+    const bookmark = load(storage, context);
+    if (!bookmark) return;
+    save(storage, {
+      ...bookmark,
+      dismissed: true,
+      updatedAt: Math.max(Date.now(), (bookmark.updatedAt || 0) + 1),
+    });
+    root.dispatchEvent?.(new Event('listweavarr-playlist-progress'));
+  }
   function load(storage, context) {
     const text = storage.getItem(storageKey(context));
     if (!text) return null;
@@ -116,6 +128,7 @@
         value.revision < 0 ||
         !Number.isSafeInteger(value.ratingKeyOccurrences) ||
         value.ratingKeyOccurrences < 1 ||
+        (value.dismissed !== undefined && typeof value.dismissed !== 'boolean') ||
         typeof value.completed !== 'boolean'
       )
         return null;
@@ -208,6 +221,7 @@
   }
   const api = Object.freeze({
     checkpoint,
+    dismiss,
     reconcile,
     update,
     storageKey,

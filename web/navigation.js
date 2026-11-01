@@ -10,7 +10,11 @@ const initialWorkspaceRoute = window.location.hash;
 function currentWorkspaceRoute() {
   if (workspacePanel === 'settings') return '#/settings/' + settingsTab;
   if (workspacePanel === 'requests-page')
-    return requestSection === 'downloads' ? '#/requests/downloads' : '#/requests';
+    return requestSection === 'issues'
+      ? '#/requests/issues'
+      : requestSection === 'downloads'
+        ? '#/requests/downloads'
+        : '#/requests';
   if (workspacePanel === 'title-dialog') {
     if (parentRouteIntent) return '#/title/show/' + parentRouteIntent;
     if (activeShowContext?.data?.show?.tmdb)
@@ -90,6 +94,11 @@ function queueWorkspaceRoute() {
 }
 async function applyWorkspaceRoute(hash) {
   if (!routeReady) return;
+  if (typeof canLeaveIssueEditor === 'function' && !canLeaveIssueEditor()) {
+    if (typeof history !== 'undefined')
+      history.replaceState(history.state, '', currentWorkspaceRoute());
+    return;
+  }
   routeApplying = true;
   const targetScroll = typeof history !== 'undefined' ? history.state?.scroll || 0 : 0;
   try {
@@ -104,7 +113,14 @@ async function applyWorkspaceRoute(hash) {
       selectSettingsTab(parts[1] || 'preferences');
     } else if (parts[0] === 'requests') {
       if (parts[1] === 'downloads') openRequestDownloads();
-      else openRequests();
+      else if (parts[1] === 'issues') openIssueNotebook();
+      else {
+        openRequests();
+        if (params.get('title')) {
+          $('requests-search').value = params.get('title');
+          drawRequests();
+        }
+      }
     } else if (parts[0] === 'lists') {
       settingsView(false);
       if (parts[1] === 'view' && state.lists.some((row) => row.id === parts[2])) {
@@ -114,10 +130,15 @@ async function applyWorkspaceRoute(hash) {
           selectCuratedOrder(params.get('order'));
         if (params.get('item') && current()?.items.some((row) => row.id === params.get('item')))
           await openTitle(params.get('item'));
-      } else
+      } else {
         selectListsTab(
           ['mine', 'official', 'ignored', 'downloads'].includes(parts[1]) ? parts[1] : 'mine'
         );
+        if (parts[1] === 'official' && params.get('find') && $('official-list-search')) {
+          $('official-list-search').value = params.get('find');
+          drawOfficialCatalogue();
+        }
+      }
     } else if (
       parts[0] === 'title' &&
       ['movie', 'show', 'episode'].includes(parts[1]) &&
