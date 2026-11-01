@@ -72,7 +72,7 @@ function currentWorkspaceRoute() {
           '?origin=' +
           listReturnTab +
           (typeof curatedOrderRoute === 'function' ? curatedOrderRoute() : '')
-      : '#/lists/' + listsTab;
+      : '#/lists/' + listsTab + (listsTab === 'official' ? '?section=' + officialSection : '');
   return '#/explore/discover';
 }
 function queueWorkspaceRoute() {
@@ -134,6 +134,10 @@ async function applyWorkspaceRoute(hash) {
         selectListsTab(
           ['mine', 'official', 'ignored', 'downloads'].includes(parts[1]) ? parts[1] : 'mine'
         );
+        if (parts[1] === 'official')
+          selectOfficialSection(
+            params.get('find') ? 'all' : params.get('section') || officialSection
+          );
         if (parts[1] === 'official' && params.get('find') && $('official-list-search')) {
           $('official-list-search').value = params.get('find');
           drawOfficialCatalogue();

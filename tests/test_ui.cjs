@@ -1329,7 +1329,10 @@ vm.runInContext(
     /#\/lists\/view\/.*origin=official/
   );
   vm.runInContext(`$('list-detail').hidden=true;listsTab='official'`, context);
-  assert.equal(vm.runInContext('currentWorkspaceRoute()', context), '#/lists/official');
+  assert.equal(
+    vm.runInContext('currentWorkspaceRoute()', context),
+    '#/lists/official?section=franchises'
+  );
   vm.runInContext(
     `workspacePanel='title-dialog';activeShowContext={data:{show:{tmdb:'1403'}}}`,
     context
@@ -1571,6 +1574,7 @@ vm.runInContext(
     state.lists.push({id:'author',official_id:'official-test',official_authoring:true,official_version:1,name:'Saved cover',items:[]});
     officialCatalogue=[];officialLoaded=false;officialLastFetched=0;
     globalThis.cataloguePaints=0;
+    globalThis.savedCategoryRenderer=drawOfficialCatalogue;
     drawOfficialCatalogue=()=>{cataloguePaints++;};
     api=async(path)=>new Promise((resolve)=>{globalThis.completeCatalogue=resolve;});
   `,
@@ -1589,6 +1593,24 @@ vm.runInContext(
   await vm.runInContext('loadOfficialBeforeFeedCheck()', context);
   assert.equal(vm.runInContext('officialCatalogue[0].name', context), 'Fresh cover');
   assert.match(element('official-status').textContent, /Showing saved catalogue/);
+  vm.runInContext(
+    `drawOfficialCatalogue=savedCategoryRenderer;officialCatalogue=[{id:'fr',name:'Naruto',count:2},{id:'top',name:'IMDB Top 250 Movies',count:3},{id:'theme',name:'Halloween',count:4}];officialSection='top';$('official-list-search').value='';drawOfficialCatalogue();`,
+    context
+  );
+  assert.match(element('official-items').innerHTML, /IMDB Top 250 Movies/);
+  assert.doesNotMatch(element('official-items').innerHTML, /Naruto|Halloween/);
+  vm.runInContext(
+    `batchListSelection.official.clear();$('official-batch-all').onclick();`,
+    context
+  );
+  assert.equal(vm.runInContext(`[...batchListSelection.official].join(',')`, context), 'top');
+  vm.runInContext(`selectOfficialSection('curated')`, context);
+  assert.equal(vm.runInContext('batchListSelection.official.size', context), 0);
+  assert.match(element('official-items').innerHTML, /Halloween/);
+  assert.equal(
+    vm.runInContext(`officialCategory({name:'Top 10',category:'curated'})`, context),
+    'curated'
+  );
   // Ordered list append follows selection order, then moves only selected sources.
   vm.runInContext(
     `appendListContext={target:{entry:{id:'target'}},sources:[{entry:{id:'a',name:'Alpha',count:2},checked:false},{entry:{id:'b',name:'Beta',count:3},checked:false},{entry:{id:'c',name:'Charlie',count:4},checked:false}]};$('append-lists-search').value='';`,

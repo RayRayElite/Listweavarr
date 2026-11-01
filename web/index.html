@@ -313,6 +313,21 @@
               <p class="muted">A growing collection of watch orders and franchise lists.</p>
             </div>
           </div>
+          <div class="official-sections" role="group" aria-label="Official list categories">
+            <button class="secondary" data-official-section="franchises" aria-pressed="true">
+              Franchises
+            </button>
+            <button class="secondary" data-official-section="top" aria-pressed="false">
+              Top Lists
+            </button>
+            <button class="secondary" data-official-section="curated" aria-pressed="false">
+              Curated Lists
+            </button>
+            <button class="text-action" data-official-section="all" aria-pressed="false">
+              All lists
+            </button>
+          </div>
+          <p id="official-section-note" class="muted"></p>
           <div class="catalogue-sort">
             <button id="official-publication-check" class="secondary">
               Check linked Plex playlists
@@ -2082,6 +2097,13 @@ episode,Pilot,,,263365,1,1</pre
     <dialog id="official-publish-dialog">
       <h2>Publish Official List</h2>
       <p id="official-publish-summary"></p>
+      <label
+        >Official section<select id="official-publish-category">
+          <option value="franchises">Franchises</option>
+          <option value="top">Top Lists</option>
+          <option value="curated">Curated Lists</option>
+        </select></label
+      >
       <p class="muted">
         Publishes this list's titles, order, poster and description into this installation's bundled
         official catalogue. Existing official versions are updated; your working list and history

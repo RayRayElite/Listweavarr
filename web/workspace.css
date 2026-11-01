@@ -3689,3 +3689,19 @@ main > header > .global-search-trigger + .local {
   align-items: center;
   gap: 8px;
 }
+
+.official-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 12px;
+}
+.official-sections [aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+#official-section-note {
+  margin: 0 0 18px;
+}

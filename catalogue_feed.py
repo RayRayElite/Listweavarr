@@ -9,6 +9,7 @@ import copy
 import hashlib
 import http.client
 import json
+import list_categories
 import re
 import secrets
 import socket
@@ -174,6 +175,8 @@ def validate(document, normalize):
             raise ValueError("A catalogue supports up to 100,000 entries.")
         portable = list_sharing.export(entry)["list"]
         portable.update(id=row["id"], version=row["version"])
+        if "category" in row:
+            portable["category"] = list_categories.validate(row["category"])
         stamp = row.get("updated_at", 0)
         if not isinstance(stamp, (int, float)) or not 0 <= stamp <= 4102444800:
             stamp = 0

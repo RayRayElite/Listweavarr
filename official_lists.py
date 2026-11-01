@@ -6,16 +6,22 @@ Reads bundled defaults, persists installed updates in the data directory and kee
 See docs/CODE_MAP.md for related modules, routes and contribution guidance.
 """
 import copy
+import list_categories
 import runtime_config
 import json
 from pathlib import Path
 import time
 
 
-def prepare_publish(entry, previous, normalize):
+def prepare_publish(entry, previous, normalize, category=None):
     import list_sharing
 
     data = list_sharing.export(entry)["list"]
+    data["category"] = (
+        list_categories.validate(category)
+        if category is not None
+        else list_categories.category(entry)
+    )
     list_sharing.validate(
         {"format": "reelcheck-list", "version": 1, "list": data}, normalize
     )
@@ -32,6 +38,7 @@ def prepare_publish(entry, previous, normalize):
             "playlist_poster",
             "items",
             "paths",
+            "category",
         )
     )
     result = copy.deepcopy(previous)
@@ -55,6 +62,7 @@ def prepare_publish(entry, previous, normalize):
         official_id=identifier,
         official_version=published["version"],
         official_authoring=True,
+        official_category=data["category"],
     )
     return (
         result,
@@ -117,7 +125,12 @@ def catalogue():
         "version": data["version"],
         "lists": [
             {k: v for k, v in row.items() if k != "items"}
-            | {"count": len(row["items"]), "kind": "curated", "provider": "Listweavarr"}
+            | {
+                "count": len(row["items"]),
+                "kind": "curated",
+                "provider": "Listweavarr",
+                "category": list_categories.category(row),
+            }
             for row in data["lists"]
         ],
         "sources": [],

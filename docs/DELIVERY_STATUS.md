@@ -136,3 +136,13 @@ notification destination was configured or sent a message during development.
 Implemented unified local/provider search, private issue notebook with backup integration, batch member removal, ordered saved-list append snapshots and person-project playlist previews. Companion cards now offer Open/Edit/Remove, with synced dismissal scoped to the active Plex profile. Automated checks and isolated-browser UI verification are recorded separately from live Windows playback acceptance.
 
 Plex-backed owner sign-in remains pending; the optional password-file owner gate is the current fallback. Managed Plex profiles already have separate Companion progress. Main-workspace household accounts and cross-platform Companion clients remain deferred.
+
+
+## Official List organization
+
+Official Lists now has Franchises, Top Lists and Curated Lists, plus an all-list
+view. Legacy catalogue/cache data is classified without rewriting list contents;
+curator publication carries an explicit validated category. Category-aware batch
+selection, cached rendering and linkable remembered sections are implemented.
+Personal smart-list recipes are proposals in PERSONAL_SMART_LISTS.md, not newly
+implemented automation. Favorites and manual On Repeat remain personal.

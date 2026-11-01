@@ -19,6 +19,7 @@ function officialCardSnapshot(data) {
             'poster',
             'playlist_poster',
             'kind',
+            'category',
             'provider',
             'updated_at',
           ]

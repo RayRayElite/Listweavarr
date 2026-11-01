@@ -46,8 +46,9 @@ for (const [kind, grid] of [
       kind === 'my' ? state.lists.filter((row) => !row.official_authoring) : officialCatalogue;
     for (const row of rows)
       if (
-        !search ||
-        ((row.name || '') + ' ' + (row.description || '')).toLowerCase().includes(search)
+        (kind !== 'official' || matchesOfficialSection(row)) &&
+        (!search ||
+          ((row.name || '') + ' ' + (row.description || '')).toLowerCase().includes(search))
       )
         batchListSelection[kind].add(row.id);
     batchSelectionStatus(kind);
@@ -324,15 +325,62 @@ function catalogueSort(rows, order) {
     );
   });
 }
+const OFFICIAL_SECTIONS = {
+  franchises: 'Franchises',
+  top: 'Top Lists',
+  curated: 'Curated Lists',
+  all: 'All lists',
+};
+let officialSection = localStorage.getItem('listweavarr-official-section') || 'franchises';
+if (!Object.keys(OFFICIAL_SECTIONS).includes(officialSection)) officialSection = 'franchises';
+function officialCategory(row) {
+  if (['franchises', 'top', 'curated'].includes(row.category)) return row.category;
+  const name = (row.name || '')
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  if (/ray recommends|so bad|mindfuck|mind fuck|christmas|halloween/.test(name)) return 'curated';
+  if (/\b(imdb|letterboxd|tmdb) top\b|\btop \d+\b|\bawards?\b/.test(name)) return 'top';
+  return 'franchises';
+}
+function matchesOfficialSection(row) {
+  return officialSection === 'all' || officialCategory(row) === officialSection;
+}
+function selectOfficialSection(value) {
+  officialSection = Object.keys(OFFICIAL_SECTIONS).includes(value) ? value : 'franchises';
+  localStorage.setItem('listweavarr-official-section', officialSection);
+  batchListSelection.official.clear();
+  drawOfficialCatalogue();
+  batchSelectionStatus('official');
+  if (typeof queueWorkspaceRoute === 'function') queueWorkspaceRoute();
+}
+document.querySelectorAll('[data-official-section]').forEach((button) => {
+  button.onclick = () => selectOfficialSection(button.dataset.officialSection);
+});
 function drawOfficialCatalogue() {
   drawPlexPublicationNotice();
   if (!$('official-items')) return;
+  document.querySelectorAll('[data-official-section]').forEach((button) => {
+    const key = button.dataset.officialSection,
+      count = officialCatalogue.filter(
+        (row) => key === 'all' || officialCategory(row) === key
+      ).length;
+    button.textContent = `${OFFICIAL_SECTIONS[key]} (${count})`;
+    button.setAttribute('aria-pressed', String(key === officialSection));
+  });
+  $('official-section-note').textContent = {
+    franchises: 'Chronological watch orders and connected universes.',
+    top: 'Ranked favourites, acclaimed titles and award collections.',
+    curated: "Collections selected around a theme or a curator's taste.",
+    all: 'Every published Official List.',
+  }[officialSection];
   const order =
     $('official-list-sort').value ||
     localStorage.getItem('reelcheck-official-lists-sort') ||
     'title_asc';
   $('official-items').innerHTML =
-    catalogueSort(officialCatalogue, order)
+    catalogueSort(officialCatalogue.filter(matchesOfficialSection), order)
       .filter(
         (row) =>
           !document.getElementById('official-list-search')?.value ||
@@ -346,7 +394,9 @@ function drawOfficialCatalogue() {
         return `<article class="saved-list-card">${batchListCheckbox('official', row.id, entry.name)}<button class="saved-list-cover" data-official-open="${esc(row.id)}" aria-label="Open ${esc(entry.name)}">${listCover(entry)}</button><div><span class="eyebrow">OFFICIAL COLLECTION / V${esc(row.version)}${saved ? ' · ' + (saved.official_authoring ? 'Authoring original' : 'Personal copy saved') : ''}</span><h2><button class="title-link" data-official-open="${esc(row.id)}">${esc(entry.name)}</button></h2><p class="muted">${row.count} entries${entry.description ? ' &middot; ' + esc(entry.description) : ''}</p>${playlistLinkMarkup(saved)}<div class="saved-list-actions">${saved?.official_authoring ? listActionButton('edit', 'data-edit-list', saved.id, 'Edit list & poster') + listActionButton('share', 'data-share-list', saved.id, 'Share list') + listActionButton('add', 'data-add-entries', saved.id, 'Add entries') + listActionButton('delete', 'data-delete-list', saved.id, 'Delete working copy') : listActionButton('add', 'data-official-open', row.id, saved ? 'Open my copy' : 'Add to My Lists')}</div></div></article>`;
       })
       .join('') ||
-    '<div class="empty"><h2>No official collections match.</h2><button class="secondary" data-clear-catalogue="official-list-search">Clear search</button></div>';
+    (officialCatalogue.some(matchesOfficialSection)
+      ? '<div class="empty"><h2>No official collections match.</h2><button class="secondary" data-clear-catalogue="official-list-search">Clear search</button></div>'
+      : `<div class="empty"><h2>No published ${esc(OFFICIAL_SECTIONS[officialSection])} yet.</h2><p>Curators can choose this section when publishing a saved list. Personal lists stay in My Lists until published.</p></div>`);
 }
 for (const [id, key] of [
   ['saved-list-sort', 'my'],
@@ -1079,6 +1129,8 @@ $('list-publish-official').onclick = (e) =>
     officialPublication = { id: result.entry.id, revision: result.revision };
     $('official-publish-summary').textContent =
       `${result.entry.name} / ${result.entry.items.length} entries. ${result.entry.official_id ? 'Update its official version.' : 'Add a new Official List.'}`;
+    $('official-publish-category').value =
+      result.entry.official_category || officialCategory(result.entry);
     $('official-publish-status').textContent = '';
     $('official-publish-dialog').showModal();
   });
@@ -1090,6 +1142,7 @@ $('official-publish-confirm').onclick = (e) =>
         list_id: officialPublication.id,
         revision: officialPublication.revision,
         confirmed: true,
+        category: $('official-publish-category').value,
       });
       $('official-publish-dialog').close();
       officialPublication = null;

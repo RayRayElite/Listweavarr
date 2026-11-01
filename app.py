@@ -4789,7 +4789,7 @@ class Handler(BaseHTTPRequestHandler):
                             )
                         previous = official_lists.document()
                         updated, working, report = official_lists.prepare_publish(
-                            entry, previous, normalize
+                            entry, previous, normalize, body.get("category")
                         )
                         official_lists.write_document(updated)
                         latest["lists"][latest["lists"].index(entry)] = working

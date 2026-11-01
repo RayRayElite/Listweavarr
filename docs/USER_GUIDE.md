@@ -518,3 +518,19 @@ Open a person's projects from a cast/crew card or search. Filter **Acting** or *
 ## Continue Playlists card options
 
 Hover/focus a Companion poster and open the bottom-right three-dot menu for **Open playlist**, **Edit poster**, or **Remove from Continue Playlists**. Removal hides the card without deleting the Plex playlist, artwork, watched history or bookmark. With progress sync enabled the dismissal is shared between paired clients for the same server/profile/playlist. A new playback checkpoint restores the card. Older clients should be updated too so their UI honors the dismissal.
+
+
+## Official List sections
+
+Official Lists offers Franchises, Top Lists, Curated Lists and All lists, with the
+existing poster grid, search and sorting. Batch Select all applies to the active
+section and search; switching sections clears its selection. Section choices are
+remembered and linked as `#/lists/official?section=top` (also `franchises`,
+`curated`, `all`).
+
+Older feeds get sensible defaults immediately. Curators can choose the section
+in Publish as Official List; explicit choices travel with catalogue updates and
+win over name-based defaults. Empty sections are labeled. Empty working lists
+are not automatically published. Favorites and On Repeat stay personal.
+
+See [Personal smart lists](PERSONAL_SMART_LISTS.md) for proposed recipes.

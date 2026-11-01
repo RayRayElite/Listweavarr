@@ -197,3 +197,13 @@ for deployment and recovery; authentication remains off in existing local instal
 - `saved_lists.remove_entries` reuses ordinary edit revision, source-detachment and publication-dirty rules. `append_lists` snapshots ordered sources, gives entries new IDs and strips availability/request data. Routes pin target and source revisions under the state lock; lightweight append-options avoids downloading all list posters.
 - Person project `credit_types` distinguishes acting from directing independently of character-name text. Project publication saves selected keys in reviewed order, compares availability, then reuses `openPlaylistPreview`.
 - Companion `bookmarks.dismiss` writes a profile-scoped timestamped dismissal instead of deleting data. Existing newest-checkpoint sync transports it; fresh playback restores visibility. `home.js` renders the native-style card options.
+
+
+## Official category metadata
+
+`list_categories.py` defines publication categories and legacy-name defaults.
+`official_lists.prepare_publish` validates curator choices and versions changes;
+`catalogue_feed.validate` preserves the public category field. Browser cache
+snapshots retain it. `web/lists.js` applies the same fallback to old cached feeds;
+card rendering and batch Select all share the section filter. Navigation records
+the section in the hash. Personal smart-list proposals are separate from delivery.
