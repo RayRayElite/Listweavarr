@@ -3781,3 +3781,29 @@ main > header > .global-search-trigger + .local {
     grid-template-columns: 1fr;
   }
 }
+
+#explore-arrange {
+  margin: 10px 0 20px;
+}
+#explore-order-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-width: 720px;
+  max-height: 85vh;
+  overflow: auto;
+}
+#explore-order-rows {
+  max-height: 50vh;
+  overflow: auto;
+}
+
+#smart-personal-options .preference-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+#smart-personal-options input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+  flex: none;
+}

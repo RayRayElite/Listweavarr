@@ -34,6 +34,7 @@ FIELDS = (
     "release_watchlist",
     "release_region",
     "explore_languages",
+    "explore_row_order",
     "rating_preferences",
     "request_defaults",
     "requests",
@@ -139,6 +140,18 @@ def validate(document, normalize):
             count += 1
             if count > 100000:
                 raise ValueError("This backup exceeds 100,000 entries.")
+    order = data.get("explore_row_order", [])
+    if (
+        not isinstance(order, list)
+        or len(order) > 100
+        or any(
+            not isinstance(value, str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", value)
+            for value in order
+        )
+        or len(set(order)) != len(order)
+    ):
+        raise ValueError("Invalid Explore row order in backup.")
     issue_notebook.validate_backup(data.get("library_issues", []))
     companion.validate_state(data)
     for field in (

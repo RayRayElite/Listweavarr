@@ -62,3 +62,39 @@ assert.equal(core.load(storage, context), null);
 console.log(
   'Playlist bookmark checks passed: duplicates, rewatches, edits, sessions, persistence and completion.'
 );
+
+// Pins are independent of checkpoints and isolated by managed Plex profile.
+const pinMemory = new Map(),
+  pinStorage = {
+    getItem: (key) => pinMemory.get(key) || null,
+    setItem: (key, value) => pinMemory.set(key, value),
+  };
+const pinnedA = { ...context, playlistId: 'sleep' },
+  pinnedB = { ...context, playlistId: 'other' },
+  family = { ...pinnedA, userId: 'family' };
+core.pin(pinStorage, pinnedA);
+core.pin(pinStorage, pinnedB);
+assert.equal(core.isPinned(pinStorage, family), false);
+assert.deepEqual(
+  core
+    .orderPlaylists(
+      [
+        { ...pinnedA, bookmark: { updatedAt: 1 } },
+        { ...pinnedB, bookmark: { updatedAt: 2 } },
+        { ...context, bookmark: { updatedAt: 999 } },
+      ],
+      pinStorage
+    )
+    .map((row) => row.playlistId),
+  ['other', 'sleep', 'p']
+);
+core.movePin(pinStorage, pinnedA, -1);
+assert.equal(core.orderPlaylists([pinnedB, pinnedA], pinStorage)[0].playlistId, 'sleep');
+core.save(
+  pinStorage,
+  core.checkpoint(pinnedA, [{ entryId: 'entry', ratingKey: '1' }], 'entry', 99, 'session')
+);
+assert.equal(core.isPinned(pinStorage, pinnedA), true, 'Playback does not reset fixed positions');
+core.unpin(pinStorage, pinnedA);
+assert.equal(core.isPinned(pinStorage, pinnedA), false);
+assert.equal(core.load(pinStorage, pinnedA).offsetMs, 99, 'Unpin preserves resume progress');

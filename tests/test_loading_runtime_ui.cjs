@@ -106,6 +106,22 @@ vm.runInContext(fs.readFileSync('web/list-runtime.js', 'utf8'), context);
   await preview;
   assert.equal(vm.runInContext('smartReadyProposal', context), null);
   assert.equal(element('smart-ready-create').hidden, true);
+  element('smart-personal-limit').value = '50';
+  element('smart-personal-refresh').checked = true;
+  element('smart-comfort').onclick();
+  let personalBody;
+  context.api = async (path, body) => {
+    personalBody = body;
+    return { token: 'personal', items: [], skipped: {}, note: 'Personal preview' };
+  };
+  await element('smart-ready-preview').onclick({ target: element('smart-ready-preview') });
+  assert.equal(personalBody.kind, 'comfort');
+  assert.equal(personalBody.limit, 50);
+  assert.equal(personalBody.refresh, true);
+  assert.doesNotMatch(
+    element('smart-ready-status').textContent,
+    /undefined|Refresh watched progress/
+  );
   element('smart-favorites').onclick();
   assert.equal(context.favoritesOpened, true);
   console.log(

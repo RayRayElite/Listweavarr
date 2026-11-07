@@ -576,6 +576,7 @@ def public_state(state):
         "release_watchlist": state.get("release_watchlist", []),
         "release_region": state.get("release_region", "CA"),
         "explore_languages": state.get("explore_languages", []),
+        "explore_row_order": state.get("explore_row_order", []),
         "rating_preferences": ratings.preferences(state.get("rating_preferences")),
         "rating_sources": [
             {"source": k, "label": v[0], "maximum": v[1]}
@@ -3000,6 +3001,7 @@ class Handler(BaseHTTPRequestHandler):
             "/search.js": "search.js",
             "/list-runtime.js": "list-runtime.js",
             "/smart-lists.js": "smart-lists.js",
+            "/home-order.js": "home-order.js",
             "/issues.js": "issues.js",
             "/requests.js": "requests.js",
             "/workflow.js": "workflow.js",
@@ -4330,6 +4332,25 @@ class Handler(BaseHTTPRequestHandler):
                         entry = smart_lists.create(snapshot, body, normalize)
                         save_state(snapshot)
                         return self.respond({"entry": entry})
+                if body.get("kind", "ready") != "ready":
+                    smart_lists.recipe(snapshot, body)
+                    catalog, known = explore.library(
+                        snapshot["settings"],
+                        plex_catalog,
+                        refresh=body.get("refresh") is True,
+                    )
+                    if not known:
+                        raise ValueError(
+                            "Connect Plex before previewing personal recipes."
+                        )
+                    return self.respond(
+                        smart_lists.personal_preview(
+                            snapshot,
+                            body,
+                            catalog,
+                            lambda key: plex_leaves(snapshot["settings"], key),
+                        )
+                    )
                 return self.respond(smart_lists.preview(snapshot, body))
             if self.path == "/api/lists/runtime":
                 with LOCK:
@@ -4629,6 +4650,24 @@ class Handler(BaseHTTPRequestHandler):
             if self.path.startswith("/api/explore/"):
                 with LOCK:
                     snapshot = read_state()
+                if self.path == "/api/explore/row-order":
+                    order = body.get("order")
+                    if (
+                        not isinstance(order, list)
+                        or len(order) > 100
+                        or any(
+                            not isinstance(value, str)
+                            or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", value)
+                            for value in order
+                        )
+                        or len(set(order)) != len(order)
+                    ):
+                        raise ValueError("Choose up to 100 distinct Explore rows.")
+                    with LOCK:
+                        latest = read_state()
+                        latest["explore_row_order"] = order
+                        save_state(latest)
+                    return self.respond({"order": order})
                 if self.path == "/api/explore/preferences":
                     languages = explore.language_preferences(body.get("languages", []))
                     with LOCK:

@@ -204,7 +204,8 @@
       .lw-playlist-menu summary{list-style:none;cursor:pointer;border-radius:50%;background:#000b;color:#fff;width:32px;height:32px;text-align:center;font-size:24px;line-height:25px;opacity:0}
       .lw-playlist-menu summary::-webkit-details-marker{display:none}
       .lw-playlist-poster:hover .lw-playlist-menu summary,.lw-playlist-poster:focus-within .lw-playlist-menu summary,.lw-playlist-menu[open] summary{opacity:1}
-      .lw-playlist-menu-options{position:absolute;right:-7px;bottom:38px;width:var(--lw-poster-width,168px);background:#282828;border:1px solid #555;border-radius:6px;padding:6px;box-shadow:0 8px 24px #0009}
+      .lw-playlist-card[data-pinned=true] .lw-playlist-poster:before{content:'Pinned';position:absolute;left:6px;top:6px;z-index:2;padding:3px 6px;background:#000b;color:#e5a00d;border-radius:3px;font-size:11px;pointer-events:none}
+      .lw-playlist-menu-options{position:absolute;right:-7px;bottom:38px;width:var(--lw-poster-width,168px);max-height:calc(var(--lw-poster-height,252px) - 50px);overflow:auto;background:#282828;border:1px solid #555;border-radius:6px;padding:6px;box-shadow:0 8px 24px #0009}
       .lw-playlist-menu-options button,.lw-playlist-menu-options a{display:block;width:100%;border:0;background:none;color:#eee;text-align:left;padding:10px;font:inherit;cursor:pointer;text-decoration:none;border-radius:3px;box-sizing:border-box}
       .lw-playlist-menu-options button:hover,.lw-playlist-menu-options a:hover{background:#444;color:#e5a00d}
       .lw-playlist-editor{background:#252525;color:#eee;border:1px solid #555;border-radius:8px;padding:24px;width:420px;max-width:90vw;font:14px system-ui}
@@ -282,6 +283,7 @@
       }
     };
     function render() {
+      rows = core.orderPlaylists(rows, storage);
       releaseImages();
       section.replaceChildren();
       const header = document.createElement('header');
@@ -298,9 +300,21 @@
       status.setAttribute('role', 'status');
       section.append(header, cards, status);
       for (const selection of rows) {
-        const saved = core.load(storage, selection);
-        if (!saved || saved.dismissed) continue;
-        if (saved.completed && saved.entryNumber === saved.totalEntries) continue;
+        const actual = core.load(storage, selection),
+          pinned = core.isPinned(storage, selection);
+        if ((!actual || actual.dismissed) && !pinned) continue;
+        const finished = actual?.completed && actual.entryNumber === actual.totalEntries;
+        if (finished && !pinned) continue;
+        const saved =
+          actual && !finished
+            ? actual
+            : {
+                offsetMs: 0,
+                completed: false,
+                totalEntries: selection.count,
+                entryNumber: 0,
+                itemTitle: finished ? 'Finished / play again' : 'Start playlist',
+              };
         const article = document.createElement('article');
         article.className = 'lw-playlist-card';
         const cover = document.createElement('a');
@@ -314,8 +328,9 @@
         const play = document.createElement('button');
         play.type = 'button';
         play.className = 'lw-playlist-play';
-        play.setAttribute('aria-label', 'Resume ' + selection.title);
-        play.title = 'Resume playlist';
+        const playLabel = actual && !finished ? 'Resume' : 'Start';
+        play.setAttribute('aria-label', playLabel + ' ' + selection.title);
+        play.title = playLabel + ' playlist';
         const playSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         playSvg.setAttribute('viewBox', '0 0 24 24');
         playSvg.setAttribute('width', '24');
@@ -333,7 +348,7 @@
           play.disabled = true;
           status.textContent = 'Preparing playlist…';
           try {
-            const result = await api.start(selection, true);
+            const result = await api.start(selection, Boolean(actual) && !finished);
             status.textContent = 'Resuming ' + result.title;
           } catch (error) {
             status.textContent = error.message || 'Could not resume this playlist';
@@ -362,7 +377,8 @@
         const title = article.querySelector('h3'),
           titleLink = text('a', selection.title);
         titleLink.href = playlistHref(selection);
-        title.title = selection.title;
+        title.title = selection.title + (pinned ? ' (Pinned)' : '');
+        if (pinned) article.setAttribute('data-pinned', 'true');
         title.replaceChildren(titleLink);
         const metadata = article.querySelectorAll('p');
         const caption = metadata[0];
@@ -375,7 +391,7 @@
         if (saved.totalEntries) {
           const meter = document.createElement('progress');
           meter.max = saved.totalEntries;
-          meter.value = saved.entryNumber - 1;
+          meter.value = Math.max(0, saved.entryNumber - 1);
           meter.setAttribute('aria-label', 'Playlist items before this entry');
           article.append(meter);
         }
@@ -426,6 +442,7 @@
         remove.onclick = (event) => {
           event.preventDefault();
           event.stopPropagation();
+          core.unpin(storage, selection);
           core.dismiss(storage, selection);
           render();
         };
@@ -441,7 +458,33 @@
               if (other !== menu) other.open = false;
             }
         });
-        options.append(open, edit, remove);
+        const pin = text('button', pinned ? 'Unpin playlist' : 'Pin to front');
+        pin.type = 'button';
+        pin.onclick = (event) => {
+          event.preventDefault();
+          pinned ? core.unpin(storage, selection) : core.pin(storage, selection);
+          render();
+        };
+        options.append(open, edit, pin);
+        if (pinned) {
+          const index = core.pins(storage, selection).indexOf(core.storageKey(selection));
+          for (const [label, direction] of [
+            ['Move pin left', -1],
+            ['Move pin right', 1],
+          ]) {
+            const move = text('button', label);
+            move.type = 'button';
+            move.disabled =
+              direction < 0 ? index === 0 : index === core.pins(storage, selection).length - 1;
+            move.onclick = (event) => {
+              event.preventDefault();
+              core.movePin(storage, selection, direction);
+              render();
+            };
+            options.append(move);
+          }
+        }
+        options.append(remove);
         menu.append(trigger, options);
         poster.append(menu);
         cards.append(article);
@@ -473,9 +516,10 @@
       loading = true;
       dirty = false;
       try {
-        rows = (await api.playlists())
-          .filter((row) => row.bookmark)
-          .sort((a, b) => (b.bookmark.updatedAt || 0) - (a.bookmark.updatedAt || 0));
+        rows = core.orderPlaylists(
+          (await api.playlists()).filter((row) => row.bookmark || core.isPinned(storage, row)),
+          storage
+        );
         render();
         if (!rows.length && retries++ < 10) {
           clearTimeout(retryTimer);

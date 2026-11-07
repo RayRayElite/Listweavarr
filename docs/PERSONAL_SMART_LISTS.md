@@ -49,3 +49,46 @@ new live scan. The generated list starts unchecked so its normal Plex comparison
 verifies current availability. It preserves existing personal lists and has no
 automatic refresh. Newly-available-only history, persistent refresh rules,
 Finish something and Forgotten favorites remain follow-ups.
+
+## Catch-up and Comfort snapshots (November 6)
+
+The Smart lists picker now includes two more reviewed recipes:
+
+- **Catch up before it returns:** choose saved lists containing the shows to
+  follow. The preview checks actual playable, unwatched Plex episodes before a
+  known future season premiere within 180 days. Regular seasons only; watched
+  copies, specials, ignored titles and already-airing seasons are excluded.
+  Return dates use cached TMDB calendar/title metadata. Unknown dates do not
+  become guessed returns. Up to eight returning shows are checked per preview.
+- **Comfort rotation:** personal Plex ratings of 8+ or repeat plays, restricted
+  to chosen collections if desired. Explicit ratings below 6 are excluded.
+  Show episode totals are never counted as repeat plays. Results favor strong
+  personal ratings and replays, with older last-played dates breaking ties.
+
+Both offer 25/50/100/500 entries and create a uniquely named snapshot after a
+preview. They do not replace manual On Repeat, publish personal history, alter
+watched flags or update Plex playlists automatically. Refresh Plex snapshot is
+an explicit option. Previews expire after 15 minutes and are rejected if source
+lists, ignored titles or the connected Plex account changes. Main-app recipes
+still use the connected Plex account, not a selectable managed family profile.
+
+## Home customization
+
+Explore has **Arrange discovery rows**, with Up/Down, Save and Restore default.
+Optional rows retain their saved positions when loaded later. Filtering may
+hide a row without deleting its preference. This is a workspace preference,
+backed up with the other settings.
+
+Companion playlist cards now offer **Pin to front**, **Move pin left/right**
+and **Unpin**. Companion Settings also lists all playlists so a playlist can be
+pinned before first playback. Pins precede recent playlists, survive new
+checkpoints and are isolated by Plex profile on each client. Pin order is not
+currently synced between clients. Unpinning preserves resume progress;
+removing from Continue Playlists also unpins it. Finished pinned playlists
+remain as restartable shortcuts.
+
+Full native Plex Home row ordering is a separate remaining step. Plex exposes
+an internal HomeSettings/hubs model, but its applicability to current automatic
+Home rows and keyboard/remote navigation still needs live verification. The
+existing placement control changes Continue Playlists only; it is not a full
+native Home reorder feature.

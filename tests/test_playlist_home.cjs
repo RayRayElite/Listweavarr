@@ -378,6 +378,17 @@ class Element {
     elements.some((element) => element.textContent === 'Open companion settings'),
     'Dashboard entry is available within Plex Settings'
   );
+  const neverStarted = { ...first, playlistId: '44', title: 'On Repeat', count: 20 };
+  api.playlists = async () => [first, second, neverStarted];
+  core.pin(storage, neverStarted);
+  events.get('listweavarr-playlist-settings')();
+  while (timers.length) timers.shift()();
+  await new Promise(setImmediate);
+  const pinnedCard = homeSection.querySelector('.lw-playlist-card');
+  assert.equal(pinnedCard.querySelector('h3').textContent, 'On Repeat');
+  assert.equal(pinnedCard.attributes['data-pinned'], 'true');
+  assert.match(pinnedCard.querySelector('.lw-playlist-caption').textContent, /Start playlist/);
+  assert.equal(core.load(storage, neverStarted), null, 'Pinning never fabricates a checkpoint');
   disposeSettings();
   dispose();
   console.log(

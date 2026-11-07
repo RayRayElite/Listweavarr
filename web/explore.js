@@ -114,6 +114,7 @@ async function loadExploreHome(refresh = false) {
           )
           .join('')
       : '<div class="empty"><h2>No new matches at this rating level.</h2><p>Try the other media type or a lower minimum rating. Connect Plex and TMDB under Connections if needed.</p></div>';
+    window.applyExploreOrder?.(true);
     exploreSelection();
     loadExploreExtras(sequence, refresh);
   } catch (e) {
@@ -521,6 +522,8 @@ traktCalendar = async () => {
 let shelfContext = null,
   shelfSequence = 0;
 function closeExploreShelf() {
+  $('explore-ordered-rows').hidden = false;
+  $('explore-arrange').hidden = false;
   $('explore-extra-rows').hidden = false;
   ++shelfSequence;
   shelfContext = null;
@@ -528,6 +531,8 @@ function closeExploreShelf() {
   $('explore-home-rows').hidden = false;
 }
 async function openExploreShelf(id, name) {
+  $('explore-ordered-rows').hidden = true;
+  $('explore-arrange').hidden = true;
   $('explore-extra-rows').hidden = true;
   ++shelfSequence;
   shelfContext = {
@@ -623,6 +628,7 @@ async function loadExploreExtras(sequence, refresh = false) {
         `<div id="extra-shelf-${id}"><p class="muted" role="status">Finding ${id === 'cult' ? 'personalized picks from your curated list' : id === 'downloads_movies' ? 'TorrentFreak movie chart' : id === 'downloads_tv' ? 'popular recent TV shows from EZTV' : 'popular titles on your indexers'}...</p></div>`
     )
     .join('');
+  window.applyExploreOrder?.();
   await Promise.all(
     options.map(async (shelf) => {
       try {
@@ -638,6 +644,7 @@ async function loadExploreExtras(sequence, refresh = false) {
         $('extra-shelf-' + shelf).innerHTML =
           optionalShelfMarkup(row) +
           `<p class="muted explore-shelf-note">${esc((result.warnings || []).join(' '))}</p>`;
+        window.applyExploreOrder?.();
       } catch (e) {
         if (sequence === exploreHomeSequence)
           $('extra-shelf-' + shelf).innerHTML = `<p class="metadata-error">${esc(e.message)}</p>`;

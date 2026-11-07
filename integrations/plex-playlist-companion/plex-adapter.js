@@ -597,6 +597,7 @@
       playlists,
       poster,
       nativeTracking,
+      profile: userId,
       start,
       pause,
       status,

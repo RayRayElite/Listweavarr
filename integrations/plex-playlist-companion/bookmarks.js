@@ -114,6 +114,79 @@
     });
     root.dispatchEvent?.(new Event('listweavarr-playlist-progress'));
   }
+  function pinKey(context) {
+    return 'playlist-companion:pins:v1:' + required(context.userId, 'user');
+  }
+  function pins(storage, context) {
+    try {
+      const values = JSON.parse(storage.getItem(pinKey(context)) || '[]');
+      if (!Array.isArray(values)) return [];
+      return [
+        ...new Set(
+          values.filter((value) => {
+            if (typeof value !== 'string' || !value.startsWith('playlist-companion:v1:'))
+              return false;
+            try {
+              const [serverId, userId, playlistId] = JSON.parse(
+                value.slice('playlist-companion:v1:'.length)
+              );
+              return (
+                userId === context.userId && storageKey({ serverId, userId, playlistId }) === value
+              );
+            } catch {
+              return false;
+            }
+          })
+        ),
+      ].slice(0, 100);
+    } catch {
+      return [];
+    }
+  }
+  function isPinned(storage, context) {
+    return pins(storage, context).includes(storageKey(context));
+  }
+  function savePins(storage, context, values) {
+    storage.setItem(pinKey(context), JSON.stringify(values));
+    root.dispatchEvent?.(new Event('listweavarr-playlist-settings'));
+  }
+  function pin(storage, context) {
+    const key = storageKey(context),
+      list = pins(storage, context).filter((value) => value !== key);
+    if (list.length >= 100) throw new Error('Up to 100 playlists can be pinned.');
+    savePins(storage, context, [key, ...list]);
+    const bookmark = load(storage, context);
+    if (bookmark?.dismissed)
+      save(storage, {
+        ...bookmark,
+        dismissed: false,
+        updatedAt: Math.max(Date.now(), (bookmark.updatedAt || 0) + 1),
+      });
+  }
+  function unpin(storage, context) {
+    savePins(
+      storage,
+      context,
+      pins(storage, context).filter((value) => value !== storageKey(context))
+    );
+  }
+  function movePin(storage, context, direction) {
+    const list = pins(storage, context),
+      index = list.indexOf(storageKey(context)),
+      next = index + direction;
+    if (index < 0 || next < 0 || next >= list.length || ![-1, 1].includes(direction)) return;
+    [list[index], list[next]] = [list[next], list[index]];
+    savePins(storage, context, list);
+  }
+  function orderPlaylists(rows, storage) {
+    return [...rows].sort((a, b) => {
+      const left = pins(storage, a).indexOf(storageKey(a)),
+        right = pins(storage, b).indexOf(storageKey(b));
+      if (left >= 0 || right >= 0)
+        return (left < 0 ? Infinity : left) - (right < 0 ? Infinity : right);
+      return (b.bookmark?.updatedAt || 0) - (a.bookmark?.updatedAt || 0);
+    });
+  }
   function load(storage, context) {
     const text = storage.getItem(storageKey(context));
     if (!text) return null;
@@ -222,6 +295,12 @@
   const api = Object.freeze({
     checkpoint,
     dismiss,
+    pins,
+    isPinned,
+    pin,
+    unpin,
+    movePin,
+    orderPlaylists,
     reconcile,
     update,
     storageKey,

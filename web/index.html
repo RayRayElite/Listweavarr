@@ -1068,6 +1068,8 @@
               ><button id="explore-save-picks" class="primary" disabled>Save selected picks</button>
             </div>
           </div>
+          <button id="explore-arrange" class="secondary">Arrange discovery rows</button>
+          <div id="explore-ordered-rows"></div>
           <div id="explore-home-rows"></div>
           <div id="explore-extra-rows"></div>
           <section id="explore-shelf-page" hidden>
@@ -2135,6 +2137,20 @@ episode,Pilot,,,263365,1,1</pre
         ><button id="list-delete-confirm" class="primary">Delete saved list</button>
       </div>
     </dialog>
+    <dialog id="explore-order-dialog" aria-labelledby="explore-order-heading">
+      <h2 id="explore-order-heading">Arrange Explore rows</h2>
+      <p class="muted">
+        Choose the order that suits you. Optional sources keep their chosen slot when they finish
+        loading. New rows appear after your saved rows.
+      </p>
+      <div id="explore-order-rows"></div>
+      <p id="explore-order-status" role="status"></p>
+      <div class="dialog-actions">
+        <button id="explore-order-save" class="primary">Save row order</button
+        ><button id="explore-order-reset" class="secondary">Restore default</button
+        ><button class="secondary" data-close="explore-order-dialog">Cancel</button>
+      </div>
+    </dialog>
     <dialog id="smart-lists-dialog" aria-labelledby="smart-lists-heading">
       <h2 id="smart-lists-heading">Personal smart lists</h2>
       <p class="muted">
@@ -2149,13 +2165,36 @@ episode,Pilot,,,263365,1,1</pre
           ><span>Available movies and episodes from saved collections.</span>
         </button>
       </div>
+      <div class="smart-recipe-picker">
+        <button id="smart-catchup" class="secondary">
+          <strong>Catch up before it returns</strong
+          ><span>Unwatched episodes ahead of a known season return.</span></button
+        ><button id="smart-comfort" class="secondary">
+          <strong>Comfort rotation</strong
+          ><span>Familiar favourites from personal ratings and repeat plays.</span>
+        </button>
+      </div>
       <div id="smart-ready-options" hidden>
-        <h3>Choose source lists</h3>
+        <h3 id="smart-source-heading">Choose source lists</h3>
         <div id="smart-ready-sources"></div>
         <label class="preference-check"
           ><input id="smart-ready-unknown" type="checkbox" />Include titles with unknown watched
           status</label
-        ><button id="smart-ready-preview" class="secondary">Preview Ready list</button>
+        >
+        <div id="smart-personal-options" hidden>
+          <label
+            >Maximum entries<select id="smart-personal-limit">
+              <option>25</option>
+              <option selected>50</option>
+              <option>100</option>
+              <option>500</option>
+            </select></label
+          ><label class="preference-check"
+            ><input id="smart-personal-refresh" type="checkbox" />Refresh Plex library
+            snapshot</label
+          >
+        </div>
+        <button id="smart-ready-preview" class="secondary">Preview Ready list</button>
       </div>
       <p id="smart-ready-status" role="status"></p>
       <div id="smart-ready-results"></div>
@@ -2295,6 +2334,7 @@ episode,Pilot,,,263365,1,1</pre
     <script src="/search.js"></script>
     <script src="/list-runtime.js"></script>
     <script src="/smart-lists.js"></script>
+    <script src="/home-order.js"></script>
     <script src="/issues.js"></script>
     <script src="/access.js"></script>
     <script src="/notifications.js"></script>

@@ -129,3 +129,125 @@ class SmartListTests(unittest.TestCase):
         result = smart_lists.preview(state, {"sources": ["source", "second"]})
         self.assertEqual(len(result["items"]), 1)
         self.assertEqual(result["skipped"]["duplicate"], 1)
+
+
+class PersonalRecipesTests(unittest.TestCase):
+    def state(self):
+        return {
+            "settings": {"plex": {"url": "http://fixture", "key": "fixture"}},
+            "lists": [
+                {
+                    "id": "source",
+                    "name": "Followed shows",
+                    "items": [
+                        {
+                            "id": "show",
+                            "type": "show",
+                            "title": "Returning show",
+                            "tmdb": "10",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def test_comfort_personal_history_filters_and_review(self):
+        from unittest.mock import patch
+
+        state = self.state()
+        catalog = [
+            {
+                "type": "movie",
+                "title": "Loved",
+                "ids": {"tmdb": "1"},
+                "watched": True,
+                "user_rating": 9,
+                "view_count": 1,
+            },
+            {
+                "type": "movie",
+                "title": "Replay",
+                "ids": {"tmdb": "2"},
+                "watched": True,
+                "view_count": 3,
+            },
+            {
+                "type": "movie",
+                "title": "Disliked",
+                "ids": {"tmdb": "3"},
+                "watched": True,
+                "user_rating": 3,
+                "view_count": 8,
+            },
+            {
+                "type": "show",
+                "title": "Many episodes",
+                "ids": {"tmdb": "4"},
+                "watched": True,
+                "view_count": 0,
+                "viewed_leaf_count": 1000,
+            },
+        ]
+        body = {"kind": "comfort", "sources": [], "limit": 50}
+        with patch("providers.peek_tmdb", return_value={}):
+            result = smart_lists.personal_preview(state, body, catalog)
+        self.assertEqual([row["title"] for row in result["items"]], ["Loved", "Replay"])
+        created = smart_lists.create(
+            state, dict(body, token=result["token"], confirmed=True), app.normalize
+        )
+        self.assertEqual(created["name"], "Comfort rotation")
+        self.assertEqual(len(created["items"]), 2)
+        self.assertTrue(all(row["status"] == "unchecked" for row in created["items"]))
+        state["settings"]["plex"]["key"] = "other-profile"
+        with self.assertRaises(ValueError):
+            smart_lists.create(
+                state, dict(body, token=result["token"], confirmed=True), app.normalize
+            )
+
+    def test_catchup_known_season_return_reads_unwatched_owned_episodes(self):
+        import datetime
+        from unittest.mock import patch
+
+        state = self.state()
+        today = datetime.date(2026, 11, 6)
+        data = {
+            "name": "Returning show",
+            "status": "Returning Series",
+            "next_episode_to_air": {
+                "air_date": "2026-12-01",
+                "season_number": 3,
+                "episode_number": 1,
+            },
+            "last_episode_to_air": {"season_number": 2},
+        }
+        catalog = [{"type": "show", "key": "100", "ids": {"tmdb": "10"}}]
+        episodes = [
+            {"season": "0", "episode": "1", "watched": False},
+            {"season": "1", "episode": "1", "title": "Watched", "watched": True},
+            {"season": "2", "episode": "1", "title": "Catch me", "watched": False},
+            {"season": "3", "episode": "1", "watched": False},
+        ]
+        body = {"kind": "catchup", "sources": ["source"], "limit": 50}
+        with patch("providers.peek_tmdb", return_value=data):
+            result = smart_lists.personal_preview(
+                state, body, catalog, lambda key: episodes, today
+            )
+            self.assertEqual([row["title"] for row in result["items"]], ["Catch me"])
+            self.assertIn("2026-12-01", result["items"][0]["reason"])
+            self.assertEqual(result["skipped"]["watched"], 1)
+            data["status"] = "Canceled"
+            self.assertEqual(
+                smart_lists.personal_preview(
+                    state, body, catalog, lambda key: episodes, today
+                )["items"],
+                [],
+            )
+            data["status"] = "Returning Series"
+            data["next_episode_to_air"]["season_number"] = 2
+            data["next_episode_to_air"]["episode_number"] = 8
+            self.assertEqual(
+                smart_lists.personal_preview(
+                    state, body, catalog, lambda key: episodes, today
+                )["items"],
+                [],
+            )

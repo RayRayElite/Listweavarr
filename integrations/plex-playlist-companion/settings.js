@@ -174,6 +174,90 @@
     const positionNote = document.createElement('p');
     positionNote.textContent =
       'Placement is saved separately on each client. Plex can load more Home rows as you scroll; the companion follows the chosen position.';
+    const pinnedHeading = document.createElement('h3');
+    pinnedHeading.textContent = 'Pinned playlists';
+    const pinnedNote = document.createElement('p');
+    pinnedNote.textContent =
+      'Pins stay before recent playlists. Pin any playlist, then use Left/Right to choose its fixed slot. Saved per Plex profile on this client; pin order is not synced.';
+    const pinnedSearch = document.createElement('input');
+    pinnedSearch.type = 'search';
+    pinnedSearch.placeholder = 'Find a playlist to pin';
+    pinnedSearch.setAttribute('aria-label', 'Find a playlist to pin');
+    pinnedSearch.style.cssText =
+      'display:block;width:100%;box-sizing:border-box;padding:8px;background:#333;color:#eee';
+    const pinnedRows = document.createElement('div');
+    pinnedRows.style.cssText = 'max-height:240px;overflow:auto;margin-top:8px';
+    const pinnedStatus = document.createElement('p');
+    pinnedStatus.setAttribute('role', 'status');
+    let pinChoices = [],
+      pinSequence = 0;
+    function drawPins() {
+      const core = root.ListweavarrPlaylistCore;
+      pinnedRows.replaceChildren();
+      const query = pinnedSearch.value.trim().toLowerCase();
+      for (const scope of core
+        .orderPlaylists(pinChoices, localStorage)
+        .filter((row) => row.title.toLowerCase().includes(query))) {
+        const row = document.createElement('div');
+        row.style.cssText =
+          'display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #444';
+        const name = document.createElement('span');
+        name.textContent = scope.title;
+        name.style.flex = '1';
+        const pinned = core.isPinned(localStorage, scope),
+          index = core.pins(localStorage, scope).indexOf(core.storageKey(scope));
+        if (pinned) name.textContent = index + 1 + '. ' + scope.title;
+        row.append(name);
+        function action(label, change, disabled = false) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = label;
+          button.disabled = disabled;
+          button.setAttribute('aria-label', label + ' ' + scope.title);
+          button.style.cssText =
+            'padding:5px 8px;background:#383838;color:#eee;border:1px solid #555;border-radius:4px;cursor:pointer';
+          button.onclick = () => {
+            try {
+              if (api.profile && api.profile() !== scope.userId)
+                throw new Error('Plex profile changed. Reopen settings.');
+              change();
+              drawPins();
+              pinnedStatus.textContent = 'Saved for this Plex profile on this client.';
+            } catch (error) {
+              pinnedStatus.textContent = error.message;
+            }
+          };
+          row.append(button);
+        }
+        if (pinned) {
+          action('Left', () => core.movePin(localStorage, scope, -1), index === 0);
+          action(
+            'Right',
+            () => core.movePin(localStorage, scope, 1),
+            index === core.pins(localStorage, scope).length - 1
+          );
+          action('Unpin', () => core.unpin(localStorage, scope));
+        } else action('Pin', () => core.pin(localStorage, scope));
+        pinnedRows.append(row);
+      }
+    }
+    async function loadPins() {
+      const sequence = ++pinSequence,
+        profile = api.profile?.();
+      pinnedStatus.textContent = 'Loading playlists...';
+      try {
+        const choices = await api.playlists();
+        if (sequence !== pinSequence || (api.profile && api.profile() !== profile)) return;
+        pinChoices = choices;
+        drawPins();
+        pinnedStatus.textContent = choices.length
+          ? ''
+          : 'No video playlists available for this profile.';
+      } catch (error) {
+        pinnedStatus.textContent = error.message || 'Could not load playlists.';
+      }
+    }
+    pinnedSearch.oninput = drawPins;
     const appearance = document.createElement('section');
     appearance.append(
       label,
@@ -182,7 +266,12 @@
       placementLabel,
       rowLabel,
       positionNote,
-      positionStatus
+      positionStatus,
+      pinnedHeading,
+      pinnedNote,
+      pinnedSearch,
+      pinnedRows,
+      pinnedStatus
     );
     const connection = document.createElement('section');
     connection.append(note, input, progressLabel, progressNote, status, actions);
@@ -251,6 +340,7 @@
     document.body.append(dialog);
     state.openSettings = () => {
       if (!dialog.open) dialog.showModal();
+      loadPins();
     };
     // Make the same dashboard discoverable in Plex Settings, without replacing
     // native routes or changing their controls. Home's gear remains a shortcut.
@@ -318,6 +408,7 @@
     root.addEventListener('hashchange', schedule);
     attach();
     return () => {
+      ++pinSequence;
       clearTimeout(timer);
       observer.disconnect();
       root.removeEventListener('hashchange', schedule);
