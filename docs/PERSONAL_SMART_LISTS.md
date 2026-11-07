@@ -37,3 +37,15 @@ episode totals are not rewatch counts.
 Preview changes before updating lists. Linked Plex playlists still use the
 existing reviewed update flow. Available-now queues must exclude missing and
 upcoming titles. Never request downloads or mark titles watched automatically.
+
+
+## First delivery: Ready snapshot (November 6)
+
+The Smart lists picker now offers a reviewed Ready snapshot from saved sources.
+It selects available individual movies/episodes with known unwatched/in-progress
+history, optionally including unknown history, and deduplicates exact identities.
+It excludes show/season scopes and uses saved comparisons rather than claiming a
+new live scan. The generated list starts unchecked so its normal Plex comparison
+verifies current availability. It preserves existing personal lists and has no
+automatic refresh. Newly-available-only history, persistent refresh rules,
+Finish something and Forgotten favorites remain follow-ups.

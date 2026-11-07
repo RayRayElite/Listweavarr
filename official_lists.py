@@ -6,6 +6,7 @@ Reads bundled defaults, persists installed updates in the data directory and kee
 See docs/CODE_MAP.md for related modules, routes and contribution guidance.
 """
 import copy
+import snapshot_cache
 import list_categories
 import runtime_config
 import json
@@ -112,11 +113,7 @@ def document():
         # Preserve local artwork; fresh installations use the redistributable bundle.
         legacy = LEGACY_ROOT / "official-lists.json"
         path = legacy if legacy.exists() else BUNDLED_ROOT / "official-lists.json"
-    return (
-        json.loads(path.read_text("utf-8"))
-        if path.exists()
-        else {"version": 1, "lists": []}
-    )
+    return snapshot_cache.read(path, {"version": 1, "lists": []})
 
 
 def catalogue():

@@ -534,3 +534,42 @@ win over name-based defaults. Empty sections are labeled. Empty working lists
 are not automatically published. Favorites and On Repeat stay personal.
 
 See [Personal smart lists](PERSONAL_SMART_LISTS.md) for proposed recipes.
+
+
+## List watch length
+
+A watch-length line beside list availability totals the selected saved watch order,
+including movies, season scopes, whole shows and individual episodes. Search and
+availability filters do not redefine the collection's total. Whole shows exclude
+specials; explicit season 0 entries include them. Deliberate repeats and overlapping
+scopes count separately, matching the listed sequence.
+
+Initial totals read cached metadata only. Series-average estimates are labeled;
+partial totals say how many entries have incomplete runtime. Hover the total for
+source details. Metadata runtimes may differ from a particular file edition.
+**Fill runtime gaps** explicitly loads at most twenty missing TMDB metadata
+responses per click, keeping navigation available while it runs. No media is
+requested or marked watched.
+
+## Personal smart-list snapshots
+
+**My Lists / Smart lists** offers Favorites and **Ready from my lists**. Choose up
+to twenty saved sources and review the proposed Ready entries before creating.
+It uses saved Plex availability and watched checks, preserving source order and
+skipping exact duplicates, ignored titles, missing/upcoming content and broad
+show/season scopes. Refresh source watched progress when its history is unknown;
+including unknown watched status is an explicit option.
+
+Ready creates a separate personal snapshot with a unique name. Compare it with
+Plex to verify current availability before publishing a playlist. It does not
+reuse another source's cached Plex keys, overwrite On Repeat/Favorites, or refresh
+membership automatically. Continuous smart-list rules remain a future increment.
+
+## Faster browsing
+
+List posters load as separately cached private images instead of being embedded
+in every startup response. JSON responses use compression when supported. Parsed
+local snapshots are reused until the underlying file changes; each operation gets
+its own copy. Long list views render eighty entries at a time and load more while
+scrolling, with a Show more button as fallback. Search and Select all still cover
+the entire filtered list, including entries not yet drawn on screen.

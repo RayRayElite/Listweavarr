@@ -972,7 +972,7 @@ window.onListweavarrReady = () => {
   drawListCatalogue();
   if (!collectionsStarted) {
     collectionsStarted = true;
-    traktOpen();
+    if (!window.location.hash.startsWith('#/')) traktOpen();
   }
 };
 // A saved list selected from Explore should open the actual collection, not the catalogue.

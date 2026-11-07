@@ -146,3 +146,14 @@ curator publication carries an explicit validated category. Category-aware batch
 selection, cached rendering and linkable remembered sections are implemented.
 Personal smart-list recipes are proposals in PERSONAL_SMART_LISTS.md, not newly
 implemented automation. Favorites and manual On Repeat remain personal.
+
+
+## November 6: browsing, watch lengths and first Ready recipe
+
+Implemented private cached artwork delivery, compressed startup responses,
+filesystem-aware parsed snapshots and progressive long-list rendering. Added
+cache-first list watch lengths with estimates, unknown coverage and explicit
+bounded metadata fill. Added Ready from my lists as a reviewed personal snapshot
+recipe beside Favorites. Source checks are cached; creation requires a fresh
+normal Plex comparison before publication. Scheduled rule refresh and managed
+profile-specific smart-list workspaces remain pending.

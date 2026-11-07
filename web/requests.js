@@ -266,7 +266,7 @@ $('submit-requests').onclick = async (e) => {
 const readyBeforeRequests = window.onListweavarrReady;
 window.onListweavarrReady = () => {
   readyBeforeRequests?.();
-  readRequests().then(() => readRequests(true));
+  readRequests().then(() => setTimeout(() => readRequests(true), 6000));
 };
 if (typeof setInterval !== 'undefined')
   setInterval(() => {

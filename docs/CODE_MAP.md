@@ -207,3 +207,26 @@ for deployment and recovery; authentication remains off in existing local instal
 snapshots retain it. `web/lists.js` applies the same fallback to old cached feeds;
 card rendering and batch Select all share the section filter. Navigation records
 the section in the hash. Personal smart-list proposals are separate from delivery.
+
+
+## Browsing performance, watch lengths and smart snapshots
+
+- `artwork_cache.py`: bounded 64 MB in-memory image store. Public browsing state
+  and Official catalogue cards use immutable image URLs. The owner-protected
+  `/api/artwork/<digest>` route supplies private caching/ETags and can recover
+  URLs after a server restart. Editable originals, backups and exports retain
+  embedded art; no artwork migration or external hosting is involved.
+- `snapshot_cache.py`: filesystem-identity cache of parsed JSON, bounded to two
+  paths. Returns deep copies; atomic replacements, external edits and corruption
+  retain their previous read/validation behavior.
+- `Handler.respond`: compact JSON and negotiated gzip with explicit lengths;
+  dynamic API responses remain no-store. `web/app.js` renders long list windows
+  without changing full-list filtering, ordering or batch selection.
+- `list_runtime.py`: cached metadata expansion for movie/show/season/episode
+  scopes, with separate exact/estimated/unknown coverage. Explicit gap filling is
+  bounded to twenty provider calls and runs outside the state lock.
+  `web/list-runtime.js` guards stale responses and repeated renders.
+- `smart_lists.py`: pure Ready preview, source/account fingerprint and confirmed
+  creation. `web/smart-lists.js` reuses Favorites behind one picker and invalidates
+  reviews when selections change. Creation assigns fresh IDs and unchecked
+  availability. Private recipe provenance never enters shared list exports.

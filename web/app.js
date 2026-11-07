@@ -1101,6 +1101,53 @@ function renderListUpdates() {
       ? `<p class="metadata-error">${esc(list.collection_attention)} <button class="secondary" data-review-collection="${esc(list.id)}">Review collection</button></p>`
       : '');
 }
+// Render long episode orders progressively; selections and filters still use every entry.
+let entryWindowKey = '',
+  entryWindowLimit = 80,
+  entryWindowTotal = 0,
+  entryWindowObserver = null,
+  entryWindowGeneration = 0;
+function renderEntryWindow(items) {
+  const key = JSON.stringify([
+    active,
+    filter,
+    $('search').value,
+    $('year-from').value,
+    $('year-to').value,
+    $('sort').value,
+    typeof selectedCuratedOrder === 'function' ? selectedCuratedOrder() : '',
+  ]);
+  if (entryWindowKey !== key) {
+    entryWindowKey = key;
+    entryWindowLimit = 80;
+  }
+  entryWindowTotal = items.length;
+  return (
+    items.slice(0, entryWindowLimit).map(row).join('') +
+    (items.length > entryWindowLimit
+      ? `<button class="secondary list-more" data-list-more>Show more entries (${Math.min(entryWindowLimit, items.length)} of ${items.length})</button>`
+      : '')
+  );
+}
+function loadMoreListEntries() {
+  if (entryWindowLimit >= entryWindowTotal) return;
+  entryWindowLimit += 80;
+  render();
+}
+function observeEntryWindow() {
+  entryWindowObserver?.disconnect();
+  const generation = ++entryWindowGeneration,
+    more = $('entries').querySelector?.('[data-list-more]');
+  if (!more || typeof IntersectionObserver !== 'function') return;
+  entryWindowObserver = new IntersectionObserver(
+    (records) => {
+      if (generation === entryWindowGeneration && records.some((record) => record.isIntersecting))
+        loadMoreListEntries();
+    },
+    { rootMargin: '500px' }
+  );
+  entryWindowObserver.observe(more);
+}
 function render() {
   const all = state.lists.flatMap((l) => l.items);
   $('list-count').textContent = state.lists.length;
@@ -1129,12 +1176,13 @@ function render() {
       ? renderScopeOverview(items, $('view').value)
       : $('view').value === 'group'
         ? renderGroups(items)
-        : items.map(row).join('');
+        : renderEntryWindow(items);
   $('source-note').title = (current()?.warnings || []).join('\n');
   renderListUpdates();
   window.renderTraktSavedInfo?.();
   updateSelection();
   observeMetadata();
+  observeEntryWindow();
   metadataHealth();
 }
 let workspacePanel = 'workspace',
@@ -2317,6 +2365,10 @@ $('title-add').onclick = () => {
 };
 $('review-top').onclick = () => $('review').click();
 $('entries').onclick = (e) => {
+  if (e.target.closest('[data-list-more]')) {
+    loadMoreListEntries();
+    return;
+  }
   const retry = e.target.closest('[data-retry-metadata]');
   if (retry) {
     const item = current()?.items.find((i) => i.id === retry.dataset.retryMetadata);

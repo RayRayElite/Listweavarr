@@ -68,6 +68,23 @@ vm.runInContext(
 );
 
 (async () => {
+  vm.runInContext(
+    `globalThis.beforeWindowItems=current().items;current().items=Array.from({length:1000},(_,i)=>({id:'window-'+i,type:'movie',title:'Movie '+i,status:'missing'}));entryWindowKey='';`,
+    context
+  );
+  const windowMarkup = vm.runInContext('renderEntryWindow(current().items)', context);
+  assert.equal((windowMarkup.match(/data-entry=/g) || []).length, 80);
+  assert.match(windowMarkup, /80 of 1000/);
+  vm.runInContext(`filter='missing';$('select-all').onchange({target:{checked:true}});`, context);
+  assert.equal(
+    vm.runInContext('selected.size', context),
+    1000,
+    'Batch selection covers unloaded rows'
+  );
+  vm.runInContext(
+    `current().items=beforeWindowItems;selected.clear();filter='all';entryWindowKey='';`,
+    context
+  );
   const markup = vm.runInContext('row(current().items[0])', context);
   assert.match(markup, /data-add="movie"/);
   assert.match(markup, /Add to Radarr/);

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /* Curated orders, native links and focused discovery decisions. */
 const apiBeforeSelectedOrder = api;
-api = async function (path, body = {}) {
+api = async function (path, body = {}, ...options) {
   if (['playlist/preview', 'playlist/create'].includes(path) && body.watch_order === undefined)
     body = { ...body, watch_order: selectedCuratedOrder() || null };
-  return apiBeforeSelectedOrder(path, body);
+  return apiBeforeSelectedOrder(path, body, ...options);
 };
 const CURATED_ORDER_NAMES = {
   recommended: 'Recommended',

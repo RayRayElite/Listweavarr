@@ -316,5 +316,6 @@ $('request-decision-confirm').onclick = (e) =>
 const readyBeforeWorkflow = window.onListweavarrReady;
 window.onListweavarrReady = () => {
   readyBeforeWorkflow?.();
-  loadWorkflowSettings();
+  if (window.location.hash.startsWith('#/settings')) loadWorkflowSettings();
+  else setTimeout(loadWorkflowSettings, 3000);
 };

@@ -395,7 +395,8 @@ window.onListweavarrReady = () => {
   readyBeforeReleaseWatch?.();
   $('release-region').value = state.release_region || 'CA';
   renderReleaseWatchlist();
-  checkReleaseWatchlist();
+  if (window.location.hash.includes('/watchlist')) checkReleaseWatchlist();
+  else setTimeout(checkReleaseWatchlist, 10000);
 };
 if (typeof setInterval !== 'undefined')
   setInterval(

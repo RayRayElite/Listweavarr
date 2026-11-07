@@ -6,6 +6,11 @@ Owns state persistence, session checks, Plex/manager actions and API routing. Ke
 See docs/CODE_MAP.md for related modules, routes and contribution guidance.
 """
 import copy
+import gzip
+import artwork_cache
+import snapshot_cache
+import list_runtime
+import smart_lists
 import errno
 import os
 import runtime_config
@@ -564,7 +569,7 @@ def public_state(state):
     auth = state.get("plex_auth", {})
     return {
         "curator_mode": runtime_config.curator_enabled(),
-        "lists": state["lists"],
+        "lists": artwork_cache.project(state["lists"]),
         "taste_feedback": state.get("taste_feedback", {}),
         "companion_preferences": state.get("companion_preferences", {}),
         "ignored_titles": state.get("ignored_titles", []),
@@ -755,11 +760,7 @@ def connect_plex_server(state, server_id, override=""):
 
 def read_state():
     """Read the private workspace, applying compatible defaults without exporting credentials."""
-    return (
-        json.loads((DATA / "state.json").read_text("utf-8"))
-        if (DATA / "state.json").exists()
-        else {"settings": {}, "lists": []}
-    )
+    return snapshot_cache.read(DATA / "state.json", {"settings": {}, "lists": []})
 
 
 def save_state(state, backup=True):
@@ -767,7 +768,7 @@ def save_state(state, backup=True):
     DATA.mkdir(exist_ok=True)
     current = DATA / "state.json"
     if current.exists() and backup:
-        previous = json.loads(current.read_text("utf-8"))
+        previous = read_state()
         if backups.export(previous)["data"] != backups.export(state)["data"]:
             backups.rolling(DATA / "backups", previous)
     temp = DATA / "state.tmp"
@@ -2792,8 +2793,21 @@ class Handler(BaseHTTPRequestHandler):
         pass  # Avoid logging credentials or imported content.
 
     def respond(self, value, status=200, cookie=None):
-        raw = json.dumps(value).encode()
+        raw = json.dumps(value, separators=(",", ":")).encode()
+        encoding = self.headers.get("Accept-Encoding", "")
+        accepts_gzip = any(
+            part.split(";", 1)[0].strip() == "gzip"
+            and not re.search(r";\s*q=0(?:\.0*)?\s*$", part)
+            for part in encoding.split(",")
+        )
+        compressed = accepts_gzip and len(raw) >= 8192
+        if compressed:
+            raw = gzip.compress(raw, compresslevel=3, mtime=0)
         self.send_response(status)
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Vary", "Accept-Encoding")
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
         if cookie:
@@ -2905,6 +2919,30 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(
                     {"error": "Sign in to continue.", "code": "auth_required"}, 401
                 )
+        if self.path.startswith("/api/artwork/"):
+            key = self.path[len("/api/artwork/") :]
+            image = artwork_cache.get(key)
+            if image is None and re.fullmatch(r"[a-f0-9]{64}", key):
+                # Existing browser URLs survive process restarts without publishing artwork.
+                artwork_cache.project(read_state()["lists"])
+                image = artwork_cache.get(key)
+                if image is None:
+                    artwork_cache.project(official_lists.document().get("lists", []))
+                    image = artwork_cache.get(key)
+            if image is None:
+                return self.respond({"error": "Artwork not available."}, 404)
+            tag = '"' + key + '"'
+            self.send_response(304 if self.headers.get("If-None-Match") == tag else 200)
+            self.send_header("Cache-Control", "private, max-age=31536000, immutable")
+            self.send_header("ETag", tag)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Type", image[0])
+            if self.headers.get("If-None-Match") != tag:
+                self.send_header("Content-Length", str(len(image[1])))
+            self.end_headers()
+            if self.headers.get("If-None-Match") != tag:
+                self.wfile.write(image[1])
+            return
         if self.path == "/api/session":
             return self.respond({"csrf": SESSION})
         if self.path == "/api/state":
@@ -2960,6 +2998,8 @@ class Handler(BaseHTTPRequestHandler):
             "/sign-in.js": "sign-in.js",
             "/access.js": "access.js",
             "/search.js": "search.js",
+            "/list-runtime.js": "list-runtime.js",
+            "/smart-lists.js": "smart-lists.js",
             "/issues.js": "issues.js",
             "/requests.js": "requests.js",
             "/workflow.js": "workflow.js",
@@ -4283,6 +4323,39 @@ class Handler(BaseHTTPRequestHandler):
                         ]
                     }
                 )
+            if self.path in ("/api/smart-lists/preview", "/api/smart-lists/create"):
+                with LOCK:
+                    snapshot = read_state()
+                    if self.path.endswith("/create"):
+                        entry = smart_lists.create(snapshot, body, normalize)
+                        save_state(snapshot)
+                        return self.respond({"entry": entry})
+                return self.respond(smart_lists.preview(snapshot, body))
+            if self.path == "/api/lists/runtime":
+                with LOCK:
+                    snapshot = read_state()
+                entry = next(
+                    (
+                        row
+                        for row in snapshot["lists"]
+                        if row["id"] == body.get("list_id")
+                    ),
+                    None,
+                )
+                if not entry:
+                    raise ValueError("Choose a saved list.")
+                items = (
+                    companion.paths(entry, {"mode": body["watch_order"]})[0]
+                    if body.get("watch_order")
+                    else entry["items"]
+                )
+                result = (
+                    list_runtime.fill(items, snapshot["settings"])
+                    if body.get("fill") is True
+                    else list_runtime.summarize(items)
+                )
+                result["missing_paths"] = len(result["missing_paths"])
+                return self.respond(result)
             if self.path == "/api/lists/revision":
                 with LOCK:
                     state = read_state()
@@ -4585,7 +4658,9 @@ class Handler(BaseHTTPRequestHandler):
                         }
                     )
                 if self.path == "/api/explore/official":
-                    return self.respond(official_lists.catalogue())
+                    catalogue = official_lists.catalogue()
+                    catalogue["lists"] = artwork_cache.project(catalogue["lists"])
+                    return self.respond(catalogue)
                 if self.path == "/api/explore/official/feed-check":
                     url = catalogue_feed.configured_source(snapshot)
                     if not url:

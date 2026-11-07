@@ -144,6 +144,12 @@
               <h1 id="active-name">My lists</h1>
               <p id="list-context" class="muted">Choose a collection to explore.</p>
               <div id="list-availability" class="list-availability"></div>
+              <div id="list-runtime" class="list-runtime" aria-live="polite">
+                <span id="list-runtime-summary"></span
+                ><button id="list-runtime-fill" class="text-action" hidden>
+                  Fill runtime gaps
+                </button>
+              </div>
               <button id="list-review-missing" class="primary" hidden>Review missing titles</button>
             </div>
             <div class="workspace-switch">
@@ -2129,6 +2135,36 @@ episode,Pilot,,,263365,1,1</pre
         ><button id="list-delete-confirm" class="primary">Delete saved list</button>
       </div>
     </dialog>
+    <dialog id="smart-lists-dialog" aria-labelledby="smart-lists-heading">
+      <h2 id="smart-lists-heading">Personal smart lists</h2>
+      <p class="muted">
+        Create a reviewed snapshot for the connected Plex account. Existing lists and Plex playlists
+        stay unchanged.
+      </p>
+      <div class="smart-recipe-picker">
+        <button id="smart-favorites" class="secondary">
+          <strong>Favorites</strong><span>Your highly rated and repeat watches.</span></button
+        ><button id="smart-ready" class="secondary">
+          <strong>Ready from my lists</strong
+          ><span>Available movies and episodes from saved collections.</span>
+        </button>
+      </div>
+      <div id="smart-ready-options" hidden>
+        <h3>Choose source lists</h3>
+        <div id="smart-ready-sources"></div>
+        <label class="preference-check"
+          ><input id="smart-ready-unknown" type="checkbox" />Include titles with unknown watched
+          status</label
+        ><button id="smart-ready-preview" class="secondary">Preview Ready list</button>
+      </div>
+      <p id="smart-ready-status" role="status"></p>
+      <div id="smart-ready-results"></div>
+      <div class="dialog-actions">
+        <button id="smart-ready-create" class="primary" hidden disabled>
+          Create personal snapshot</button
+        ><button class="secondary" data-close="smart-lists-dialog">Cancel</button>
+      </div>
+    </dialog>
     <dialog id="favorites-dialog">
       <h2>Favorites from your Plex history</h2>
       <p class="muted">
@@ -2257,6 +2293,8 @@ episode,Pilot,,,263365,1,1</pre
     <script src="/audit-workflows.js"></script>
     <script src="/discovery-updates.js"></script>
     <script src="/search.js"></script>
+    <script src="/list-runtime.js"></script>
+    <script src="/smart-lists.js"></script>
     <script src="/issues.js"></script>
     <script src="/access.js"></script>
     <script src="/notifications.js"></script>

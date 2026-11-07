@@ -32,6 +32,7 @@ PRIVATE_KEYS = {
     "notification_channels",
     "notification_outboxes",
     "library_issues",
+    "smart_snapshot",
 }
 
 
