@@ -64,6 +64,31 @@ class ProgressTests(unittest.TestCase):
                 self.exchange([self.row, invalid])
             self.assertEqual(self.state, before)
 
+    def test_pin_order_tombstones_scope_and_atomic_validation(self):
+        record = dict(
+            serverId="server", userId="alice", updatedAt=1000, playlistIds=["7"]
+        )
+        body = dict(scopes=[self.scope], items=[], pins=[record])
+        self.assertEqual(progress.merge(self.state, body)["pins"], [record])
+        empty = dict(record, updatedAt=2000, playlistIds=[])
+        progress.merge(self.state, dict(body, pins=[empty]))
+        self.assertEqual(progress.merge(self.state, body)["pins"], [empty])
+        self.assertEqual(
+            progress.merge(
+                self.state, dict(scopes=[dict(self.scope, userId="bob")], items=[])
+            )["pins"],
+            [],
+        )
+        for invalid in (
+            dict(record, playlistIds=["unknown"]),
+            dict(record, userId="bob"),
+            dict(record, playlistIds=["7", "7"]),
+        ):
+            before = copy.deepcopy(self.state)
+            with self.assertRaises(ValueError):
+                progress.merge(self.state, dict(body, items=[self.row], pins=[invalid]))
+            self.assertEqual(self.state, before)
+
     def test_artwork_token_does_not_grant_write_access(self):
         self.assertFalse(progress.authorize(self.state, "Bearer art"))
         self.assertTrue(progress.authorize(self.state, "Bearer progress"))

@@ -48,7 +48,7 @@ def browser_folder(source, output):
 
 def main():
     folder = ROOT / "integrations/plex-playlist-companion"
-    output = ROOT / "releases/Listweavarr-Playlist-Companion-0.4.0.zip"
+    output = ROOT / "releases/Listweavarr-Playlist-Companion-0.4.1.zip"
     output.parent.mkdir(exist_ok=True)
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
         for name in FILES:
@@ -61,7 +61,7 @@ def main():
         hashlib.sha256(output.read_bytes()).hexdigest() + "  " + output.name + "\n"
     )
     browser = browser_folder(folder, ROOT / "releases/Playlist-Companion-Chrome")
-    browser_zip = output.with_name("Listweavarr-Playlist-Companion-Chrome-0.4.0.zip")
+    browser_zip = output.with_name("Listweavarr-Playlist-Companion-Chrome-0.4.1.zip")
     with zipfile.ZipFile(browser_zip, "w", zipfile.ZIP_DEFLATED) as archive:
         for name in (*BROWSER_FILES, "LICENSE"):
             archive.write(browser / name, name)

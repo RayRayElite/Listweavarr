@@ -7,7 +7,7 @@
   const core = globalThis.ListweavarrPlaylistCore;
   if (!core) return;
   const state = {
-    version: '0.4.0-development',
+    version: '0.4.1-development',
     platform: location.protocol === 'file:' ? 'desktop' : 'web',
     automaticTracking: false,
     resumeAdapter: false,

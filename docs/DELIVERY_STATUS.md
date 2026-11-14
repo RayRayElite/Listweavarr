@@ -157,3 +157,27 @@ bounded metadata fill. Added Ready from my lists as a reviewed personal snapshot
 recipe beside Favorites. Source checks are cached; creation requires a fresh
 normal Plex comparison before publication. Scheduled rule refresh and managed
 profile-specific smart-list workspaces remain pending.
+
+
+## November 14: Companion Home order and synchronized pins
+
+Companion 0.4.1 adds a per-profile editor for the native Plex Home rows loaded on
+that client. It preserves React ownership, reorders sibling hubs, and applies a reversible
+visual-order layer across Plex's separate Continue Watching/recommendation
+containers. Continue Playlists placement remains separate; ambiguous and
+absolute-positioned rows are skipped. Sequential Tab order across containers
+can remain native. Default order can be restored. It is opt-in;
+untouched clients retain Plex's own ordering. Keyboard/remote navigation and
+React refresh behavior still require live acceptance on the installed client.
+
+Pin order now exchanges through the existing opt-in progress capability, scoped
+to server/profile. New clients read first, old local pins migrate once, and
+empty orders are durable tombstones. Newer local edits during a request win over
+older responses. Older clients retain bookmark compatibility. Cross-server pin
+interleaving and native Home order remain client-local.
+
+Validation: 510 Python tests passed, plus Companion bookmark/Home/sync/features/
+safety Node checks. The source package excludes private state and Plex assets.
+Live installation completed. Initial live checks exposed the client's split
+row containers; fixtures now cover that structure. Final manual layout
+acceptance is still pending.

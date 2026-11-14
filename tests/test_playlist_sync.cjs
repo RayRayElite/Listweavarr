@@ -75,6 +75,36 @@ const core = require('../integrations/plex-playlist-companion/bookmarks.js');
     })
     .sync();
   assert.equal(core.load(storage, scope).offsetMs, 200);
+  // A new device reads pins; local unpin creates a durable empty order.
+  let responsePins = [{ serverId: 's', userId: 'u', updatedAt: 1000, playlistIds: ['p'] }];
+  let sentPins;
+  const pinSync = core.createSync(storage, player, async (_url, options) => {
+    sentPins = JSON.parse(options.body).pins;
+    return { ok: true, json: async () => ({ schema: 1, items: [], pins: responsePins }) };
+  });
+  await pinSync.sync();
+  assert.equal(sentPins.length, 0);
+  assert.equal(core.isPinned(storage, scope), true);
+  core.unpin(storage, scope);
+  await pinSync.sync();
+  assert.deepEqual(sentPins[0].playlistIds, []);
+  assert.equal(
+    core.isPinned(storage, scope),
+    false,
+    'Old server pins cannot resurrect local unpin'
+  );
+  const stamp = sentPins[0].updatedAt;
+  responsePins = [{ serverId: 's', userId: 'u', updatedAt: stamp + 1, playlistIds: ['p'] }];
+  await pinSync.sync();
+  assert.equal(core.isPinned(storage, scope), true);
+  // In-flight pin edits must beat the response that started before the edit.
+  await core
+    .createSync(storage, player, async () => {
+      core.unpin(storage, scope);
+      return { ok: true, json: async () => ({ schema: 1, items: [], pins: responsePins }) };
+    })
+    .sync();
+  assert.equal(core.isPinned(storage, scope), false);
   storage.setItem('playlist-companion:sync-enabled', 'false');
   await sync.sync();
   assert.equal(calls, 1);

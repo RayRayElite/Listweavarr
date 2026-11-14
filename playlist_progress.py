@@ -55,6 +55,35 @@ def merge(state, body):
         ):
             raise ValueError("Invalid bookmark timestamp or completion")
         incoming.append((key, row))
+    # Pin order is a separate profile/server document. Empty orders are retained
+    # as tombstones so an offline client cannot resurrect removed pins.
+    pin_rows = body.get("pins", [])
+    if not isinstance(pin_rows, list) or len(pin_rows) > 100:
+        raise ValueError("Invalid pin orders")
+    incoming_pins = {}
+    for record in pin_rows:
+        if not isinstance(record, dict):
+            raise ValueError("Invalid pin order")
+        scope = (record.get("serverId"), record.get("userId"))
+        stamp = record.get("updatedAt")
+        ids = record.get("playlistIds")
+        if (
+            not any(key[:2] == scope for key in allowed)
+            or type(stamp) is not int
+            or not 0 < stamp <= now + 300000
+            or not isinstance(ids, list)
+            or len(ids) > 100
+            or any(
+                not isinstance(value, str) or (*scope, value) not in allowed
+                for value in ids
+            )
+            or len(set(ids)) != len(ids)
+            or scope in incoming_pins
+        ):
+            raise ValueError("Pin order outside scope")
+        incoming_pins[scope] = dict(
+            serverId=scope[0], userId=scope[1], updatedAt=stamp, playlistIds=ids
+        )
     saved = state.setdefault("playlist_progress", {})
     for key, row in incoming:
         encoded = json.dumps(key)
@@ -62,8 +91,26 @@ def merge(state, body):
         # Playback timestamps, not request arrival, resolve offline/retry conflicts.
         if previous is None or row["updatedAt"] > previous["updatedAt"]:
             saved[encoded] = row
+    pin_store = state.setdefault("playlist_pins", {})
+    for scope, record in incoming_pins.items():
+        encoded = json.dumps(scope)
+        previous = pin_store.get(encoded)
+        if previous is None or record["updatedAt"] > previous["updatedAt"]:
+            pin_store[encoded] = record
     return {
         "schema": 1,
+        "pins": [
+            dict(
+                record,
+                playlistIds=[
+                    value
+                    for value in record["playlistIds"]
+                    if (record["serverId"], record["userId"], value) in allowed
+                ],
+            )
+            for record in pin_store.values()
+            if any(key[:2] == (record["serverId"], record["userId"]) for key in allowed)
+        ],
         "items": [
             row
             for row in saved.values()

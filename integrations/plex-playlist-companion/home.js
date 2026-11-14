@@ -166,6 +166,96 @@
     const container = findHomeContainer(document);
     return container ? { container, before: container.firstChild, hub: null } : null;
   }
+  // Move complete sibling hubs, never their virtualized cards. Unknown or
+  // absolutely positioned layouts are left untouched. Keeping real DOM order
+  // also keeps sequential keyboard focus aligned with what is displayed.
+  function nativeRows(document, view = root) {
+    const container = findHomeContainer(document);
+    if (!container) return [];
+    const hubs = Array.from(
+      document.querySelectorAll('[class*="VirtualHubScroller-hub-"], [class*="Hub-hub-"]')
+    ).filter((hub) => !hub.closest?.('.lw-playlist-home'));
+    const rows = hubs.flatMap((element) => {
+      const heading = element.querySelector('h1,h2,h3,[role="heading"]');
+      const key = (heading?.textContent || heading?.getAttribute?.('aria-label') || '').trim();
+      const wrappers = [];
+      let ancestor = element.parentElement;
+      while (ancestor && ancestor !== container) {
+        wrappers.push(ancestor);
+        ancestor = ancestor.parentElement;
+      }
+      if (
+        ancestor !== container ||
+        !key ||
+        key.length > 300 ||
+        (element.getClientRects && !element.getClientRects().length) ||
+        ['absolute', 'fixed'].includes(view.getComputedStyle?.(element).position)
+      )
+        return [];
+      return [{ element, key, container, wrappers }];
+    });
+    const names = new Map();
+    for (const row of rows) names.set(row.key, (names.get(row.key) || 0) + 1);
+    return rows.filter((row) => names.get(row.key) === 1);
+  }
+  function applyNativeOrder(rows, order) {
+    const rank = new Map(order.map((key, index) => [key, index]));
+    const groups = new Map();
+    for (const row of rows) {
+      const parent = row.element.parentElement;
+      if (!groups.has(parent)) groups.set(parent, []);
+      groups.get(parent).push(row);
+    }
+    // Preserve React ownership: reorder siblings only. Cross-container visual
+    // ordering is handled by a reversible flex/display:contents layer below.
+    for (const [parent, group] of groups) {
+      const sorted = [...group].sort(
+        (a, b) => (rank.get(a.key) ?? 10000) - (rank.get(b.key) ?? 10000)
+      );
+      for (let index = 0; index < sorted.length; index++) {
+        const live = Array.from(parent.children).filter((element) =>
+          group.some((row) => row.element === element)
+        );
+        if (live[index] !== sorted[index].element)
+          parent.insertBefore(sorted[index].element, live[index]);
+      }
+    }
+  }
+  function nativeVisualOrder(rows, order) {
+    if (!rows.length) return { restore() {}, rank: new Map() };
+    const rank = new Map(order.map((key, index) => [key, index]));
+    const sorted = [...rows].sort(
+      (a, b) => (rank.get(a.key) ?? 10000) - (rank.get(b.key) ?? 10000)
+    );
+    const positions = new Map(sorted.map((row, index) => [row.key, index * 2]));
+    const originals = [];
+    const seen = new Map();
+    function set(element, key, value) {
+      if (!seen.has(element)) seen.set(element, new Set());
+      if (!seen.get(element).has(key)) {
+        originals.push([element, key, element.style.getPropertyValue(key)]);
+        seen.get(element).add(key);
+      }
+      element.style.setProperty(key, value);
+    }
+    set(rows[0].container, 'display', 'flex');
+    set(rows[0].container, 'flex-direction', 'column');
+    for (const row of rows) {
+      for (const wrapper of row.wrappers) set(wrapper, 'display', 'contents');
+      set(row.element, 'order', String(positions.get(row.key)));
+      set(row.element, 'flex-shrink', '0');
+    }
+    return {
+      rank: positions,
+      restore() {
+        for (const [element, key, value] of originals) {
+          if (value) element.style.setProperty(key, value);
+          else if (element.style.removeProperty) element.style.removeProperty(key);
+          else element.style.setProperty(key, '');
+        }
+      },
+    };
+  }
   function mount(api, core, storage) {
     console.info('[Listweavarr Playlist Companion] home component mounted');
     const section = document.createElement('section');
@@ -214,6 +304,147 @@
       .lw-playlist-editor input[type=file]{display:none!important}
     `;
     document.head.append(style);
+    const nativeDefaults = new WeakMap();
+    let nativeSequence = 0,
+      reordered = false,
+      nativeVisual = null;
+    const orderDialog = document.createElement('dialog');
+    orderDialog.className = 'lw-playlist-editor';
+    orderDialog.setAttribute('aria-label', 'Arrange Plex Home rows');
+    orderDialog.style.cssText = 'width:600px;max-height:80vh;overflow:auto';
+    document.body.append(orderDialog);
+    const orderStorageKey = () => 'playlist-companion:home-order:v1:' + (api.profile?.() || '');
+    function nativeOrder() {
+      try {
+        const value = JSON.parse(storage.getItem(orderStorageKey()) || '[]');
+        return Array.isArray(value) &&
+          value.length <= 100 &&
+          value.every((key) => typeof key === 'string' && key.length <= 300)
+          ? value
+          : [];
+      } catch {
+        return [];
+      }
+    }
+    function orderedNativeRows() {
+      const found = nativeRows(document);
+      for (const row of found)
+        if (!nativeDefaults.has(row.element)) nativeDefaults.set(row.element, nativeSequence++);
+      return found.sort((a, b) => nativeDefaults.get(a.element) - nativeDefaults.get(b.element));
+    }
+    root.ListweavarrPlaylistHome.openOrder = () => {
+      if (!isHome(location.hash)) {
+        location.hash = '#!/';
+        return false;
+      }
+      const rows = nativeRows(document);
+      if (!rows.length)
+        console.info(
+          '[Listweavarr Playlist Companion] native row scan ' +
+            JSON.stringify({
+              container: findHomeContainer(document)?.className || '',
+              candidates: Array.from(document.querySelectorAll(ROW_SELECTOR))
+                .slice(0, 25)
+                .map((element) => ({
+                  cls: element.className,
+                  parent: element.parentElement?.className,
+                  heading: !!element.querySelector('h1,h2,h3,[role="heading"]'),
+                  keyLength: (
+                    element.querySelector('h1,h2,h3,[role="heading"]')?.textContent || ''
+                  ).trim().length,
+                  rects: element.getClientRects().length,
+                  nested: !!element.parentElement?.closest?.(ROW_SELECTOR),
+                  position: root.getComputedStyle?.(element).position,
+                })),
+              headingParents: Array.from(document.querySelectorAll('h2'))
+                .filter((element) => !element.closest?.('.lw-playlist-home'))
+                .slice(0, 8)
+                .map((element) => ({
+                  parent: element.parentElement?.className,
+                  grandparent: element.parentElement?.parentElement?.className,
+                })),
+            })
+        );
+      const profile = api.profile?.() || '';
+      const savedPositions = new Map(nativeOrder().map((key, index) => [key, index]));
+      let draft = [...rows]
+        .sort((a, b) => (savedPositions.get(a.key) ?? 10000) - (savedPositions.get(b.key) ?? 10000))
+        .map((row) => row.key);
+      function draw() {
+        orderDialog.replaceChildren();
+        const heading = document.createElement('h2');
+        heading.textContent = 'Arrange Plex Home rows';
+        const note = document.createElement('p');
+        note.textContent = rows.length
+          ? 'Reorder the loaded native rows. Scroll Home to load more rows first. New rows follow saved rows. Continue Playlists uses its separate placement setting. Saved per profile on this client. Rows keep their Plex containers; sequential Tab navigation across Continue Watching can retain the native Plex order.'
+          : 'No identifiable Home rows loaded yet. Close this window and let Home finish loading. Unnamed, duplicate and unsupported rows are left unchanged.';
+        orderDialog.append(heading, note);
+        draft.forEach((key, index) => {
+          const line = document.createElement('div');
+          line.style.cssText =
+            'display:flex;align-items:center;gap:8px;border-bottom:1px solid #444';
+          const label = document.createElement('span');
+          label.style.flex = '1';
+          label.textContent = key;
+          line.append(label);
+          for (const [name, delta] of [
+            ['Up', -1],
+            ['Down', 1],
+          ]) {
+            const button = document.createElement('button');
+            button.textContent = name;
+            button.disabled = index + delta < 0 || index + delta >= draft.length;
+            button.setAttribute('aria-label', name + ' ' + key);
+            button.onclick = () => {
+              [draft[index], draft[index + delta]] = [draft[index + delta], draft[index]];
+              draw();
+            };
+            line.append(button);
+          }
+          orderDialog.append(line);
+        });
+        for (const [name, action] of [
+          [
+            'Save order',
+            () => {
+              if ((api.profile?.() || '') !== profile) {
+                note.textContent = 'Profile changed. Reopen this window.';
+                return;
+              }
+              const previous = nativeOrder();
+              storage.setItem(
+                orderStorageKey(),
+                JSON.stringify([...draft, ...previous.filter((key) => !draft.includes(key))])
+              );
+              orderDialog.close();
+              schedule();
+            },
+          ],
+          [
+            'Restore default',
+            () => {
+              storage.setItem(orderStorageKey(), '[]');
+              applyNativeOrder(
+                orderedNativeRows(),
+                orderedNativeRows().map((row) => row.key)
+              );
+              orderDialog.close();
+              schedule();
+            },
+          ],
+          ['Cancel', () => orderDialog.close()],
+        ]) {
+          const button = document.createElement('button');
+          button.textContent = name;
+          button.disabled = name === 'Save order' && !rows.length;
+          button.onclick = action;
+          orderDialog.append(button);
+        }
+      }
+      draw();
+      orderDialog.showModal();
+      return true;
+    };
     let disposed = false,
       loading = false,
       dirty = true,
@@ -540,8 +771,23 @@
       section.style.setProperty('--lw-poster-height', width * posterMultiplier(storage) + 'px');
       if (diagnosticCount < 3) layoutDiagnostic();
       if (!isHome(location.hash)) {
+        nativeVisual?.restore();
+        nativeVisual = null;
         section.remove();
         return;
+      }
+      const native = orderedNativeRows();
+      const preference = nativeOrder();
+      nativeVisual?.restore();
+      nativeVisual = null;
+      section.style.setProperty('order', '');
+      if (preference.length) {
+        applyNativeOrder(native, preference);
+        nativeVisual = nativeVisualOrder(native, preference);
+        reordered = true;
+      } else if (reordered) {
+        applyNativeOrder(native, []);
+        reordered = false;
       }
       const placement = findHomePlacement(document, rowPreference(storage));
       if (
@@ -558,6 +804,18 @@
       ) {
         placement.container.insertBefore(section, placement.before);
         console.info('[Listweavarr Playlist Companion] Continue Playlists row attached');
+      }
+      if (nativeVisual) {
+        const sorted = [...nativeVisual.rank.entries()].sort((a, b) => a[1] - b[1]);
+        const pref = rowPreference(storage);
+        let position = -1;
+        if (pref.mode === 'bottom') position = sorted.length * 2 + 1;
+        else if (pref.mode === 'after-row')
+          position = (sorted[Math.min(sorted.length - 1, pref.index - 1)]?.[1] ?? -2) + 1;
+        else if (pref.mode === 'after-continue')
+          position = (nativeVisual.rank.get('Continue Watching') ?? -2) + 1;
+        section.style.setProperty('order', String(position));
+        section.style.setProperty('flex-shrink', '0');
       }
       if (section.isConnected && dirty) refresh();
       if (section.isConnected && (placement?.reference || placement?.hub))
@@ -632,6 +890,9 @@
       section.remove();
       style.remove();
       editDialog.remove();
+      orderDialog.remove();
+      nativeVisual?.restore();
+      delete root.ListweavarrPlaylistHome.openOrder;
     };
   }
   if (typeof module !== 'undefined' && module.exports)
@@ -644,6 +905,9 @@
       nativeRowMetrics,
       mount,
       rowPreference,
+      nativeRows,
+      applyNativeOrder,
+      nativeVisualOrder,
       posterMultiplier,
     };
   else root.ListweavarrPlaylistHome = { mount, rowPreference };

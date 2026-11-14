@@ -148,7 +148,44 @@
   }
   function savePins(storage, context, values) {
     storage.setItem(pinKey(context), JSON.stringify(values));
+    const servers = new Set([
+      context.serverId,
+      ...values.map((value) => JSON.parse(value.slice('playlist-companion:v1:'.length))[0]),
+    ]);
+    for (const serverId of servers) {
+      const key = pinStampKey({ ...context, serverId });
+      storage.setItem(key, String(Math.max(Date.now(), Number(storage.getItem(key) || 0) + 1)));
+    }
     root.dispatchEvent?.(new Event('listweavarr-playlist-settings'));
+  }
+  function pinStampKey(scope) {
+    return 'playlist-companion:pin-stamp:v1:' + JSON.stringify([scope.serverId, scope.userId]);
+  }
+  function pinDocuments(storage, scopes) {
+    const groups = new Map();
+    for (const scope of scopes) groups.set(JSON.stringify([scope.serverId, scope.userId]), scope);
+    return [...groups.values()].flatMap((scope) => {
+      const playlistIds = pins(storage, scope)
+        .map((value) => JSON.parse(value.slice('playlist-companion:v1:'.length)))
+        .filter(
+          ([server, user, id]) =>
+            server === scope.serverId &&
+            user === scope.userId &&
+            scopes.some(
+              (row) => row.serverId === server && row.userId === user && row.playlistId === id
+            )
+        )
+        .map((row) => row[2]);
+      let updatedAt = Number(storage.getItem(pinStampKey(scope)) || 0);
+      // Migrate existing non-empty local pins once; a new empty device only reads.
+      if (!updatedAt && playlistIds.length) {
+        updatedAt = Date.now();
+        storage.setItem(pinStampKey(scope), String(updatedAt));
+      }
+      return updatedAt
+        ? [{ serverId: scope.serverId, userId: scope.userId, updatedAt, playlistIds }]
+        : [];
+    });
   }
   function pin(storage, context) {
     const key = storageKey(context),
@@ -262,7 +299,7 @@
               Authorization: 'Bearer ' + cfg.progressToken,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ scopes, items }),
+            body: JSON.stringify({ scopes, items, pins: pinDocuments(storage, scopes) }),
           },
           10000
         );
@@ -282,6 +319,42 @@
           const scratch = { getItem: () => JSON.stringify(row) };
           if (!load(scratch, row)) continue;
           save(storage, row);
+          changed = true;
+        }
+        for (const record of data.pins || []) {
+          const scope = current.find(
+            (row) => row.serverId === record.serverId && row.userId === record.userId
+          );
+          if (
+            !scope ||
+            !Number.isSafeInteger(record.updatedAt) ||
+            record.updatedAt <= Number(storage.getItem(pinStampKey(scope)) || 0) ||
+            !Array.isArray(record.playlistIds) ||
+            record.playlistIds.length > 100 ||
+            new Set(record.playlistIds).size !== record.playlistIds.length ||
+            record.playlistIds.some(
+              (id) =>
+                !current.some(
+                  (row) =>
+                    row.serverId === record.serverId &&
+                    row.userId === record.userId &&
+                    row.playlistId === id
+                )
+            )
+          )
+            continue;
+          const otherServers = pins(storage, scope).filter(
+            (value) =>
+              JSON.parse(value.slice('playlist-companion:v1:'.length))[0] !== record.serverId
+          );
+          storage.setItem(
+            pinKey(scope),
+            JSON.stringify([
+              ...record.playlistIds.map((playlistId) => storageKey({ ...scope, playlistId })),
+              ...otherServers,
+            ])
+          );
+          storage.setItem(pinStampKey(scope), String(record.updatedAt));
           changed = true;
         }
         if (changed) globalThis.dispatchEvent?.(new Event('listweavarr-playlist-progress'));

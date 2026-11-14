@@ -62,7 +62,7 @@
     progress.checked = localStorage.getItem('playlist-companion:sync-enabled') === 'true';
     progressLabel.append(
       progress,
-      'Sync playlist progress and chosen posters between paired devices'
+      'Sync playlist progress, pins and chosen posters between paired devices'
     );
     const progressNote = document.createElement('p');
     progressNote.textContent =
@@ -178,7 +178,7 @@
     pinnedHeading.textContent = 'Pinned playlists';
     const pinnedNote = document.createElement('p');
     pinnedNote.textContent =
-      'Pins stay before recent playlists. Pin any playlist, then use Left/Right to choose its fixed slot. Saved per Plex profile on this client; pin order is not synced.';
+      'Pins stay before recent playlists. Pin any playlist, then use Left/Right to choose its fixed slot. Saved per Plex profile; enable Connection & sync to share pin order between paired clients.';
     const pinnedSearch = document.createElement('input');
     pinnedSearch.type = 'search';
     pinnedSearch.placeholder = 'Find a playlist to pin';
@@ -222,7 +222,8 @@
                 throw new Error('Plex profile changed. Reopen settings.');
               change();
               drawPins();
-              pinnedStatus.textContent = 'Saved for this Plex profile on this client.';
+              pinnedStatus.textContent =
+                'Saved for this Plex profile. Shared when syncing is enabled.';
             } catch (error) {
               pinnedStatus.textContent = error.message;
             }
@@ -258,6 +259,17 @@
       }
     }
     pinnedSearch.oninput = drawPins;
+    const arrangeHome = document.createElement('button');
+    arrangeHome.textContent = 'Arrange all Plex Home rows';
+    arrangeHome.style.cssText =
+      'background:#333;color:#eee;border:1px solid #666;border-radius:4px;padding:10px;cursor:pointer';
+    arrangeHome.onclick = () => {
+      dialog.close();
+      if (!root.ListweavarrPlaylistHome.openOrder?.()) {
+        location.hash = '#!/';
+        setTimeout(() => root.ListweavarrPlaylistHome.openOrder?.(), 1500);
+      }
+    };
     const appearance = document.createElement('section');
     appearance.append(
       label,
@@ -267,6 +279,7 @@
       rowLabel,
       positionNote,
       positionStatus,
+      arrangeHome,
       pinnedHeading,
       pinnedNote,
       pinnedSearch,

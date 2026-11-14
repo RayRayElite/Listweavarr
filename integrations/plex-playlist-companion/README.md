@@ -195,3 +195,33 @@ than guessing by title or using global watched flags.
 ### Card options
 
 The poster's bottom-right three-dot menu opens the playlist, edits its poster or removes it from Continue Playlists. Removal preserves its resume bookmark and Plex playlist. It syncs as a timestamped dismissal for the same profile when progress sync is enabled; starting the playlist again restores its card. Update both paired clients to honor dismissals.
+
+
+### Home order and pins (0.4.1)
+
+Settings > Playlist companion > Appearance > Arrange all Plex Home rows opens
+an Up/Down editor for loaded native Home rows. Scroll Home first to load more.
+Save applies to this client/profile; Restore default returns to the original
+observed order. Continue Playlists keeps its separate placement setting. Newly
+appearing rows follow saved rows. No Home reordering occurs until explicitly
+saved. Unnamed/loading, duplicate and absolute/fixed rows are skipped.
+
+Plex renders Continue Watching separately from its recommendation group. The
+adapter reorders sibling hubs inside their existing parents, then uses a
+reversible flex/display-contents layer for cross-container visual order. It
+never reparents a React-owned hub. Default restoration, leaving Home or disabling
+the Companion removes the layout styles. Sequential Tab navigation across the
+Continue Watching boundary can retain native DOM order; remote-arrow behavior
+requires live acceptance. This is a client-side visual preference, not a change
+to Plex server recommendations.
+
+Pin any playlist in Appearance or the card menu, and move pins left/right.
+Unpin preserves the resume position. Finished pinned playlists stay available
+as restartable shortcuts. With Connection & sync enabled, pin order shares the
+existing progress pairing and ten-second polling interval. Each server/profile
+has its own order. Empty orders are timestamped so stale offline clients cannot
+resurrect removed pins. A new empty device reads the server order; legacy local
+pins migrate once. Concurrent edits use latest timestamps (correct device clocks
+matter). Cross-server interleaving of pinned positions is client-local. Plex
+Home row order itself is client-local. Update the Listweavarr server and both
+clients for pin syncing; older clients continue syncing bookmarks normally.

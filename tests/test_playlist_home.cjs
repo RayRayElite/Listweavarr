@@ -196,6 +196,74 @@ class Element {
     nativeRows[1]
   );
   assert.equal(home.findHomePlacement(nativeDocument).hub, nativeRows[0]);
+  const placeholder = new Element('div');
+  placeholder.className = 'VirtualHubScroller-hub-EpgwMo';
+  page.append(placeholder);
+  const outside = new Element('div');
+  outside.className = 'HubCell-hubCell-fixture';
+  fixture.append(outside);
+  // Live Plex wraps each lazy row in a separate anonymous direct child.
+  const wrappedPage = new Element('div');
+  wrappedPage.className = 'PageContent-pageContentScroller-live Scroller-scroller-live';
+  const wrappedBody = new Element('body');
+  wrappedBody.append(wrappedPage);
+  const wrappers = ['First', 'Second'].map((label) => {
+    const wrapper = new Element('div'),
+      hub = new Element('div'),
+      heading = new Element('h2');
+    hub.className = 'VirtualHubScroller-hub-live';
+    heading.textContent = label;
+    hub.append(heading);
+    wrapper.append(hub);
+    wrappedPage.append(wrapper);
+    return wrapper;
+  });
+  const wrappedDocument = {
+    querySelector: (selector) => wrappedBody.querySelector(selector),
+    querySelectorAll: (selector) => wrappedBody.querySelectorAll(selector),
+  };
+  const wrappedRows = home.nativeRows(wrappedDocument);
+  assert.equal(wrappedRows.length, 2, 'Individually wrapped lazy rows remain identifiable');
+  home.applyNativeOrder(wrappedRows, ['Second', 'First']);
+  assert.deepEqual(wrappedPage.children, wrappers, 'Never move wrappers across React ownership');
+  const visual = home.nativeVisualOrder(wrappedRows, ['Second', 'First']);
+  assert.equal(wrappers[0].style.getPropertyValue('display'), 'contents');
+  assert.equal(wrappers[1].children[0].style.getPropertyValue('order'), '0');
+  assert.equal(wrappers[0].children[0].style.getPropertyValue('order'), '2');
+  visual.restore();
+  assert.equal(wrappers[0].style.getPropertyValue('display'), '');
+  assert.equal(wrappedPage.style.getPropertyValue('display'), '');
+  assert.equal(
+    wrappers[0].children[0].parentElement,
+    wrappers[0],
+    'Never move a hub across its React wrapper'
+  );
+  const nativeSnapshot = home.nativeRows(nativeDocument);
+  assert.equal(
+    nativeSnapshot.length,
+    3,
+    'Unnamed placeholders and unrelated widgets do not hide known rows'
+  );
+  placeholder.remove();
+  outside.remove();
+  home.applyNativeOrder(nativeSnapshot, ['Native row 2', 'Continue Watching', 'Native row 1']);
+  assert.deepEqual(page.children, [nativeRows[2], nativeRows[0], nativeRows[1]]);
+  assert.equal(
+    nativeRows[0].querySelectorAll('.HubCell-hubCell-fixture').length,
+    1,
+    'Native cards stay attached'
+  );
+  home.applyNativeOrder(nativeSnapshot, []);
+  assert.deepEqual(
+    page.children,
+    nativeRows,
+    'Restoring the observed default retains original row nodes'
+  );
+  assert.equal(
+    home.nativeRows(nativeDocument, { getComputedStyle: () => ({ position: 'absolute' }) }).length,
+    0
+  );
+
   const body = new Element('body'),
     head = new Element('head'),
     container = new Element('main');
@@ -292,7 +360,10 @@ class Element {
     await play.onclick({ preventDefault() {}, stopPropagation() {} });
     const edit = poster.children.find((child) => child.className === 'lw-playlist-edit');
     edit.onclick({ preventDefault() {}, stopPropagation() {} });
-    assert.equal(elements.find((element) => element.tagName === 'DIALOG').open, true);
+    assert.equal(
+      elements.find((element) => element.attributes['aria-label'] === 'Edit playlist poster').open,
+      true
+    );
     assert.equal(card.children[2].className, 'lw-playlist-caption');
     assert.equal(card.children[3].className, 'lw-playlist-position');
   }

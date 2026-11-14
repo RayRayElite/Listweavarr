@@ -82,13 +82,13 @@ backed up with the other settings.
 Companion playlist cards now offer **Pin to front**, **Move pin left/right**
 and **Unpin**. Companion Settings also lists all playlists so a playlist can be
 pinned before first playback. Pins precede recent playlists, survive new
-checkpoints and are isolated by Plex profile on each client. Pin order is not
-currently synced between clients. Unpinning preserves resume progress;
+checkpoints and are isolated by Plex profile on each client. Pin order syncs per server/profile when Connection & sync is enabled on paired clients. Unpinning preserves resume progress;
 removing from Continue Playlists also unpins it. Finished pinned playlists
 remain as restartable shortcuts.
 
-Full native Plex Home row ordering is a separate remaining step. Plex exposes
-an internal HomeSettings/hubs model, but its applicability to current automatic
-Home rows and keyboard/remote navigation still needs live verification. The
-existing placement control changes Continue Playlists only; it is not a full
-native Home reorder feature.
+Companion 0.4.1 adds an opt-in editor for loaded native Plex Home rows. It reorders
+sibling rows without changing React ownership and uses a reversible visual-order
+layer across separate native containers. Continue Playlists placement is separate. Restore
+default uses the original observed order; unknown layouts are declined. Native
+Home ordering is saved per profile/client and is not synced. Live acceptance
+and keyboard/remote navigation checks remain separate from automated tests.
