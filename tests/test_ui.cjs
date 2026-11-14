@@ -40,7 +40,7 @@ const context = vm.createContext({
     querySelectorAll: () => [],
     querySelector: (selector) => element('query:' + selector),
   },
-  window: { location: { hash: '', pathname: '/' } },
+  window: { location: { hash: '', pathname: '/' }, addEventListener() {} },
   localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
   fetch: () => new Promise(() => {}),
   setTimeout: () => 1,

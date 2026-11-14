@@ -41,6 +41,7 @@ Plex login forwards back to LISTWEAVARR_PUBLIC_URL. Set it before authorizing wh
 | LISTWEAVARR_PUBLIC_URL | Browser-visible HTTP(S) origin; no path or credentials |
 | LISTWEAVARR_ALLOWED_HOSTS | Additional exact host[:port] values, comma separated |
 | LISTWEAVARR_OPEN_BROWSER | 1 locally; 0 in Docker |
+| LISTWEAVARR_OWNER_PLEX_ID | Optional numeric household owner account ID; enables Plex Home sign-in |
 | LISTWEAVARR_OWNER_PASSWORD_FILE | Optional private password-file path; enables owner sign-in |
 | LISTWEAVARR_CURATOR_MODE | 0; 1 enables local Official authoring, not hosted identity |
 | LISTWEAVARR_OVERLAY_DIR | Optional folder containing status-top-left and network-top-left user assets |

@@ -1369,6 +1369,11 @@ $('activity-list-select').onchange = (e) => {
 let settingsTab = 'preferences';
 function selectSettingsTab(name) {
   if (
+    state.active_profile?.role === 'member' &&
+    ['requests', 'notifications', 'backups'].includes(name)
+  )
+    name = 'preferences';
+  if (
     !['preferences', 'connections', 'requests', 'notifications', 'access', 'backups'].includes(name)
   )
     return;
@@ -1436,6 +1441,9 @@ function renderPlex() {
   $('plex-connected').textContent = cfg.configured
     ? `Connected to ${cfg.server_name || 'Plex'} · ${cfg.url}`
     : 'No server selected yet.';
+  $('plex-libraries').textContent = cfg.libraries?.length
+    ? 'Accessible libraries: ' + cfg.libraries.join(' / ')
+    : '';
   $('plex-signin').textContent = login.signed_in
     ? 'Sign in with another account'
     : 'Sign in with Plex';
@@ -1444,6 +1452,11 @@ function renderPlex() {
   $('plex-check-login').hidden = !login.pending;
   $('plex-test').hidden = !cfg.configured;
   if (!login.signed_in) $('plex-server-picker').hidden = true;
+  if (state.active_profile?.role === 'member') {
+    $('plex-signin').hidden = true;
+    $('plex-check-login').hidden = true;
+    $('plex-test').hidden = true;
+  }
 }
 function renderArr() {
   $('connection-fields').innerHTML =

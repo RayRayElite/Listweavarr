@@ -142,3 +142,14 @@ profile-scoped synced dismissals.
 Plex-backed primary owner authentication is a separate pending increment; the
 optional password-file owner gate remains the current fallback. These changes
 do not enable household workspace accounts or cross-platform client patches.
+
+
+### November 14: household sign-in increment
+
+Plex-backed sign-in now reuses one account authorization for library discovery,
+then verifies a Plex Home profile/PIN before creating its scoped app session.
+Member workspaces, Plex history reads, smart-list inputs and import jobs are
+isolated. The existing owner workspace remains intact; global service controls
+remain owner-only. Explicit UI activation and operator configuration are both
+supported. Household download approvals and profile background scheduling remain
+separate next increments; this is not public self-registration.

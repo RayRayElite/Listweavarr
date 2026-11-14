@@ -35,6 +35,8 @@
           aria-label="Search titles and lists (Control K)"
         >
           <span aria-hidden="true">&#8981;</span> Search <kbd>Ctrl K</kbd></button
+        ><button id="profile-switch" class="secondary" hidden title="Switch Plex Home profile">
+          Choose profile</button
         ><span class="local">● &nbsp; LOCAL SESSION</span>
       </header>
       <section id="workspace">
@@ -590,6 +592,7 @@
             <h2>Plex</h2>
             <p id="plex-account" class="muted"></p>
             <p id="plex-connected" class="footnote"></p>
+            <p id="plex-libraries" class="footnote"></p>
             <div class="plex-buttons">
               <button id="plex-signin" class="primary" type="button">Sign in with Plex</button
               ><button id="plex-check-login" class="secondary" type="button" hidden>
@@ -829,13 +832,20 @@
             <p id="owner-access-status" class="muted" role="status">Checking access mode...</p>
             <p class="muted">
               Optional single-owner sign-in is enabled by the installation operator using
-              LISTWEAVARR_OWNER_PASSWORD_FILE. It leaves existing local installations unchanged
-              until configured.
+              LISTWEAVARR_OWNER_PLEX_ID or LISTWEAVARR_OWNER_PASSWORD_FILE. It leaves existing local
+              installations unchanged until configured.
             </p>
             <p class="muted">
               Sessions last seven days and survive server restarts. Change the password file and
               restart to sign all devices out. Recovery preserves your lists and integrations.
             </p>
+            <button id="owner-plex-id-find" class="secondary">
+              Find connected Plex account ID
+            </button>
+            <button id="owner-plex-enable" class="primary" hidden>
+              Enable Plex household sign-in
+            </button>
+            <p id="owner-plex-id-result" class="footnote" role="status"></p>
             <button id="owner-sign-out" class="secondary" hidden>Sign out of this browser</button>
             <p class="footnote">
               For remote access, use HTTPS and configure LISTWEAVARR_PUBLIC_URL to match the public

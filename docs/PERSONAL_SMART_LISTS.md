@@ -69,8 +69,8 @@ Both offer 25/50/100/500 entries and create a uniquely named snapshot after a
 preview. They do not replace manual On Repeat, publish personal history, alter
 watched flags or update Plex playlists automatically. Refresh Plex snapshot is
 an explicit option. Previews expire after 15 minutes and are rejected if source
-lists, ignored titles or the connected Plex account changes. Main-app recipes
-still use the connected Plex account, not a selectable managed family profile.
+lists, ignored titles or the connected Plex account changes. In local access mode recipes use the connected account. With Plex Home access
+enabled, recipes use the verified selected profile and its isolated workspace.
 
 ## Home customization
 

@@ -13,13 +13,17 @@ _lock = threading.RLock()
 _cache = OrderedDict()
 
 
-def read(path, default):
+def read(path, default, fields=None):
     try:
         stat = path.stat()
     except FileNotFoundError:
         with _lock:
             _cache.pop(str(path.resolve()), None)
-        return copy.deepcopy(default)
+        return copy.deepcopy(
+            {key: default[key] for key in fields if key in default}
+            if fields is not None
+            else default
+        )
     key = str(path.resolve())
     stamp = (stat.st_mtime_ns, stat.st_size, stat.st_ino)
     with _lock:
@@ -36,4 +40,8 @@ def read(path, default):
             _cache.move_to_end(key)
             while len(_cache) > 2:
                 _cache.popitem(last=False)
+    if fields is not None:
+        if not isinstance(value, dict):
+            raise ValueError("Workspace must contain a JSON object.")
+        return copy.deepcopy({key: value[key] for key in fields if key in value})
     return copy.deepcopy(value)

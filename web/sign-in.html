@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sign in ? Listweavarr</title>
+    <title>Sign in &middot; Listweavarr</title>
     <style>
       :root {
         color-scheme: dark;
@@ -70,6 +70,21 @@
         font-size: 13px;
         margin-top: 24px;
       }
+      a {
+        color: #66e0df;
+      }
+      #profile-choices {
+        display: grid;
+        gap: 10px;
+      }
+      #profile-choices button {
+        background: #263c51;
+        color: #f3f6fc;
+        border: 1px solid #61728b;
+      }
+      [hidden] {
+        display: none !important;
+      }
       #status {
         min-height: 24px;
       }
@@ -86,7 +101,38 @@
       <span class="brand">LISTWEAVARR</span>
       <h1>Welcome back.</h1>
       <p>Sign in to your library workspace.</p>
-      <form id="sign-in">
+      <section id="plex-sign-in" hidden>
+        <button id="plex-start" type="button">Sign in with Plex</button>
+        <p>
+          <a
+            id="plex-link"
+            href="https://app.plex.tv/"
+            target="_blank"
+            rel="noopener noreferrer"
+            hidden
+            >Continue on Plex</a
+          >
+        </p>
+        <button id="plex-check" type="button" hidden>Check sign-in</button>
+      </section>
+      <section id="home-profiles" hidden aria-label="Plex Home profiles">
+        <h2>Who is watching?</h2>
+        <div id="profile-choices"></div>
+        <form id="profile-pin-form" hidden>
+          <label id="profile-pin-label" for="profile-pin">Profile PIN</label>
+          <input
+            id="profile-pin"
+            type="password"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="12"
+          />
+          <button id="profile-submit" type="submit">Use this profile</button>
+        </form>
+        <p>Personal watch history, taste and lists follow the selected profile.</p>
+      </section>
+      <p id="plex-status" role="status" aria-live="polite"></p>
+      <form id="sign-in" hidden>
         <label for="password">Owner password</label
         ><input
           id="password"
@@ -98,7 +144,7 @@
         /><button id="submit" type="submit">Sign in</button>
         <p id="status" role="status" aria-live="polite"></p>
       </form>
-      <details>
+      <details id="password-recovery" hidden>
         <summary>Forgot the password?</summary>
         <p>
           The installation owner can replace the password in the configured owner password file,

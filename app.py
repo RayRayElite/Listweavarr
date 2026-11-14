@@ -40,6 +40,9 @@ import ignored_titles
 import discord_notify
 import notification_channels
 import owner_access
+import plex_owner
+import profile_workspace
+import contextvars
 import unified_search
 import issue_notebook
 import manager_routes
@@ -75,6 +78,7 @@ DATA = runtime_config.DATA_DIR
 LOCK = threading.Lock()
 SESSION = secrets.token_urlsafe(32)
 OWNER = owner_access.OwnerAccess(DATA)
+PLEX_OWNER_LOGIN = plex_owner.PlexOwnerLogin()
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 LIST_UPDATE_LOCK = threading.Lock()
@@ -166,6 +170,7 @@ def start_import_job(body):
                 del JOBS[key]
         JOBS[job_id] = {
             "created": time.time(),
+            "profile_scope": profile_workspace.scope(),
             "status": "running",
             "message": "Starting import…",
         }
@@ -333,7 +338,8 @@ def start_import_job(body):
             with JOBS_LOCK:
                 JOBS[job_id].update(status="error", message=message)
 
-    threading.Thread(target=run, daemon=True).start()
+    context = contextvars.copy_context()
+    threading.Thread(target=context.run, args=(run,), daemon=True).start()
     return {"job_id": job_id}
 
 
@@ -568,7 +574,16 @@ def start_background_tasks():
 def public_state(state):
     auth = state.get("plex_auth", {})
     return {
-        "curator_mode": runtime_config.curator_enabled(),
+        "curator_mode": runtime_config.curator_enabled()
+        and not profile_workspace.member(),
+        "active_profile": (
+            {
+                key: profile_workspace.identity().get(key)
+                for key in ("user_id", "name", "role")
+            }
+            if profile_workspace.identity()
+            else None
+        ),
         "lists": artwork_cache.project(state["lists"]),
         "taste_feedback": state.get("taste_feedback", {}),
         "companion_preferences": state.get("companion_preferences", {}),
@@ -587,6 +602,7 @@ def public_state(state):
                 "url": v.get("url", ""),
                 "configured": bool(v.get("key")),
                 "server_name": v.get("server_name", ""),
+                "libraries": v.get("libraries", []) if k == "plex" else [],
             }
             for k, v in state["settings"].items()
         },
@@ -597,6 +613,21 @@ def public_state(state):
         },
         "csrf": SESSION,
     }
+
+
+def decode_plex_account(path, raw):
+    try:
+        return json.loads(raw)
+    except (ValueError, UnicodeError):
+        if path.startswith(("/api/home/users", "/api/v2/home/users/")):
+            try:
+                root = ET.fromstring(raw)
+                if root.tag.lower() == "user":
+                    return {"User": dict(root.attrib)}
+                return {"User": [dict(node.attrib) for node in root.findall("User")]}
+            except ET.ParseError:
+                pass
+        raise ValueError("Plex returned an unexpected account response.") from None
 
 
 def plex_account(state, path, method="GET", fields=None, token=None):
@@ -620,7 +651,10 @@ def plex_account(state, path, method="GET", fields=None, token=None):
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
-            return json.load(response)
+            raw = response.read(2000001)
+            if len(raw) > 2000000:
+                raise ValueError("Plex account response was too large.")
+            return decode_plex_account(path, raw)
     except urllib.error.HTTPError as exc:
         if exc.code in (401, 403):
             raise ValueError(
@@ -637,6 +671,12 @@ def plex_account(state, path, method="GET", fields=None, token=None):
         raise ValueError(
             "Could not reach plex.tv. Check your internet connection and try again."
         ) from None
+
+
+def plex_owner_request(client_id, path, method="GET", fields=None, token=None):
+    return plex_account(
+        {"plex_auth": {"client_id": client_id}}, path, method, fields, token
+    )
 
 
 def start_plex_login(state):
@@ -680,8 +720,16 @@ def check_plex_login(state):
         token = response["authToken"]
         user = plex_account(state, "/api/v2/user", token=token)
         # A different account must never retain the previous account's server credentials.
-        state["settings"].pop("plex", None)
+        account_id = str(user.get("id") or "")
+        if OWNER.plex_id and account_id != OWNER.plex_id:
+            auth.pop("pin", None)
+            raise ValueError(
+                "Connect using the configured installation owner's Plex account."
+            )
+        if not account_id or auth.get("account_id") != account_id:
+            state["settings"].pop("plex", None)
         auth.update(
+            account_id=account_id,
             token=token,
             account=user.get("username") or user.get("title") or "Plex account",
         )
@@ -742,16 +790,23 @@ def connect_plex_server(state, server_id, override=""):
             identity = remote(url, "/", server["accessToken"], plex=True, timeout=5)
             if identity.get("machineIdentifier") != server_id:
                 continue
-            remote(
+            sections = remote(
                 url, "/library/sections", server["accessToken"], plex=True, timeout=5
             )
+            libraries = [
+                node.get("title", "")
+                for node in sections.findall("Directory")
+                if node.get("type") in ("movie", "show")
+            ]
+
             state["settings"]["plex"] = {
                 "url": url,
                 "key": server["accessToken"],
                 "server_name": server["name"],
                 "server_id": server_id,
+                "libraries": libraries,
             }
-            return {"name": server["name"], "url": url}
+            return {"name": server["name"], "url": url, "libraries": libraries}
         except (ValueError, ET.ParseError):
             continue
     raise ValueError(
@@ -759,22 +814,56 @@ def connect_plex_server(state, server_id, override=""):
     )
 
 
+def prepare_profile_workspace(identity):
+    """Reuse server choice with a verified profile-specific server token only."""
+    root = snapshot_cache.read(
+        DATA / "state.json", {"settings": {}}, fields=("settings",)
+    )
+    server_id = root.get("settings", {}).get("plex", {}).get("server_id")
+    with profile_workspace.use(identity):
+        with LOCK:
+            snapshot = read_state()
+        selected = snapshot.get("settings", {}).get("plex")
+        if profile_workspace.member() and not selected and server_id:
+            try:
+                connect_plex_server(snapshot, server_id)
+                selected = snapshot["settings"]["plex"]
+            except ValueError:
+                pass  # Never fall back to the owner's server token.
+        with LOCK:
+            latest = read_state()
+            if selected:
+                latest["settings"]["plex"] = selected
+            save_state(latest)
+        return bool(selected)
+
+
 def read_state():
     """Read the private workspace, applying compatible defaults without exporting credentials."""
-    return snapshot_cache.read(DATA / "state.json", {"settings": {}, "lists": []})
+    folder = profile_workspace.directory(DATA)
+    state = snapshot_cache.read(folder / "state.json", {"settings": {}, "lists": []})
+    if profile_workspace.member():
+        shared = snapshot_cache.read(DATA / "state.json", {"settings": {}, "lists": []})
+        state = profile_workspace.merge_settings(state, shared)
+    return state
 
 
 def save_state(state, backup=True):
     """Atomically persist a validated workspace; callers serialize mutations with LOCK."""
-    DATA.mkdir(exist_ok=True)
-    current = DATA / "state.json"
+    folder = profile_workspace.directory(DATA)
+    folder.mkdir(parents=True, exist_ok=True)
+    current = folder / "state.json"
     if current.exists() and backup:
         previous = read_state()
         if backups.export(previous)["data"] != backups.export(state)["data"]:
-            backups.rolling(DATA / "backups", previous)
-    temp = DATA / "state.tmp"
-    temp.write_text(json.dumps(state, indent=2), "utf-8")
-    temp.replace(DATA / "state.json")
+            backups.rolling(
+                folder / "backups", profile_workspace.private_state(previous)
+            )
+    temp = folder / "state.tmp"
+    temp.write_text(
+        json.dumps(profile_workspace.private_state(state), indent=2), "utf-8"
+    )
+    temp.replace(current)
 
 
 def plex_direct_ip(host):
@@ -2812,7 +2901,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
         if cookie:
-            self.send_header("Set-Cookie", cookie)
+            for value in cookie if isinstance(cookie, (list, tuple)) else [cookie]:
+                self.send_header("Set-Cookie", value)
         self.end_headers()
         self.wfile.write(raw)
 
@@ -2875,6 +2965,10 @@ class Handler(BaseHTTPRequestHandler):
         return self.artwork_response({}, 200)
 
     def do_GET(self):
+        with profile_workspace.use(OWNER.identity(self.headers.get("Cookie"))):
+            return self._get()
+
+    def _get(self):
         if (
             self.headers.get("Host")
             not in runtime_config.server_options()["allowed_hosts"]
@@ -2905,12 +2999,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self.artwork_response(raw, mime=mime)
             except ValueError:
                 return self.artwork_response({"error": "Artwork not available"}, 404)
+        if self.path == "/profiles":
+            return self.signin_response()
         if self.path == "/api/auth/status":
             return self.respond(
                 {
                     "enabled": OWNER.enabled,
                     "authenticated": OWNER.authorized(self.headers.get("Cookie")),
                     "session_days": 7,
+                    "plex_enabled": bool(OWNER.plex_id),
+                    "password_enabled": OWNER.password_enabled,
+                    "profile": {
+                        key: (OWNER.identity(self.headers.get("Cookie")) or {}).get(key)
+                        for key in ("user_id", "name", "role")
+                    },
                 }
             )
         if not OWNER.authorized(self.headers.get("Cookie")):
@@ -2955,6 +3057,9 @@ class Handler(BaseHTTPRequestHandler):
             )[0]
             with JOBS_LOCK:
                 job = dict(JOBS.get(job_id, {}))
+                if job.get("profile_scope", "owner") != profile_workspace.scope():
+                    job = {}
+                job.pop("profile_scope", None)
             return self.respond(
                 (
                     job
@@ -3030,6 +3135,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def do_POST(self):
+        with profile_workspace.use(OWNER.identity(self.headers.get("Cookie"))):
+            return self._post()
+
+    def _post(self):
+        global OWNER
         if self.path in (
             "/api/playlist-companion/progress",
             "/api/playlist-companion/posters",
@@ -3074,7 +3184,13 @@ class Handler(BaseHTTPRequestHandler):
             not in runtime_config.server_options()["allowed_hosts"]
         ):
             return self.respond({"error": "This host is not allowed."}, 403)
-        if self.path == "/api/auth/login":
+        if self.path in (
+            "/api/auth/login",
+            "/api/auth/plex/start",
+            "/api/auth/plex/check",
+            "/api/auth/profiles/start",
+            "/api/auth/profiles/select",
+        ):
             origin = self.headers.get("Origin")
             if origin and (
                 urllib.parse.urlsplit(origin).netloc != self.headers.get("Host")
@@ -3095,6 +3211,75 @@ class Handler(BaseHTTPRequestHandler):
                 body = json.loads(self.rfile.read(length))
                 if not isinstance(body, dict):
                     raise ValueError("Invalid sign-in request.")
+                secure = runtime_config.server_options()["public_url"].startswith(
+                    "https:"
+                )
+                if self.path == "/api/auth/profiles/start":
+                    if not OWNER.authorized(self.headers.get("Cookie")):
+                        return self.respond({"error": "Sign in first."}, 401)
+                    with profile_workspace.use(None):
+                        with LOCK:
+                            root_state = read_state()
+                    master = root_state.get("plex_auth", {}).get("token")
+                    if not master:
+                        raise ValueError(
+                            "Sign in with the household Plex account first."
+                        )
+                    ticket, result = PLEX_OWNER_LOGIN.switch_start(
+                        OWNER,
+                        self.client_address[0],
+                        master,
+                        plex_owner_request,
+                        client_id=root_state.get("plex_auth", {}).get("client_id"),
+                    )
+                    return self.respond(
+                        {"profiles": result["profiles"]},
+                        cookie=plex_owner.cookie_header(ticket, secure),
+                    )
+                if self.path == "/api/auth/profiles/select":
+                    session, identity = PLEX_OWNER_LOGIN.choose(
+                        OWNER,
+                        self.headers.get("Cookie"),
+                        body.get("profile_id"),
+                        body.get("pin", ""),
+                        self.client_address[0],
+                        plex_owner_request,
+                    )
+                    ready = prepare_profile_workspace(identity)
+                    OWNER.logout(self.headers.get("Cookie"))
+                    return self.respond(
+                        {"ok": True, "needs_server": not ready},
+                        cookie=[
+                            owner_access.cookie_header(session, secure),
+                            plex_owner.cookie_header(secure=secure),
+                        ],
+                    )
+                if self.path.startswith("/api/auth/plex/"):
+                    if self.path.endswith("/start"):
+                        ticket, result = PLEX_OWNER_LOGIN.start(
+                            OWNER,
+                            self.client_address[0],
+                            plex_owner_request,
+                            runtime_config.server_options()["public_url"],
+                        )
+                        return self.respond(
+                            result, cookie=plex_owner.cookie_header(ticket, secure)
+                        )
+                    result = PLEX_OWNER_LOGIN.check(
+                        OWNER, self.headers.get("Cookie"), plex_owner_request
+                    )
+                    if result is None:
+                        return self.respond({"pending": True})
+                    with profile_workspace.use(None):
+                        with LOCK:
+                            state = read_state()
+                            auth = state.setdefault("plex_auth", {})
+                            if auth.get("account_id") != result["master"]["account_id"]:
+                                state["settings"].pop("plex", None)
+                            auth.update(result["master"])
+                            auth.pop("pin", None)
+                            save_state(state)
+                    return self.respond({"profiles": result["profiles"]})
                 token = OWNER.login(body.get("password"), self.client_address[0])
                 secure = runtime_config.server_options()["public_url"].startswith(
                     "https:"
@@ -3116,6 +3301,14 @@ class Handler(BaseHTTPRequestHandler):
         if not OWNER.authorized(self.headers.get("Cookie")):
             return self.respond(
                 {"error": "Sign in to continue.", "code": "auth_required"}, 401
+            )
+        if not profile_workspace.allowed(self.path):
+            return self.respond(
+                {
+                    "error": "This action is managed by the installation owner.",
+                    "code": "owner_required",
+                },
+                403,
             )
         if (
             self.headers.get("X-Listweavarr-Token")
@@ -3139,15 +3332,96 @@ class Handler(BaseHTTPRequestHandler):
             ):
                 raise ValueError("Request too large.")
             body = json.loads(self.rfile.read(length))
-            if self.path == "/api/auth/logout":
-                OWNER.logout(self.headers.get("Cookie"))
+            if self.path == "/api/owner/plex-enable":
+                if OWNER.enabled:
+                    raise ValueError(
+                        "Access protection is already enabled. Use the operator configuration to change it."
+                    )
+                with LOCK:
+                    snapshot = read_state()
+                token = snapshot.get("plex_auth", {}).get("token")
+                if not token:
+                    raise ValueError("Connect the owner Plex account first.")
+                user = plex_account(snapshot, "/api/v2/user", token=token)
+                identifier = str(user.get("id") or "")
+                if (
+                    identifier != body.get("account_id")
+                    or not identifier.isdigit()
+                    or plex_owner.flag(user.get("restricted"))
+                    or plex_owner.flag(user.get("anonymous"))
+                ):
+                    raise ValueError(
+                        "The connected Plex account changed. Look up the account again before enabling sign-in."
+                    )
+                with LOCK:
+                    if (
+                        OWNER.enabled
+                        or read_state().get("plex_auth", {}).get("token") != token
+                    ):
+                        raise ValueError("Access configuration changed. Refresh first.")
+                    target = DATA / "owner-plex-id"
+                    with target.open("x", encoding="utf-8") as stream:
+                        stream.write(identifier + "\n")
+                    protected = owner_access.OwnerAccess(DATA)
+                    session = protected.issue()
+                    OWNER = protected
+                    state = read_state()
+                    state["plex_auth"]["account_id"] = identifier
+                    save_state(state)
                 return self.respond(
                     {"ok": True},
                     cookie=owner_access.cookie_header(
-                        secure=runtime_config.server_options()["public_url"].startswith(
+                        session,
+                        runtime_config.server_options()["public_url"].startswith(
                             "https:"
-                        )
+                        ),
                     ),
+                )
+            if self.path == "/api/owner/plex-account":
+                with LOCK:
+                    snapshot = read_state()
+                token = snapshot.get("plex_auth", {}).get("token")
+                if not token:
+                    raise ValueError("Sign in with Plex under Connections first.")
+                user = plex_account(snapshot, "/api/v2/user", token=token)
+                identifier = str(user.get("id") or "")
+                if (
+                    not identifier.isdigit()
+                    or user.get("restricted")
+                    or user.get("anonymous")
+                ):
+                    raise ValueError("Use a full Plex account for owner sign-in.")
+                with LOCK:
+                    state = read_state()
+                    if state.get("plex_auth", {}).get("token") != token:
+                        raise ValueError("Plex connection changed. Try again.")
+                    state["plex_auth"]["account_id"] = identifier
+                    save_state(state)
+                return self.respond(
+                    {
+                        "id": identifier,
+                        "account": user.get("username")
+                        or user.get("title")
+                        or "Plex account",
+                    }
+                )
+            if self.path == "/api/auth/logout":
+                OWNER.logout(self.headers.get("Cookie"))
+                PLEX_OWNER_LOGIN.cancel(OWNER, self.headers.get("Cookie"))
+                return self.respond(
+                    {"ok": True},
+                    cookie=[
+                        owner_access.cookie_header(
+                            secure=runtime_config.server_options()[
+                                "public_url"
+                            ].startswith("https:")
+                        ),
+                        plex_owner.cookie_header(
+                            secure=runtime_config.server_options()[
+                                "public_url"
+                            ].startswith("https:")
+                        ),
+                    ],
                 )
             if self.path == "/api/playlist-companion/pair":
                 if body.get("revoke"):

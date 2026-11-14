@@ -193,3 +193,25 @@ legacy title-only preferences resolve to the identified rows. The editor starts
 in measured visual order and includes Continue Playlists in the same draft.
 Targeted Home, adapter, sync and feature tests pass. Installed automatically
 after checking for idle playback; final live acceptance remains user-reviewed.
+
+
+## November 14: Plex sign-in and Plex Home isolation
+
+Home row ordering has user live acceptance. Added one Plex account sign-in plus
+verified Plex Home profile selection/PINs, profile switching, and an explicit
+Settings > Access activation flow. Existing local access remains unchanged until
+enabled. Password-file recovery remains available. Verified login also supplies
+server/library discovery; no second Connections sign-in is required.
+
+Members use private state files and profile-specific Plex server authorization.
+Owner lists/history/configuration are preserved. Members cannot administer
+manager connections, downloads, backups or curator publication. Import jobs and
+library caches retain identity scope. Guest profiles and member background
+scheduling/download approvals remain follow-ups. Real-account read-only Home
+enumeration succeeded (including legacy XML handling); real PIN/profile login
+still needs the user's live acceptance after optional activation. Fake-account
+browser checks cover chooser/PIN rendering and a member's empty private workspace.
+
+Validation for household access: 520 Python tests passed, plus main UI, search,
+calendar, smart-list and session-recovery checks. No live user profile was switched
+during development and no existing installation access mode was enabled.

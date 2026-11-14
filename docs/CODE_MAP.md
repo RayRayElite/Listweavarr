@@ -230,3 +230,22 @@ the section in the hash. Personal smart-list proposals are separate from deliver
   creation. `web/smart-lists.js` reuses Favorites behind one picker and invalidates
   reviews when selections change. Creation assigns fresh IDs and unchecked
   availability. Private recipe provenance never enters shared list exports.
+
+
+### Household identity and private viewing state
+
+`plex_owner.py` validates a browser-bound strong Plex PIN, lists Home profiles,
+validates any Home PIN through Plex, then verifies the selected token's user ID.
+No owner app session is granted before profile verification. `owner_access.py`
+keeps hashed app-session keys and private scoped credentials across restarts.
+`profile_workspace.py` uses a ContextVar set/reset at each HTTP boundary. Member
+state is stored under a hashed household/profile directory, with metadata
+provider settings projected read-only from the operator configuration. Shared
+manager credentials and owner lists are never copied into member state. Import
+jobs copy the initiating context and job polling checks the same scope.
+
+New mutation routes must be explicitly considered in the member allowlist;
+unknown routes are owner-only. Never add a fallback to the owner's Plex token
+when profile resource discovery fails. Never use a name or browser-supplied ID
+as proof of identity. See `tests/test_plex_home_access.py` and
+[profile behavior](PLEX_HOME_PROFILES.md).

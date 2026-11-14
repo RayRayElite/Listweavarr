@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Optional single-owner sign-in, enabled only by an operator password file.
+"""Optional operator-enabled Plex Home sign-in or owner password recovery.
 
 Password material never enters workspace exports. Opaque session tokens are
-stored only as hashes and expire after seven days. Logout revokes the session
+stored only as hashes and expire after seven days. Profile-scoped Plex tokens
+remain in this private session file, never in browser responses or exports. Logout revokes the session
 across restarts. Changing the password file and restarting revokes all sessions.
 This is deliberately not a household account system or a public request API.
 """
@@ -27,23 +28,53 @@ class LoginError(ValueError):
 
 
 class OwnerAccess:
-    def __init__(self, data, password_file=None):
+    def __init__(self, data, password_file=None, plex_id=None):
         password_file = password_file or os.environ.get(
             "LISTWEAVARR_OWNER_PASSWORD_FILE"
         )
-        self.enabled = bool(password_file)
+        configured_id = Path(data) / "owner-plex-id"
+        if plex_id is None:
+            plex_id = os.environ.get("LISTWEAVARR_OWNER_PLEX_ID", "")
+            if not plex_id and configured_id.exists():
+                try:
+                    plex_id = configured_id.read_text(encoding="utf-8").strip()
+                except OSError:
+                    raise ValueError(
+                        "Cannot read private owner-plex-id configuration."
+                    ) from None
+                if not plex_id:
+                    raise ValueError(
+                        "The private owner-plex-id configuration is empty. Repair it before restarting."
+                    )
+        self.plex_id = plex_id
+        if self.plex_id and (
+            not isinstance(self.plex_id, str)
+            or not self.plex_id.isascii()
+            or not self.plex_id.isdigit()
+            or not 1 <= len(self.plex_id) <= 20
+            or int(self.plex_id) == 0
+        ):
+            raise ValueError(
+                "LISTWEAVARR_OWNER_PLEX_ID must be the owner's numeric Plex account ID."
+            )
+        self.password_enabled = bool(password_file)
+        self.enabled = bool(password_file or self.plex_id)
         self.lock = threading.RLock()
         self.failures = {}
         self.sessions = {}
         if not self.enabled:
             return
+        password = ""
         try:
-            password = Path(password_file).read_text(encoding="utf-8").rstrip("\r\n")
+            if password_file:
+                password = (
+                    Path(password_file).read_text(encoding="utf-8").rstrip("\r\n")
+                )
         except OSError:
             raise ValueError(
                 "Cannot read LISTWEAVARR_OWNER_PASSWORD_FILE. Check its path and permissions."
             ) from None
-        if (
+        if password_file and (
             not 12 <= len(password) <= 1024
             or not password.strip()
             or any(ord(c) < 32 for c in password)
@@ -70,20 +101,19 @@ class OwnerAccess:
                 "The private owner-session.key is damaged. Remove the key and owner-sessions.json together to sign all devices out."
             ) from None
         self.salt = key[:16]
-        self.digest = self._digest(password)
-        self.binding = hmac.new(key, password.encode(), hashlib.sha256).hexdigest()
+        self.digest = self._digest(password) if password_file else None
+        material = password + ("\0plex:" + self.plex_id if self.plex_id else "")
+        self.binding = hmac.new(key, material.encode(), hashlib.sha256).hexdigest()
+        self.client_id = hmac.new(key, b"plex-owner-client", hashlib.sha256).hexdigest()
         self.file = data / "owner-sessions.json"
         if self.file.exists():
             try:
                 saved = json.loads(self.file.read_text(encoding="utf-8"))
                 if hmac.compare_digest(saved.get("binding", ""), self.binding):
                     self.sessions = {
-                        k: float(v)
+                        k: v
                         for k, v in saved.get("sessions", {}).items()
-                        if isinstance(k, str)
-                        and len(k) == 64
-                        and isinstance(v, (int, float))
-                        and v > time.time()
+                        if isinstance(k, str) and len(k) == 64 and self.valid(v)
                     }
             except (OSError, ValueError, TypeError, AttributeError):
                 raise ValueError(
@@ -124,14 +154,13 @@ class OwnerAccess:
         if not token:
             return False
         with self.lock:
-            return (
+            return self.valid(
                 self.sessions.get(hashlib.sha256(token.encode()).hexdigest(), 0)
-                > time.time()
             )
 
     def login(self, password, client):
-        if not self.enabled:
-            raise LoginError("Owner sign-in is not enabled.", 400)
+        if not self.password_enabled:
+            raise LoginError("Password sign-in is not enabled.", 400)
         now = time.time()
         with self.lock:
             attempts = [
@@ -153,13 +182,75 @@ class OwnerAccess:
                 self.failures[client] = attempts + [now]
                 raise LoginError("The password was not accepted.")
             self.failures.pop(client, None)
+            return self.issue()
+
+    @staticmethod
+    def expiry(value):
+        expiry = value.get("expires", 0) if isinstance(value, dict) else value
+        return float(expiry) if type(expiry) in (int, float) else 0
+
+    def valid(self, value):
+        if self.expiry(value) <= time.time():
+            return False
+        if not isinstance(value, dict):
+            return type(value) in (int, float)
+        if (
+            value.get("role") not in ("owner", "member")
+            or value.get("account_id") != self.plex_id
+        ):
+            return False
+        identifier = value.get("user_id")
+        if (
+            not isinstance(identifier, str)
+            or not identifier.isascii()
+            or not identifier.isdigit()
+        ):
+            return False
+        if (value["role"] == "owner") != (identifier == self.plex_id):
+            return False
+        return all(
+            isinstance(value.get(field), str) and 0 < len(value[field]) <= limit
+            for field, limit in (
+                ("name", 300),
+                ("plex_token", 16000),
+                ("client_id", 300),
+            )
+        )
+
+    def identity(self, cookie):
+        if not self.enabled:
+            return None
+        with self.lock:
+            value = self.sessions.get(
+                hashlib.sha256(self._token(cookie).encode()).hexdigest()
+            )
+            if not self.valid(value):
+                return None
+            if isinstance(value, dict):
+                return {key: item for key, item in value.items() if key != "expires"}
+            return {
+                "role": "owner",
+                "user_id": self.plex_id or "owner",
+                "name": "Owner",
+            }
+
+    def issue(self, identity=None):
+        """Mint a local session only after a configured credential is verified."""
+        with self.lock:
+            now = time.time()
             self.sessions = {
-                k: expiry for k, expiry in self.sessions.items() if expiry > now
+                key: expiry
+                for key, expiry in self.sessions.items()
+                if self.expiry(expiry) > now
             }
             if len(self.sessions) >= 100:
-                self.sessions.pop(min(self.sessions, key=self.sessions.get))
+                self.sessions.pop(
+                    min(self.sessions, key=lambda key: self.expiry(self.sessions[key]))
+                )
             token = secrets.token_urlsafe(32)
-            self.sessions[hashlib.sha256(token.encode()).hexdigest()] = now + LIFETIME
+            self.sessions[hashlib.sha256(token.encode()).hexdigest()] = (
+                dict(identity, expires=now + LIFETIME) if identity else now + LIFETIME
+            )
             self._save()
             return token
 
