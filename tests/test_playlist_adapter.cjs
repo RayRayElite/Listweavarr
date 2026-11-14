@@ -148,6 +148,15 @@ async function main() {
   const ajax = async (options) => {
     requests.push(options);
     const path = new URL(options.url).pathname;
+    if (path === '/library/sections')
+      return {
+        MediaContainer: {
+          Directory: [
+            { key: '1', title: 'Movies' },
+            { key: '4', title: 'Anime Movies' },
+          ],
+        },
+      };
     if (path === '/playlists' || path === '/playlists/3')
       return {
         MediaContainer: {
@@ -221,6 +230,10 @@ async function main() {
     core
   );
   try {
+    assert.deepEqual(await api.sections(), [
+      { serverId: 'server', id: '1', title: 'Movies' },
+      { serverId: 'server', id: '4', title: 'Anime Movies' },
+    ]);
     const [playlist] = await api.playlists();
     const start = await api.start(playlist, false);
     assert.equal(start.nextTitle, 'Movie');

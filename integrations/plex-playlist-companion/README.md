@@ -202,9 +202,13 @@ The poster's bottom-right three-dot menu opens the playlist, edits its poster or
 Settings > Playlist companion > Appearance > Arrange all Plex Home rows opens
 an Up/Down editor for loaded native Home rows. Scroll Home first to load more.
 Save applies to this client/profile; Restore default returns to the original
-observed order. Continue Playlists keeps its separate placement setting. Newly
+observed order. Continue Playlists is included in the full editor; its separate placement control
+is used when no full order is saved. Newly
 appearing rows follow saved rows. No Home reordering occurs until explicitly
-saved. Unnamed/loading, duplicate and absolute/fixed rows are skipped.
+saved. Unnamed/loading and absolute/fixed rows are skipped. Same-named rows from
+different libraries use their source links as distinct identifiers and display
+library labels. The editor opens in measured on-screen order, not a saved
+subset or a discovery-time order.
 
 Plex renders Continue Watching separately from its recommendation group. The
 adapter reorders sibling hubs inside their existing parents, then uses a

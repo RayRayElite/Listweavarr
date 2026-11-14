@@ -117,6 +117,19 @@
       }
       return results;
     }
+    async function sections() {
+      const result = [];
+      for (const source of await sources()) {
+        const data = await request(source.provider, '/library/sections');
+        for (const item of data.Directory || [])
+          result.push({
+            serverId: String(get(source.server, 'machineIdentifier')),
+            id: String(item.key),
+            title: String(item.title || 'Library ' + item.key),
+          });
+      }
+      return result;
+    }
     async function playlists() {
       const result = [];
       for (const source of await sources()) {
@@ -595,6 +608,7 @@
     const timer = setInterval(observe, 2000);
     return {
       playlists,
+      sections,
       poster,
       nativeTracking,
       profile: userId,

@@ -238,6 +238,51 @@ class Element {
     wrappers[0],
     'Never move a hub across its React wrapper'
   );
+  // Repeated shelf titles from two libraries remain independent, even when
+  // the second library loads after the first. Credentials never enter keys.
+  const duplicateHubs = [];
+  for (const sectionId of ['1', '4']) {
+    const hub = new Element('div'),
+      heading = new Element('h2'),
+      link = new Element('a');
+    hub.className = 'VirtualHubScroller-hub-live';
+    link.href =
+      '#!/server/s/media?key=' +
+      encodeURIComponent('/library/sections/' + sectionId + '/recentlyReleased') +
+      '&X-Plex-Token=private';
+    link.textContent = 'Recently Released Movies';
+    heading.append(link);
+    hub.append(heading);
+    wrappedPage.append(hub);
+    duplicateHubs.push(hub);
+  }
+  const duplicated = home
+    .nativeRows(wrappedDocument)
+    .filter((row) => row.title === 'Recently Released Movies');
+  assert.equal(duplicated.length, 2);
+  assert.notEqual(duplicated[0].key, duplicated[1].key);
+  assert.equal(duplicated[0].source.section, '1');
+  assert.equal(duplicated[1].source.section, '4');
+  assert.ok(duplicated.every((row) => !row.key.includes('private')));
+  const firstKey = duplicated[0].key;
+  duplicateHubs[1].remove();
+  assert.equal(
+    home.nativeRows(wrappedDocument).find((row) => row.title === 'Recently Released Movies').key,
+    firstKey,
+    'Late loading does not rename an existing row'
+  );
+  const measured = [
+    { element: { getBoundingClientRect: () => ({ top: 500 }) }, key: 'bottom' },
+    { element: { getBoundingClientRect: () => ({ top: 50 }) }, key: 'top' },
+  ];
+  assert.deepEqual(
+    home.screenOrder(measured).map((row) => row.key),
+    ['top', 'bottom']
+  );
+  assert.deepEqual(
+    home.resolveRowOrder(duplicated, ['Recently Released Movies']),
+    duplicated.map((row) => row.key)
+  );
   const nativeSnapshot = home.nativeRows(nativeDocument);
   assert.equal(
     nativeSnapshot.length,
@@ -460,6 +505,24 @@ class Element {
   assert.equal(pinnedCard.attributes['data-pinned'], 'true');
   assert.match(pinnedCard.querySelector('.lw-playlist-caption').textContent, /Start playlist/);
   assert.equal(core.load(storage, neverStarted), null, 'Pinning never fabricates a checkpoint');
+  const editorHub = new Element('div'),
+    editorHeading = new Element('h2');
+  editorHub.className = 'VirtualHubScroller-hub-editor';
+  editorHeading.textContent = 'Continue Watching';
+  editorHub.append(editorHeading);
+  container.append(editorHub);
+  document.querySelectorAll = (selector) => body.querySelectorAll(selector);
+  assert.equal(context.ListweavarrPlaylistHome.openOrder(), true);
+  const rowEditor = elements.find(
+    (element) => element.attributes['aria-label'] === 'Arrange Plex Home rows'
+  );
+  assert.match(
+    rowEditor.textContent,
+    /Continue Playlists/,
+    'Full editor includes the Companion row'
+  );
+  assert.match(rowEditor.textContent, /Continue Watching/);
+  rowEditor.close();
   disposeSettings();
   dispose();
   console.log(

@@ -181,3 +181,15 @@ safety Node checks. The source package excludes private state and Plex assets.
 Live installation completed. Initial live checks exposed the client's split
 row containers; fixtures now cover that structure. Final manual layout
 acceptance is still pending.
+
+
+### Home editor identity/order correction
+
+Repeated shelf headings from separate libraries now retain source-scoped
+identifiers instead of being discarded as duplicates. Library section names
+are loaded read-only for labels (with section-ID fallbacks). Source identities
+exclude credential query parameters, stay stable during lazy loading, and
+legacy title-only preferences resolve to the identified rows. The editor starts
+in measured visual order and includes Continue Playlists in the same draft.
+Targeted Home, adapter, sync and feature tests pass. Installed automatically
+after checking for idle playback; final live acceptance remains user-reviewed.

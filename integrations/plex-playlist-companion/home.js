@@ -169,6 +169,50 @@
   // Move complete sibling hubs, never their virtualized cards. Unknown or
   // absolutely positioned layouts are left untouched. Keeping real DOM order
   // also keeps sequential keyboard focus aligned with what is displayed.
+  const anonymousRows = new WeakMap();
+  const anonymousCounts = new Map();
+  function rowSource(heading) {
+    const link = heading?.querySelector('a');
+    const href = link?.getAttribute?.('href') || link?.href || '';
+    try {
+      const url = new URL(href, 'https://app.plex.tv/desktop/');
+      const route = url.hash.replace(/^#!?/, '') || url.pathname;
+      const [path, query = ''] = route.split('?');
+      const params = new URLSearchParams(query || url.search);
+      const values = [
+        'key',
+        'source',
+        'sectionId',
+        'librarySectionID',
+        'hubIdentifier',
+        'type',
+        'context',
+        'contentDirectoryID',
+        'directoryId',
+        'directoryKey',
+      ].flatMap((key) => (params.has(key) ? [[key, params.get(key)]] : []));
+      const safe = path + '?' + new URLSearchParams(values).toString();
+      const decoded = decodeURIComponent(safe);
+      return {
+        identity: href ? safe : '',
+        server: path.match(/\/server\/([^/]+)/)?.[1] || '',
+        section:
+          decoded.match(/\/library\/sections\/(\d+)/)?.[1] ||
+          params.get('sectionId') ||
+          params.get('librarySectionID') ||
+          (/^\d+$/.test(params.get('source') || '') ? params.get('source') : ''),
+      };
+    } catch {
+      return { identity: '', server: '', section: '' };
+    }
+  }
+  function screenOrder(rows) {
+    return [...rows].sort((a, b) => {
+      const first = a.element.getBoundingClientRect?.(),
+        second = b.element.getBoundingClientRect?.();
+      return first && second ? first.top - second.top : 0;
+    });
+  }
   function nativeRows(document, view = root) {
     const container = findHomeContainer(document);
     if (!container) return [];
@@ -177,7 +221,7 @@
     ).filter((hub) => !hub.closest?.('.lw-playlist-home'));
     const rows = hubs.flatMap((element) => {
       const heading = element.querySelector('h1,h2,h3,[role="heading"]');
-      const key = (heading?.textContent || heading?.getAttribute?.('aria-label') || '').trim();
+      const title = (heading?.textContent || heading?.getAttribute?.('aria-label') || '').trim();
       const wrappers = [];
       let ancestor = element.parentElement;
       while (ancestor && ancestor !== container) {
@@ -186,17 +230,46 @@
       }
       if (
         ancestor !== container ||
-        !key ||
-        key.length > 300 ||
+        !title ||
+        title.length > 300 ||
         (element.getClientRects && !element.getClientRects().length) ||
         ['absolute', 'fixed'].includes(view.getComputedStyle?.(element).position)
       )
         return [];
-      return [{ element, key, container, wrappers }];
+      return [{ element, title, key: title, container, wrappers, source: rowSource(heading) }];
     });
     const names = new Map();
-    for (const row of rows) names.set(row.key, (names.get(row.key) || 0) + 1);
-    return rows.filter((row) => names.get(row.key) === 1);
+    for (const row of rows) names.set(row.title, (names.get(row.title) || 0) + 1);
+    for (const row of rows) {
+      if (row.source.identity) row.key = JSON.stringify([row.title, row.source.identity]);
+      if (names.get(row.title) <= 1) continue;
+      if (!row.source.identity) {
+        if (!anonymousRows.has(row.element)) {
+          const index = (anonymousCounts.get(row.title) || 0) + 1;
+          anonymousCounts.set(row.title, index);
+          anonymousRows.set(row.element, index);
+        }
+        row.key = JSON.stringify([row.title, 'unidentified', anonymousRows.get(row.element)]);
+      }
+      row.label =
+        row.title +
+        ' / ' +
+        (row.source.section
+          ? 'Library ' + row.source.section
+          : 'source ' + (anonymousRows.get(row.element) || ''));
+    }
+    return rows;
+  }
+  function resolveRowOrder(rows, order) {
+    const result = [];
+    for (const key of order) {
+      const matches = rows.some((row) => row.key === key)
+        ? [key]
+        : rows.filter((row) => row.title === key).map((row) => row.key);
+      for (const value of matches.length ? matches : [key])
+        if (!result.includes(value)) result.push(value);
+    }
+    return result;
   }
   function applyNativeOrder(rows, order) {
     const rank = new Map(order.map((key, index) => [key, index]));
@@ -314,12 +387,33 @@
     orderDialog.style.cssText = 'width:600px;max-height:80vh;overflow:auto';
     document.body.append(orderDialog);
     const orderStorageKey = () => 'playlist-companion:home-order:v1:' + (api.profile?.() || '');
+    const companionKey = 'companion:continue-playlists';
+    function companionRow(rows) {
+      if (!section.isConnected || !rows.length) return null;
+      const container = rows[0].container,
+        wrappers = [];
+      let ancestor = section.parentElement;
+      while (ancestor && ancestor !== container) {
+        wrappers.push(ancestor);
+        ancestor = ancestor.parentElement;
+      }
+      return ancestor === container
+        ? {
+            element: section,
+            title: 'Continue Playlists',
+            label: 'Continue Playlists',
+            key: companionKey,
+            container,
+            wrappers,
+          }
+        : null;
+    }
     function nativeOrder() {
       try {
         const value = JSON.parse(storage.getItem(orderStorageKey()) || '[]');
         return Array.isArray(value) &&
           value.length <= 100 &&
-          value.every((key) => typeof key === 'string' && key.length <= 300)
+          value.every((key) => typeof key === 'string' && key.length <= 2000)
           ? value
           : [];
       } catch {
@@ -337,7 +431,9 @@
         location.hash = '#!/';
         return false;
       }
-      const rows = nativeRows(document);
+      const native = nativeRows(document);
+      const own = companionRow(native);
+      const rows = screenOrder(own ? [...native, own] : native);
       if (!rows.length)
         console.info(
           '[Listweavarr Playlist Companion] native row scan ' +
@@ -366,18 +462,33 @@
             })
         );
       const profile = api.profile?.() || '';
-      const savedPositions = new Map(nativeOrder().map((key, index) => [key, index]));
-      let draft = [...rows]
-        .sort((a, b) => (savedPositions.get(a.key) ?? 10000) - (savedPositions.get(b.key) ?? 10000))
-        .map((row) => row.key);
+      let draft = rows.map((row) => row.key);
+      const labels = new Map(rows.map((row) => [row.key, row.label || row.title || row.key]));
+      if (api.sections)
+        api
+          .sections()
+          .then((sections) => {
+            if (!orderDialog.open || (api.profile?.() || '') !== profile) return;
+            for (const row of rows) {
+              if (row.source?.section) {
+                const match = sections.find(
+                  (source) =>
+                    source.serverId === row.source.server && source.id === row.source.section
+                );
+                if (match) labels.set(row.key, row.title + ' / ' + match.title);
+              }
+            }
+            draw();
+          })
+          .catch(() => {});
       function draw() {
         orderDialog.replaceChildren();
         const heading = document.createElement('h2');
         heading.textContent = 'Arrange Plex Home rows';
         const note = document.createElement('p');
         note.textContent = rows.length
-          ? 'Reorder the loaded native rows. Scroll Home to load more rows first. New rows follow saved rows. Continue Playlists uses its separate placement setting. Saved per profile on this client. Rows keep their Plex containers; sequential Tab navigation across Continue Watching can retain the native Plex order.'
-          : 'No identifiable Home rows loaded yet. Close this window and let Home finish loading. Unnamed, duplicate and unsupported rows are left unchanged.';
+          ? 'Reorder the loaded native rows. Scroll Home to load more rows first. New rows follow saved rows. This editor includes Continue Playlists. Its separate placement setting applies when no full Home order is saved. Saved per profile on this client. Rows keep their Plex containers; sequential Tab navigation across Continue Watching can retain the native Plex order.'
+          : 'No identifiable Home rows loaded yet. Close this window and let Home finish loading. Unnamed and unsupported rows are left unchanged.';
         orderDialog.append(heading, note);
         draft.forEach((key, index) => {
           const line = document.createElement('div');
@@ -385,7 +496,7 @@
             'display:flex;align-items:center;gap:8px;border-bottom:1px solid #444';
           const label = document.createElement('span');
           label.style.flex = '1';
-          label.textContent = key;
+          label.textContent = labels.get(key) || key;
           line.append(label);
           for (const [name, delta] of [
             ['Up', -1],
@@ -394,7 +505,7 @@
             const button = document.createElement('button');
             button.textContent = name;
             button.disabled = index + delta < 0 || index + delta >= draft.length;
-            button.setAttribute('aria-label', name + ' ' + key);
+            button.setAttribute('aria-label', name + ' ' + (labels.get(key) || key));
             button.onclick = () => {
               [draft[index], draft[index + delta]] = [draft[index + delta], draft[index]];
               draw();
@@ -423,6 +534,10 @@
           [
             'Restore default',
             () => {
+              if ((api.profile?.() || '') !== profile) {
+                note.textContent = 'Profile changed. Reopen this window.';
+                return;
+              }
               storage.setItem(orderStorageKey(), '[]');
               applyNativeOrder(
                 orderedNativeRows(),
@@ -777,13 +892,17 @@
         return;
       }
       const native = orderedNativeRows();
-      const preference = nativeOrder();
+      const preference = resolveRowOrder(native, nativeOrder());
       nativeVisual?.restore();
       nativeVisual = null;
       section.style.setProperty('order', '');
       if (preference.length) {
         applyNativeOrder(native, preference);
-        nativeVisual = nativeVisualOrder(native, preference);
+        const own = companionRow(native);
+        nativeVisual = nativeVisualOrder(
+          own && preference.includes(companionKey) ? [...native, own] : native,
+          preference
+        );
         reordered = true;
       } else if (reordered) {
         applyNativeOrder(native, []);
@@ -809,11 +928,15 @@
         const sorted = [...nativeVisual.rank.entries()].sort((a, b) => a[1] - b[1]);
         const pref = rowPreference(storage);
         let position = -1;
-        if (pref.mode === 'bottom') position = sorted.length * 2 + 1;
+        if (preference.includes(companionKey)) position = nativeVisual.rank.get(companionKey) ?? -1;
+        else if (pref.mode === 'bottom') position = sorted.length * 2 + 1;
         else if (pref.mode === 'after-row')
           position = (sorted[Math.min(sorted.length - 1, pref.index - 1)]?.[1] ?? -2) + 1;
         else if (pref.mode === 'after-continue')
-          position = (nativeVisual.rank.get('Continue Watching') ?? -2) + 1;
+          position =
+            (nativeVisual.rank.get(
+              native.find((row) => row.title === 'Continue Watching')?.key || 'Continue Watching'
+            ) ?? -2) + 1;
         section.style.setProperty('order', String(position));
         section.style.setProperty('flex-shrink', '0');
       }
@@ -908,6 +1031,9 @@
       nativeRows,
       applyNativeOrder,
       nativeVisualOrder,
+      screenOrder,
+      rowSource,
+      resolveRowOrder,
       posterMultiplier,
     };
   else root.ListweavarrPlaylistHome = { mount, rowPreference };
