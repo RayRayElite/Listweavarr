@@ -1312,6 +1312,27 @@ vm.runInContext(
   vm.runInContext(fs.readFileSync('web/search.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/issues.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/access.js', 'utf8'), context);
+  await vm.runInContext(
+    `(async()=>{
+    busy=true;
+    api=async(path)=>{if(path!=='owner/plex-account')throw Error('Unexpected route');return {account:'Household Owner',id:'42'}};
+    await $('owner-plex-id-find').onclick({target:$('owner-plex-id-find')});
+    if(!window.verifiedOwnerAccount)throw Error('Access lookup silently blocked by unrelated work');
+    busy=false;
+  })()`,
+    context
+  );
+  assert.match(element('owner-plex-id-result').textContent, /Verified Household Owner/);
+  assert.equal(element('owner-plex-enable').hidden, false);
+  assert.equal(element('owner-plex-id-find').disabled, false);
+  await vm.runInContext(
+    `api=async()=>{throw Error('Plex unavailable')};$('owner-plex-id-find').onclick({target:$('owner-plex-id-find')})`,
+    context
+  );
+  assert.equal(element('owner-plex-id-result').textContent, 'Plex unavailable');
+  assert.equal(element('owner-plex-enable').hidden, true);
+  assert.equal(vm.runInContext('window.verifiedOwnerAccount', context), null);
+
   vm.runInContext(fs.readFileSync('web/notifications.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/calendar.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('web/navigation.js', 'utf8'), context);

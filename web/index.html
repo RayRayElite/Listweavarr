@@ -828,20 +828,18 @@
         </section>
         <section id="settings-access" role="tabpanel" aria-labelledby="settings-tab-access" hidden>
           <div class="connection">
-            <h2>Owner access</h2>
+            <h2>Plex household sign-in</h2>
             <p id="owner-access-status" class="muted" role="status">Checking access mode...</p>
             <p class="muted">
-              Optional single-owner sign-in is enabled by the installation operator using
-              LISTWEAVARR_OWNER_PLEX_ID or LISTWEAVARR_OWNER_PASSWORD_FILE. It leaves existing local
-              installations unchanged until configured.
+              Use your connected Plex account to enable sign-in, then choose a Plex Home profile.
+              Each profile gets separate personal lists and watch history. Your existing data stays
+              with the primary owner profile. Checking the account does not enable sign-in.
             </p>
             <p class="muted">
               Sessions last seven days and survive server restarts. Change the password file and
               restart to sign all devices out. Recovery preserves your lists and integrations.
             </p>
-            <button id="owner-plex-id-find" class="secondary">
-              Find connected Plex account ID
-            </button>
+            <button id="owner-plex-id-find" class="secondary">Check connected Plex account</button>
             <button id="owner-plex-enable" class="primary" hidden>
               Enable Plex household sign-in
             </button>

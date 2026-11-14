@@ -1,4 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+// Access actions must stay usable while unrelated discovery/list work is busy.
+async function accessAction(button, fn) {
+  if (button.disabled) return;
+  button.disabled = true;
+  button.setAttribute?.('aria-busy', 'true');
+  try {
+    await fn();
+  } catch (error) {
+    $('owner-plex-id-result').textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.removeAttribute?.('aria-busy');
+  }
+}
 async function loadOwnerAccess() {
   try {
     const response = await fetch('/api/auth/status', { cache: 'no-store' });
@@ -21,13 +35,16 @@ loadWorkflowSettings = async function () {
   await loadOwnerAccess();
 };
 $('owner-sign-out').onclick = (e) =>
-  task(e.target, async () => {
+  accessAction(e.target, async () => {
     await api('auth/logout', {});
     window.location.reload();
   });
 
 $('owner-plex-id-find').onclick = (event) =>
-  task(event.target, async () => {
+  accessAction(event.target, async () => {
+    $('owner-plex-id-result').textContent = 'Checking your connected Plex account...';
+    $('owner-plex-enable').hidden = true;
+    window.verifiedOwnerAccount = null;
     try {
       const result = await api('owner/plex-account', {});
       window.verifiedOwnerAccount = result;
@@ -35,9 +52,7 @@ $('owner-plex-id-find').onclick = (event) =>
       $('owner-plex-id-result').textContent =
         'Verified ' +
         result.account +
-        '. Operator setting: LISTWEAVARR_OWNER_PLEX_ID=' +
-        result.id +
-        '. You can enable household sign-in below, or use this setting in your server environment. This lookup does not change access.';
+        '. Next, choose Enable Plex household sign-in to select your Plex Home profile. Your existing owner data will be preserved.';
     } catch (error) {
       $('owner-plex-id-result').textContent = error.message;
     }
@@ -69,7 +84,7 @@ render = function () {
 };
 
 $('owner-plex-enable').onclick = (event) =>
-  task(event.target, async () => {
+  accessAction(event.target, async () => {
     const account = window.verifiedOwnerAccount;
     if (!account) return;
     if (
